@@ -26,6 +26,7 @@ ignore = [
   "D100",    # undocumented-public-module
   "D205",    # blank-line-after-summary
   "E731",    # lambda-assignment
+  "EM102",   #
   "ERA",     # commented-out-code
   "N806",    # non-lowercase-variable-in-function
   "PD901",   # pandas-df-variable-name
@@ -36,5 +37,8 @@ ignore = [
   "PT006",   # pytest-parametrize-names-wrong-type
   "PT013",   # pytest-incorrect-pytest-import
   "PTH",     # prefer pathlib to os.path
+  "S101",    # use of assert detected
+  "T201",
+  "TRY003",  # Avoid specifying long messages outside the exception class
 ]
 pydocstyle.convention = "google"
