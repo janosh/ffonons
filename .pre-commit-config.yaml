@@ -1,0 +1,44 @@
+ci:
+  autoupdate_schedule: quarterly
+  autofix_commit_msg: pre-commit auto-fixes
+  autoupdate_commit_msg: pre-commit autoupdate
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.5
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+      - id: codespell
+        stages: [commit, commit-msg]
+        exclude_types: [html, csv, bib]
+        args: [--check-filenames]
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.37.0
+    hooks:
+      - id: markdownlint
+        # MD013: line too long
+        # MD024: Multiple headings with the same content
+        # MD033: no inline HTML
+        # MD041: first line in a file should be a top-level heading
+        # MD025: single title
+        args: [--disable, MD013, MD024, MD025, MD033, MD041, "--"]
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.6.1
+    hooks:
+      - id: nbstripout
+        args: [--drop-empty-cells, --keep-output]

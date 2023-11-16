@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uni-mace"
+version = "0.1.0"
+description = "Code and data for the universal MACE colab with Gabor Csanyi's group"
+authors = [{ name = "Janosh Riebesell", email = "janosh.riebesell@gmail.com" }]
+readme = "readme.md"
+license = { file = "license" }
+requires-python = ">=3.10"
+
+[project.urls]
+Repo = "https://github.com/janosh/unimace"
+
+[tool.setuptools.packages.find]
+include = ["unimace*"]
+
+[tool.ruff]
+target-version = "py310"
+select = ["ALL"]
+ignore = [
+  "C408",    # unnecessary-collection-call
+  "COM812",  # missing trailing comma
+  "D100",    # undocumented-public-module
+  "D205",    # blank-line-after-summary
+  "E731",    # lambda-assignment
+  "ERA",     # commented-out-code
+  "N806",    # non-lowercase-variable-in-function
+  "PD901",   # pandas-df-variable-name
+  "PERF203", # try-except-in-loop
+  "PLC0414", # useless-import-alias
+  "PLR",     # pylint refactor
+  "PLW2901", # redefined-loop-name
+  "PT006",   # pytest-parametrize-names-wrong-type
+  "PT013",   # pytest-incorrect-pytest-import
+  "PTH",     # prefer pathlib to os.path
+]
+pydocstyle.convention = "google"
