@@ -4,10 +4,13 @@ import shutil
 from time import perf_counter
 
 import atomate2.forcefields.jobs as ff_jobs
+from atomate2.common.schemas.phonons import PhononBSDOSDoc as AtomPhononBSDOSDoc
 from atomate2.forcefields.flows.phonons import PhononMaker
+from emmet.core.phonon import PhononBSDOSDoc
 from jobflow import run_locally
 from matbench_discovery import ROOT as MBD_ROOT
-from pymatgen.ext.matproj import MPRester
+from mp_api.client import MPRester
+from pymatgen.core import Structure
 from pymatviz.io import save_fig
 
 from uni_mace import FIGS_DIR, ROOT
@@ -41,43 +44,47 @@ models = dict(
     #     phonon_displacement_maker=ff_jobs.M3GNetStaticMaker(),
     #     static_energy_maker=ff_jobs.M3GNetStaticMaker(),
     # ),
-    # CHGNet=dict(
-    #     bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(relax_kwargs=common_relax_kwds),
-    #     phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(),
-    #     static_energy_maker=ff_jobs.CHGNetStaticMaker(),
-    # ),
+    CHGNet=dict(
+        bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(relax_kwargs=common_relax_kwds),
+        phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(),
+        static_energy_maker=ff_jobs.CHGNetStaticMaker(),
+    ),
 )
 
-mp_ids = "mp-149 mp-169 mp-4511".split()
-structs = list(map(MPRester().get_structure_by_material_id, mp_ids))
-for idx, struct in enumerate(structs):
-    struct.properties["id"] = mp_ids[idx]
+
+# see https://legacy.materialsproject.org/#search/materials/{%22has_phonons%22%3Atrue}
+# for all mp-ids with phonons data
+mp_ids = (
+    "mp-504729 mp-3486 mp-23137 mp-8799 mp-28591 mp-989639 mp-10182 mp-672 "
+    "mp-5342 mp-27422 mp-29750 mp-9919 mp-2894 mp-406 mp-567776 mp-8192 mp-697144 "
+    "mp-15794 mp-23268 mp-3163 mp-14069 mp-23405 mp-3056 mp-27207 mp-11175 mp-11718 "
+    "mp-9566 mp-14092 mp-1960 mp-30459 mp-772290 mp-996943 mp-571093 mp-149".split()
+)
 
 
 # %%
-for struct in structs:
-    # try to urlretrieve the image at
-    # https://legacy.materialsproject.org/phonons/{mp-id}/phonon_disp
-    # and save to save folder as {mp-id}.png
-    mat_id = struct.properties["id"]
-    out_dir = f"{FIGS_DIR}/phonon/{mat_id}-{struct.formula}"
+mpr = MPRester(mute_progress_bars=True)
+
+for mp_id in mp_ids:
+    struct: Structure = mpr.get_structure_by_material_id(mp_id)
+    struct.properties["id"] = mp_id
+
+    out_dir = f"{FIGS_DIR}/phonon/{mp_id}-{struct.formula.replace(' ', '')}"
     mp_dos_fig_path = f"{out_dir}/dos-mp.pdf"
     mp_bands_fig_path = f"{out_dir}/bands-mp.pdf"
-    if not os.path.isfile(mp_dos_fig_path) or not os.path.isfile(mp_bands_fig_path):
-        try:
-            mp_phonon = MPRester().materials.phonon.get_data_by_id(
-                mat_id, fields=["ph_bs", "ph_dos"]
-            )
-            mp_phonon_dos = mp_phonon.ph_dos
-            mp_phonon_bs = mp_phonon.ph_bs
-            ax_bs_mp = plot_phonon_bs(struct, mp_phonon_bs, "MP")
-            save_fig(ax_bs_mp, mp_bands_fig_path)
-            ax_dos_mp = plot_phonon_dos(struct, mp_phonon_dos, "MP")
-            save_fig(ax_dos_mp, mp_dos_fig_path)
+    # struct.to(filename=f"{out_dir}/struct.cif")
 
-        except Exception as exc:
-            print(f"MP doesn't have phonon data for {mat_id!r}:\n{exc}")
-            continue
+    if not os.path.isfile(mp_dos_fig_path) or not os.path.isfile(mp_bands_fig_path):
+        mp_phonon_doc: PhononBSDOSDoc = mpr.materials.phonon.get_data_by_id(mp_id)
+        os.makedirs(out_dir, exist_ok=True)  # create dir only if MP has phonon data
+
+        ax_bs_mp = plot_phonon_bs(mp_phonon_doc.ph_bs, struct, "MP")
+        # always save figure right away, plotting another figure will clear the axis!
+        save_fig(ax_bs_mp, mp_bands_fig_path)
+
+        ax_dos_mp = plot_phonon_dos(mp_phonon_doc.ph_dos, struct, "MP")
+
+        save_fig(ax_dos_mp, mp_dos_fig_path)
 
     for model, makers in models.items():
         try:
@@ -86,7 +93,6 @@ for struct in structs:
             if os.path.isfile(dos_fig_path) and os.path.isfile(bands_fig_path):
                 print(f"Skipping {model} for {struct.formula}")
                 continue
-            os.makedirs(out_dir, exist_ok=True)
 
             start = perf_counter()
             phonon_flow = PhononMaker(
@@ -108,15 +114,17 @@ for struct in structs:
             )
             print(f"{model} took: {perf_counter() - start:.2f} s")
 
-            phonon_bs_dos_doc = next(reversed(responses.values()))[1].output
-            phonon_dos = phonon_bs_dos_doc.phonon_dos
-            ax_dos = plot_phonon_dos(struct, phonon_dos, model)
-            ax_dos.figure.subplots_adjust(top=0.95)
+            ml_phonon_doc: AtomPhononBSDOSDoc = next(
+                val
+                for val in responses.values()
+                if isinstance(val[1].output, AtomPhononBSDOSDoc)
+            )[1].output
 
+            ax_dos = plot_phonon_dos(ml_phonon_doc.phonon_dos, struct, model)
             save_fig(ax_dos, dos_fig_path)
 
-            phonon_bands = phonon_bs_dos_doc.phonon_bandstructure
-            ax_bs = plot_phonon_bs(struct, phonon_bands, model)
+            phonon_bands = ml_phonon_doc.phonon_bandstructure
+            ax_bs = plot_phonon_bs(phonon_bands, struct, model)
             save_fig(ax_bs, bands_fig_path)
 
         except (RuntimeError, ValueError) as exc:
@@ -125,6 +133,3 @@ for struct in structs:
 
 # %% remove all runs
 shutil.rmtree(runs_dir)
-
-
-# %% plot all DOS into one figure
