@@ -3,7 +3,7 @@ requires = ["setuptools>=61.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "uni-mace"
+name = "ffonons"
 version = "0.1.0"
 description = "Code and data for the universal MACE colab with Gabor Csanyi's group"
 authors = [{ name = "Janosh Riebesell", email = "janosh.riebesell@gmail.com" }]
@@ -12,10 +12,10 @@ license = { file = "license" }
 requires-python = ">=3.10"
 
 [project.urls]
-Repo = "https://github.com/janosh/unimace"
+Repo = "https://github.com/janosh/ffonons"
 
 [tool.setuptools.packages.find]
-include = ["unimace*"]
+include = ["ffonons*"]
 
 [tool.ruff]
 target-version = "py310"

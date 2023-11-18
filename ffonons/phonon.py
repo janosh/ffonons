@@ -21,8 +21,8 @@ from pymatgen.phonon.dos import PhononDos
 from pymatviz.bandstructure import plot_band_structure
 from pymatviz.io import save_fig
 
-from uni_mace import FIGS_DIR, ROOT
-from uni_mace.plots import plot_phonon_bs, plot_phonon_dos
+from ffonons import FIGS_DIR, ROOT
+from ffonons.plots import plot_phonon_bs, plot_phonon_dos
 
 bs_key = "phonon_bandstructure"
 dos_key = "phonon_dos"
@@ -84,7 +84,7 @@ for mp_id in mp_ids:
     struct: Structure = mpr.get_structure_by_material_id(mp_id)
     struct.properties["id"] = mp_id
 
-    out_dir = f"{FIGS_DIR}/phonon/{mp_id}-{struct.formula.replace(' ', '')}"
+    out_dir = f"{FIGS_DIR}/{mp_id}-{struct.formula.replace(' ', '')}"
     mp_dos_fig_path = f"{out_dir}/dos-mp.pdf"
     mp_bands_fig_path = f"{out_dir}/bands-mp.pdf"
     # struct.to(filename=f"{out_dir}/struct.cif")
@@ -160,7 +160,7 @@ for mp_id in mp_ids:
 
 # %% load all docs
 all_docs = defaultdict(dict)
-for phonon_doc in glob(f"{FIGS_DIR}/phonon/**/phonon-bs-dos-*.json.gz"):
+for phonon_doc in glob(f"{FIGS_DIR}/**/phonon-bs-dos-*.json.gz"):
     with gzip.open(phonon_doc, "rt") as file:
         doc_dict = json.load(file)
 
@@ -168,7 +168,7 @@ for phonon_doc in glob(f"{FIGS_DIR}/phonon/**/phonon-bs-dos-*.json.gz"):
     doc_dict[bs_key] = PhononBandStructureSymmLine.from_dict(doc_dict[bs_key])
 
     material, model = re.search(
-        r".*/phonon/(.*)/phonon-bs-dos-(.*).json.gz", phonon_doc
+        r".*/(.*)/phonon-bs-dos-(.*).json.gz", phonon_doc
     ).groups()
     assert material.startswith("mp-"), f"Invalid {material=}"
 
@@ -184,16 +184,6 @@ band_structs = {
     "CHGnet": all_docs[material]["chgnet"][bs_key],
     "MACE": all_docs[material]["mace"][bs_key],
 }
-
-# plot_phonon_dos(all_docs[material][model][dos_key], model)
-fig = plot_band_structure(band_structs)
-fig.show()
-
-# %%
-{
-    v["name"].replace("GAMMA", "\\Gamma")
-    for v in all_docs[material][model][bs_key].branches
-} & {v["name"] for v in mp_phonon_doc.ph_bs.branches}
 
 fig = plot_band_structure(band_structs)
 fig.show()

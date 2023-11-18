@@ -1,3 +1,5 @@
-# Universal MACE Paper
+# FFonons
 
-Analysis and capabilities of the MACE model trained for Matbench Discovery on the MPtrj dataset.
+> Phonons from force fields.
+
+Analysis of universal forcefield abilities (M3GNet, CHGnet, MACE) to predict phonon bandstructures and density of states.
