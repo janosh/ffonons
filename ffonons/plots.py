@@ -6,11 +6,12 @@ from pymatgen.phonon.plotter import PhononBSPlotter, PhononDosPlotter
 
 
 def plot_phonon_bs(
-    phonon_bs: PhononBandStructureSymmLine, source: str, struct: Structure | None = None
+    phonon_bs: PhononBandStructureSymmLine,
+    title: str = "",
+    struct: Structure | None = None,
 ) -> plt.Axes:
     """Plot phonon band structure."""
     ax_bs = PhononBSPlotter(phonon_bs).get_plot()
-    title = source
     if struct:
         mat_id = struct.properties.get("id", "")
         title += f" {struct.formula} {mat_id}"
@@ -20,13 +21,19 @@ def plot_phonon_bs(
 
 
 def plot_phonon_dos(
-    phonon_dos: PhononDos, source: str, struct: Structure | None = None
+    phonon_dos: PhononDos | dict[str, PhononDos],
+    title: str = "",
+    struct: Structure | None = None,
 ) -> plt.Axes:
     """Plot phonon DOS."""
     ph_dos_plot = PhononDosPlotter()
-    ph_dos_plot.add_dos(dos=phonon_dos, label=source)
+
+    for key, dos in (
+        phonon_dos if isinstance(phonon_dos, dict) else {"": phonon_dos}
+    ).items():
+        ph_dos_plot.add_dos(dos=dos, label=key)
+
     ax_dos = ph_dos_plot.get_plot(legend=dict(fontsize=22))
-    title = source
     if struct:
         mat_id = struct.properties.get("id", "")
         title += f" {struct.formula} {mat_id}"

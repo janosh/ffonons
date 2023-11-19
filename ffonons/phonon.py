@@ -26,7 +26,8 @@ from ffonons.plots import plot_phonon_bs, plot_phonon_dos
 
 bs_key = "phonon_bandstructure"
 dos_key = "phonon_dos"
-
+id_key = "material_id"
+formula_key = "formula"
 
 # %%
 runs_dir = f"{ROOT}/runs"
@@ -167,23 +168,45 @@ for phonon_doc in glob(f"{FIGS_DIR}/**/phonon-bs-dos-*.json.gz"):
     doc_dict[dos_key] = PhononDos.from_dict(doc_dict[dos_key])
     doc_dict[bs_key] = PhononBandStructureSymmLine.from_dict(doc_dict[bs_key])
 
-    material, model = re.search(
-        r".*/(.*)/phonon-bs-dos-(.*).json.gz", phonon_doc
+    mp_id, formula, model = re.search(
+        r".*/(mp-.*)-(.*)/phonon-bs-dos-(.*).json.gz", phonon_doc
     ).groups()
-    assert material.startswith("mp-"), f"Invalid {material=}"
+    assert mp_id.startswith("mp-"), f"Invalid {mp_id=}"
 
-    all_docs[material][model] = doc_dict
+    all_docs[mp_id][model] = doc_dict | {formula_key: formula, id_key: mp_id}
 
 
 n_preds = sum(len(v) for v in all_docs.values())
 print(f"got {len(all_docs)} materials and {n_preds} predictions")
 
+materials_with_2 = [k for k, v in all_docs.items() if len(v) == 2]
+materials_with_3 = [k for k, v in all_docs.items() if len(v) == 3]
+
 
 # %%
-band_structs = {
-    "CHGnet": all_docs[material]["chgnet"][bs_key],
-    "MACE": all_docs[material]["mace"][bs_key],
-}
+for material in materials_with_3:
+    try:
+        mace, chgnet = all_docs[material]["mace"], all_docs[material]["chgnet"]
+        formula = mace[formula_key]
 
-fig = plot_band_structure(band_structs)
-fig.show()
+        band_structs = {"CHGnet": chgnet[bs_key], "MACE": mace[bs_key]}
+        fig = plot_band_structure(band_structs)
+        formula = chgnet[formula_key]
+        # turn title into link to materials project page
+        href = f"https://legacy.materialsproject.org/materials/{material}"
+        title = f"<a {href=}>{material}</a> {formula}"
+        fig.layout.title = dict(text=title, x=0.5)
+        fig.show()
+
+        # now the same for DOS
+        dos = {
+            "CHGnet": chgnet[dos_key],
+            "MACE": mace[dos_key],
+            "MP": all_docs[material]["mp"][dos_key],
+        }
+        ax = plot_phonon_dos(dos)
+        save_fig(ax, "dos-all.pdf")
+        ax.set_title(f"{material} {formula}", fontsize=22, fontweight="bold")
+
+    except ValueError as exc:
+        print(f"{material} failed: {exc}")
