@@ -10,7 +10,19 @@ def plot_phonon_bs(
     title: str = "",
     struct: Structure | None = None,
 ) -> plt.Axes:
-    """Plot phonon band structure."""
+    """Plot phonon band structure.
+
+    Args:
+        phonon_bs: PhononBandStructureSymmLine
+            Phonon band structure.
+        title: str = ""
+            Title of the plot.
+        struct: Structure | None = None
+            Structure to add to the title.
+
+    Returns:
+        Matplotlib axes
+    """
     ax_bs = PhononBSPlotter(phonon_bs).get_plot()
     if struct:
         mat_id = struct.properties.get("id", "")
@@ -25,7 +37,19 @@ def plot_phonon_dos(
     title: str = "",
     struct: Structure | None = None,
 ) -> plt.Axes:
-    """Plot phonon DOS."""
+    """Plot phonon DOS.
+
+    Args:
+        phonon_dos: PhononDos | dict[str, PhononDos]
+            Phonon DOS.
+        title: str = ""
+            Title of the plot.
+        struct: Structure | None = None
+            Structure to add to the title.
+
+    Returns:
+        Matplotlib axes
+    """
     ph_dos_plot = PhononDosPlotter()
 
     for key, dos in (

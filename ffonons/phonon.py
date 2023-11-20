@@ -18,7 +18,7 @@ from mp_api.client import MPRester
 from pymatgen.core import Structure
 from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
 from pymatgen.phonon.dos import PhononDos
-from pymatviz.bandstructure import plot_band_structure
+from pymatviz import plot_band_structure, plot_dos
 from pymatviz.io import save_fig
 
 from ffonons import FIGS_DIR, ROOT
@@ -37,7 +37,7 @@ os.makedirs(runs_dir, exist_ok=True)
 # common_relax_kwds = dict(fmax=0.00001, relax_cell=True)
 common_relax_kwds = dict(fmax=0.00001)
 mace_kwds = dict(
-    model_path=f"{MBD_ROOT}/models/mace/checkpoints/"
+    model=f"{MBD_ROOT}/models/mace/checkpoints/"
     # "2023-11-15-mace-16M-pbenner-mptrj-200-epochs.model",
     "2023-10-29-mace-16M-pbenner-mptrj-no-conditional-loss.model",
     model_kwargs={"device": "cpu", "default_dtype": "float64"},
@@ -45,14 +45,14 @@ mace_kwds = dict(
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
 
 models = dict(
-    # MACE=dict(
-    #     bulk_relax_maker=ff_jobs.MACERelaxMaker(
-    #         relax_kwargs=common_relax_kwds,
-    #         **mace_kwds,
-    #     ),
-    #     phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-    #     static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-    # ),
+    MACE=dict(
+        bulk_relax_maker=ff_jobs.MACERelaxMaker(
+            relax_kwargs=common_relax_kwds,
+            **mace_kwds,
+        ),
+        phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+        static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+    ),
     # M3GNet=dict(
     #     bulk_relax_maker=ff_jobs.M3GNetRelaxMaker(relax_kwargs=common_relax_kwds),
     #     phonon_displacement_maker=ff_jobs.M3GNetStaticMaker(),
@@ -179,34 +179,40 @@ for phonon_doc in glob(f"{FIGS_DIR}/**/phonon-bs-dos-*.json.gz"):
 n_preds = sum(len(v) for v in all_docs.values())
 print(f"got {len(all_docs)} materials and {n_preds} predictions")
 
-materials_with_2 = [k for k, v in all_docs.items() if len(v) == 2]
-materials_with_3 = [k for k, v in all_docs.items() if len(v) == 3]
+materials_with_2 = [key for key, val in all_docs.items() if len(val) == 2]
+print(f"{len(materials_with_2)=}")
+materials_with_3 = [key for key, val in all_docs.items() if len(val) == 3]
+print(f"{len(materials_with_3)=}")
 
 
 # %%
-for material in materials_with_3:
+for mp_id in materials_with_3:
     try:
-        mace, chgnet = all_docs[material]["mace"], all_docs[material]["chgnet"]
+        mace, chgnet = all_docs[mp_id]["mace"], all_docs[mp_id]["chgnet"]
         formula = mace[formula_key]
 
         band_structs = {"CHGnet": chgnet[bs_key], "MACE": mace[bs_key]}
         fig = plot_band_structure(band_structs)
         formula = chgnet[formula_key]
         # turn title into link to materials project page
-        href = f"https://legacy.materialsproject.org/materials/{material}"
-        title = f"<a {href=}>{material}</a> {formula}"
+        href = f"https://legacy.materialsproject.org/materials/{mp_id}"
+        title = f"<a {href=}>{mp_id}</a> {formula}"
         fig.layout.title = dict(text=title, x=0.5)
         fig.show()
 
         # now the same for DOS
-        dos = {
+        doses = {
             "CHGnet": chgnet[dos_key],
             "MACE": mace[dos_key],
-            "MP": all_docs[material]["mp"][dos_key],
+            "MP": all_docs[mp_id]["mp"][dos_key],
         }
-        ax = plot_phonon_dos(dos)
-        save_fig(ax, "dos-all.pdf")
-        ax.set_title(f"{material} {formula}", fontsize=22, fontweight="bold")
+        ax = plot_phonon_dos(doses)
+        ax.set_title(f"{mp_id} {formula}", fontsize=22, fontweight="bold")
+        save_fig(ax, f"{FIGS_DIR}/{mp_id}-{formula.replace(' ', '')}/dos-all.pdf")
+
+        fig_dos = plot_dos(doses)
+        fig_dos.layout.title = f"{mp_id} {formula}"
+        fig_dos.show()
 
     except ValueError as exc:
-        print(f"{material} failed: {exc}")
+        print(f"{mp_id} failed: {exc}")
