@@ -15,7 +15,7 @@ from mp_api.client import MPRester
 from pymatgen.core import Structure
 from pymatviz.io import save_fig
 
-from ffonons import FIGS_DIR, ROOT, bs_key, dos_key
+from ffonons import DATA_DIR, FIGS_DIR, ROOT, bs_key, dos_key
 from ffonons.plots import plot_phonon_bs, plot_phonon_dos
 
 __author__ = "Janosh Riebesell"
@@ -90,9 +90,11 @@ for mp_id in mp_ids:
     struct: Structure = mpr.get_structure_by_material_id(mp_id)
     struct.properties["id"] = mp_id
 
-    out_dir = f"{FIGS_DIR}/{mp_id}-{struct.formula.replace(' ', '')}"
-    mp_dos_fig_path = f"{out_dir}/dos-mp.pdf"
-    mp_bands_fig_path = f"{out_dir}/bands-mp.pdf"
+    dir_name = f"{mp_id}-{struct.formula.replace(' ', '')}"
+    figs_out_dir = f"{FIGS_DIR}/{dir_name}"
+    docs_out_dir = f"{DATA_DIR}/{dir_name}"
+    mp_dos_fig_path = f"{figs_out_dir}/dos-mp.pdf"
+    mp_bands_fig_path = f"{figs_out_dir}/bands-mp.pdf"
     # struct.to(filename=f"{out_dir}/struct.cif")
 
     if not os.path.isfile(mp_dos_fig_path) or not os.path.isfile(mp_bands_fig_path):
@@ -102,8 +104,9 @@ for mp_id in mp_ids:
             dos_key: mp_phonon_doc.ph_dos.as_dict(),
             bs_key: mp_phonon_doc.ph_bs.as_dict(),
         }
-        os.makedirs(out_dir, exist_ok=True)  # create dir only if MP has phonon data
-        with gzip.open(f"{out_dir}/phonon-bs-dos-mp.json.gz", "wt") as file:
+        # create dir only if MP has phonon data
+        os.makedirs(figs_out_dir, exist_ok=True)
+        with gzip.open(f"{docs_out_dir}/phonon-bs-dos-mp.json.gz", "wt") as file:
             file.write(json.dumps(mp_doc_dict))
 
         ax_bs_mp = plot_phonon_bs(mp_phonon_doc.ph_bs, "MP", struct)
@@ -116,9 +119,9 @@ for mp_id in mp_ids:
 
     for model, makers in models.items():
         try:
-            dos_fig_path = f"{out_dir}/dos-{model.lower()}.pdf"
-            bands_fig_path = f"{out_dir}/bands-{model.lower()}.pdf"
-            ml_doc_path = f"{out_dir}/phonon-bs-dos-{model.lower()}.json.gz"
+            dos_fig_path = f"{figs_out_dir}/dos-{model.lower()}.pdf"
+            bands_fig_path = f"{figs_out_dir}/bands-{model.lower()}.pdf"
+            ml_doc_path = f"{docs_out_dir}/phonon-bs-dos-{model.lower()}.json.gz"
             if all(map(os.path.isfile, (dos_fig_path, bands_fig_path, ml_doc_path))):
                 print(f"Skipping {model} for {struct.formula}")
                 continue

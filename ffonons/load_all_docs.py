@@ -9,7 +9,7 @@ from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
 from pymatgen.phonon.dos import PhononDos
 from tqdm import tqdm
 
-from ffonons import FIGS_DIR, bs_key, dos_key, formula_key, id_key
+from ffonons import DATA_DIR, bs_key, dos_key, formula_key, id_key
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
@@ -17,7 +17,8 @@ __date__ = "2023-11-24"
 
 # %% load all docs
 all_docs = defaultdict(dict)
-for phonon_doc in tqdm(glob(f"{FIGS_DIR}/**/phonon-bs-dos-*.json.gz"), desc="Loading"):
+
+for phonon_doc in tqdm(glob(f"{DATA_DIR}/**/phonon-bs-dos-*.json.gz"), desc="Loading"):
     with gzip.open(phonon_doc, "rt") as file:
         doc_dict = json.load(file)
 
