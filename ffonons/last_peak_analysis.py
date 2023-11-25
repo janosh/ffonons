@@ -1,14 +1,16 @@
 # %%
 import itertools
 from collections import defaultdict
+from glob import glob
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 from pymatviz.utils import add_identity_line
+from sklearn.metrics import r2_score
 
-from ffonons import dos_key, find_last_dos_peak, name_case_map
+from ffonons import FIGS_DIR, dos_key, find_last_dos_peak, name_case_map
 from ffonons.load_all_docs import all_docs
-from ffonons.plots import plot_phonon_dos
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
@@ -35,7 +37,7 @@ for col1, col2 in itertools.combinations(df_last_peak.columns, 2):
 
 
 # %% plot histogram of MP vs model last phonon DOS peaks
-fig = px.histogram(df_last_peak.filter(like="-"), nbins=800, opacity=0.6)
+fig = px.histogram(df_last_peak.filter(like=" - "), nbins=800, opacity=0.6)
 fig.layout.title = "Histogram of difference in last phonon DOS peak frequencies"
 fig.layout.xaxis.title = "Difference in Last Phonon DOS Peak Frequency (THz)"
 fig.layout.yaxis.title = "Number of Materials"
@@ -49,22 +51,43 @@ for idx, trace in enumerate(fig.data):
 fig.show()
 
 
+# %% compute MAE and R2 of MP vs model last phonon DOS peaks
+MAEs = defaultdict(dict)
+R2s = defaultdict(dict)
+shift = 0  # 1  # post-hoc PES hardening shift
+
+for model in ("MACE", "CHGNet"):
+    targets, preds = df_last_peak[["MP", model]].dropna().to_numpy().T
+    MAEs["MP"][model] = np.abs(targets - (preds + shift)).mean()
+    R2s["MP"][model] = r2_score(targets, (preds + shift))
+
+
 # %% plot MP vs model last phonon DOS peaks as scatter
-fig = px.scatter(df_last_peak.set_index("MP")[["MACE", "CHGNet"]].query("index < 50"))
+assert len(df_last_peak.query("MP > 50")) < 2  # only one outlier
+
+fig = px.scatter(
+    df_last_peak.set_index("MP")[["MACE", "CHGNet"]].query("index < 50") + shift
+)
 fig.layout.xaxis.title = "MP last phonon DOS peak frequency (THz)"
 fig.layout.yaxis.title = "Model last phonon DOS peak frequency (THz)"
-fig.layout.legend = dict(x=1, y=1, xanchor="right", yanchor="top")
+fig.layout.legend = dict(x=0, y=1, yanchor="top")
+fig.layout.update(width=800, height=600)
+
+for trace in fig.data:
+    trace.marker.size = 10
+    trace.marker.opacity = 0.8
+    MAE, R2 = MAEs["MP"][trace.name], R2s["MP"][trace.name]
+    trace.name = f"{trace.name} ({MAE=:.2f}, R<sup>2</sup>={R2:.2f})"
 
 add_identity_line(fig)
 fig.show()
 
 
-# %% plot location of last phonon DOS peak in DOS
-for mp_id, docs in all_docs.items():
-    for model, doc in docs.items():
-        phonon_dos = doc[dos_key]
-        ax = plot_phonon_dos({model: phonon_dos})
-        ax.set_title(f"{mp_id} {model}", fontsize=22, fontweight="bold")
-        last_peak = find_last_dos_peak(phonon_dos)
-        ax.axvline(last_peak, color="red", linestyle="--")
-        # save_fig(ax, f"{FIGS_DIR}/{mp_id}-{model}/{model}-dos.pdf")
+# %% get material ID with most over-softened DOS (i.e. last peak most underestimated)
+most_underestimated = df_last_peak.filter(like=" - ").idxmin().value_counts().idxmax()
+
+print(glob(f"{FIGS_DIR}/{most_underestimated}*/*")[0])
+
+
+# %% std dev of MP last phonon DOS peak
+print(f"MP last phonon DOS peak std dev: {df_last_peak['MP'].std():.2f} THz")

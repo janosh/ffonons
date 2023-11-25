@@ -15,7 +15,7 @@ from mp_api.client import MPRester
 from pymatgen.core import Structure
 from pymatviz.io import save_fig
 
-from ffonons import DATA_DIR, FIGS_DIR, ROOT, bs_key, dos_key
+from ffonons import DATA_DIR, FIGS_DIR, ROOT, bs_key, dos_key, find_last_dos_peak
 from ffonons.plots import plot_phonon_bs, plot_phonon_dos
 
 __author__ = "Janosh Riebesell"
@@ -113,7 +113,7 @@ for mp_id in mp_ids:
         # always save figure right away, plotting another figure will clear the axis!
         save_fig(ax_bs_mp, mp_bands_fig_path)
 
-        ax_dos_mp = plot_phonon_dos(mp_phonon_doc.ph_dos, "MP", struct)
+        ax_dos_mp = plot_phonon_dos({"MP": mp_phonon_doc.ph_dos}, "MP", struct)
 
         save_fig(ax_dos_mp, mp_dos_fig_path)
 
@@ -157,7 +157,20 @@ for mp_id in mp_ids:
             with gzip.open(ml_doc_path, "wt") as file:
                 file.write(json.dumps(ml_doc_dict))
 
-            ax_dos = plot_phonon_dos(ml_phonon_doc.phonon_dos, model, struct)
+            ax_dos = plot_phonon_dos({model: ml_phonon_doc.phonon_dos}, model, struct)
+
+            last_peak = find_last_dos_peak(ml_phonon_doc.phonon_dos)
+            _, dos_x_max, _, dos_y_max = ax_dos.axis()
+            ax_dos.axvline(last_peak, color="blue", linestyle="--", label="last peak")
+            ax_dos.text(
+                last_peak,
+                dos_y_max,
+                rf"$\omega_\text{{max}}={last_peak:.1f}$ THz",
+                fontsize=16,
+                color="blue",
+                va="bottom",
+                ha="center" if last_peak > 0.7 * dos_x_max else "left",
+            )
             save_fig(ax_dos, dos_fig_path)
 
             phonon_bands = ml_phonon_doc.phonon_bandstructure

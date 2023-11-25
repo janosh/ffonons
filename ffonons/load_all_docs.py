@@ -1,6 +1,7 @@
 # %%
 import gzip
 import json
+import os
 import re
 from collections import defaultdict
 from glob import glob
@@ -16,18 +17,23 @@ __date__ = "2023-11-24"
 
 
 # %% load all docs
+docs_paths = glob(f"{DATA_DIR}/**/phonon-bs-dos-*.json.gz")
 all_docs = defaultdict(dict)
 
-for phonon_doc in tqdm(glob(f"{DATA_DIR}/**/phonon-bs-dos-*.json.gz"), desc="Loading"):
-    with gzip.open(phonon_doc, "rt") as file:
+for doc_path in tqdm(docs_paths, desc="Loading docs"):
+    with gzip.open(doc_path, "rt") as file:
         doc_dict = json.load(file)
 
     doc_dict[dos_key] = PhononDos.from_dict(doc_dict[dos_key])
     doc_dict[bs_key] = PhononBandStructureSymmLine.from_dict(doc_dict[bs_key])
 
     mp_id, formula, model = re.search(
-        r".*/(mp-.*)-(.*)/phonon-bs-dos-(.*).json.gz", phonon_doc
+        r".*/(mp-.*)-(.*)/phonon-bs-dos-(.*).json.gz", doc_path
     ).groups()
     assert mp_id.startswith("mp-"), f"Invalid {mp_id=}"
 
-    all_docs[mp_id][model] = doc_dict | {formula_key: formula, id_key: mp_id}
+    all_docs[mp_id][model] = doc_dict | {
+        formula_key: formula,
+        id_key: mp_id,
+        "dir_path": os.path.dirname(doc_path),
+    }
