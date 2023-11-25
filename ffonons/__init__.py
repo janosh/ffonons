@@ -30,7 +30,7 @@ AnyDos = CompleteDos | PhononDos | Dos
 AnyBandStructure = BandStructureSymmLine | PhononBandStructureSymmLine
 
 
-def find_last_peak(dos: AnyDos, min_ratio: float = 0.1) -> float:
+def find_last_dos_peak(dos: AnyDos, min_ratio: float = 0.1) -> float:
     """Find the last peak in the phonon DOS defined as the highest frequency with a DOS
     value at least threshold_ratio times the height of the overall highest DOS peak.
     A peak is any local maximum of the KDE fit to the DOS data.

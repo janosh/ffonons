@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 from pymatviz.utils import add_identity_line
 
-from ffonons import dos_key, find_last_peak, name_case_map
+from ffonons import dos_key, find_last_dos_peak, name_case_map
 from ffonons.load_all_docs import all_docs
 from ffonons.plots import plot_phonon_dos
 
@@ -20,7 +20,7 @@ last_peaks = defaultdict(lambda: defaultdict(float))
 for mp_id, docs in all_docs.items():
     for model, doc in docs.items():
         phonon_dos = doc[dos_key]
-        last_peak = find_last_peak(phonon_dos)
+        last_peak = find_last_dos_peak(phonon_dos)
         key = name_case_map[model]
         last_peaks[mp_id][key] = last_peak
 
@@ -65,6 +65,6 @@ for mp_id, docs in all_docs.items():
         phonon_dos = doc[dos_key]
         ax = plot_phonon_dos({model: phonon_dos})
         ax.set_title(f"{mp_id} {model}", fontsize=22, fontweight="bold")
-        last_peak = find_last_peak(phonon_dos)
+        last_peak = find_last_dos_peak(phonon_dos)
         ax.axvline(last_peak, color="red", linestyle="--")
         # save_fig(ax, f"{FIGS_DIR}/{mp_id}-{model}/{model}-dos.pdf")
