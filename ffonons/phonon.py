@@ -2,10 +2,7 @@
 import gzip
 import json
 import os
-import re
 import shutil
-from collections import defaultdict
-from glob import glob
 from time import perf_counter
 
 import atomate2.forcefields.jobs as ff_jobs
@@ -16,18 +13,14 @@ from jobflow import run_locally
 from matbench_discovery import ROOT as MBD_ROOT
 from mp_api.client import MPRester
 from pymatgen.core import Structure
-from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
-from pymatgen.phonon.dos import PhononDos
-from pymatviz import plot_band_structure, plot_dos
 from pymatviz.io import save_fig
 
-from ffonons import FIGS_DIR, ROOT
+from ffonons import FIGS_DIR, ROOT, bs_key, dos_key
 from ffonons.plots import plot_phonon_bs, plot_phonon_dos
 
-bs_key = "phonon_bandstructure"
-dos_key = "phonon_dos"
-id_key = "material_id"
-formula_key = "formula"
+__author__ = "Janosh Riebesell"
+__date__ = "2023-11-19"
+
 
 # %%
 runs_dir = f"{ROOT}/runs"
@@ -169,62 +162,3 @@ for mp_id in mp_ids:
             save_fig(ax_bs, bands_fig_path)
         except (RuntimeError, ValueError) as exc:
             print(f"!!! {model} failed: {exc}")
-
-
-# %% load all docs
-all_docs = defaultdict(dict)
-for phonon_doc in glob(f"{FIGS_DIR}/**/phonon-bs-dos-*.json.gz"):
-    with gzip.open(phonon_doc, "rt") as file:
-        doc_dict = json.load(file)
-
-    doc_dict[dos_key] = PhononDos.from_dict(doc_dict[dos_key])
-    doc_dict[bs_key] = PhononBandStructureSymmLine.from_dict(doc_dict[bs_key])
-
-    mp_id, formula, model = re.search(
-        r".*/(mp-.*)-(.*)/phonon-bs-dos-(.*).json.gz", phonon_doc
-    ).groups()
-    assert mp_id.startswith("mp-"), f"Invalid {mp_id=}"
-
-    all_docs[mp_id][model] = doc_dict | {formula_key: formula, id_key: mp_id}
-
-
-n_preds = sum(len(v) for v in all_docs.values())
-print(f"got {len(all_docs)} materials and {n_preds} predictions")
-
-materials_with_2 = [key for key, val in all_docs.items() if len(val) == 2]
-print(f"{len(materials_with_2)=}")
-materials_with_3 = [key for key, val in all_docs.items() if len(val) == 3]
-print(f"{len(materials_with_3)=}")
-
-
-# %%
-for mp_id in materials_with_3:
-    try:
-        mace, chgnet = all_docs[mp_id]["mace"], all_docs[mp_id]["chgnet"]
-        formula = mace[formula_key]
-
-        band_structs = {"CHGnet": chgnet[bs_key], "MACE": mace[bs_key]}
-        fig = plot_band_structure(band_structs)
-        formula = chgnet[formula_key]
-        # turn title into link to materials project page
-        href = f"https://legacy.materialsproject.org/materials/{mp_id}"
-        title = f"<a {href=}>{mp_id}</a> {formula}"
-        fig.layout.title = dict(text=title, x=0.5)
-        fig.show()
-
-        # now the same for DOS
-        doses = {
-            "CHGnet": chgnet[dos_key],
-            "MACE": mace[dos_key],
-            "MP": all_docs[mp_id]["mp"][dos_key],
-        }
-        ax = plot_phonon_dos(doses)
-        ax.set_title(f"{mp_id} {formula}", fontsize=22, fontweight="bold")
-        save_fig(ax, f"{FIGS_DIR}/{mp_id}-{formula.replace(' ', '')}/dos-all.pdf")
-
-        fig_dos = plot_dos(doses)
-        fig_dos.layout.title = f"{mp_id} {formula}"
-        fig_dos.show()
-
-    except ValueError as exc:
-        print(f"{mp_id} failed: {exc}")
