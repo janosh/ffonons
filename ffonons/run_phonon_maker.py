@@ -160,17 +160,6 @@ for mp_id in mp_ids:
             ax_dos = plot_phonon_dos({model: ml_phonon_doc.phonon_dos}, model, struct)
 
             last_peak = find_last_dos_peak(ml_phonon_doc.phonon_dos)
-            _, dos_x_max, _, dos_y_max = ax_dos.axis()
-            ax_dos.axvline(last_peak, color="blue", linestyle="--", label="last peak")
-            ax_dos.text(
-                last_peak,
-                dos_y_max,
-                rf"$\omega_\text{{max}}={last_peak:.1f}$ THz",
-                fontsize=16,
-                color="blue",
-                va="bottom",
-                ha="center" if last_peak > 0.7 * dos_x_max else "left",
-            )
             save_fig(ax_dos, dos_fig_path)
 
             phonon_bands = ml_phonon_doc.phonon_bandstructure
