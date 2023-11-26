@@ -17,7 +17,7 @@ __date__ = "2023-11-24"
 
 
 # %% load all docs
-docs_paths = glob(f"{DATA_DIR}/**/phonon-bs-dos-*.json.gz")
+docs_paths = glob(f"{DATA_DIR}/phonon-bs-dos/*.json.gz")
 all_docs = defaultdict(dict)
 
 for doc_path in tqdm(docs_paths, desc="Loading docs"):
@@ -28,7 +28,7 @@ for doc_path in tqdm(docs_paths, desc="Loading docs"):
     doc_dict[bs_key] = PhononBandStructureSymmLine.from_dict(doc_dict[bs_key])
 
     mp_id, formula, model = re.search(
-        r".*/(mp-.*)-(.*)/phonon-bs-dos-(.*).json.gz", doc_path
+        r".*/phonon-bs-dos/(mp-.*)-(.*)-(.*).json.gz", doc_path
     ).groups()
     assert mp_id.startswith("mp-"), f"Invalid {mp_id=}"
 

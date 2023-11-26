@@ -25,6 +25,7 @@ bs_key = "phonon_bandstructure"
 dos_key = "phonon_dos"
 id_key = "material_id"
 formula_key = "formula"
+dos_peak_key = "last phdos peak"
 
 name_case_map = dict(mp="MP", mace="MACE", chgnet="CHGNet")
 

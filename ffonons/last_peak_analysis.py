@@ -33,7 +33,7 @@ df_last_peak = pd.DataFrame(last_peaks).T
 for col1, col2 in itertools.combinations(df_last_peak.columns, 2):
     diff = df_last_peak[col1] - df_last_peak[col2]
     df_last_peak[f"{col1} - {col2} ({len(diff.dropna())} points)"] = diff
-    print(f"{col1} - {col2}: {diff.mean():.2f} +- {diff.std():.2f}")
+    print(f"{col1} - {col2}: {diff.mean():.2f} +- {diff.std():.2f} THz")
 
 
 # %% plot histogram of MP vs model last phonon DOS peaks
@@ -54,7 +54,8 @@ fig.show()
 # %% compute MAE and R2 of MP vs model last phonon DOS peaks
 MAEs = defaultdict(dict)
 R2s = defaultdict(dict)
-shift = 0  # 1  # post-hoc PES hardening shift
+shift = 0  # 1  # post-hoc PES hardening shift in THz (ML-predicted frequencies will be
+# boosted by this amount)
 
 for model in ("MACE", "CHGNet"):
     targets, preds = df_last_peak[["MP", model]].dropna().to_numpy().T
@@ -64,6 +65,9 @@ for model in ("MACE", "CHGNet"):
 
 # %% plot MP vs model last phonon DOS peaks as scatter
 assert len(df_last_peak.query("MP > 50")) < 2  # only one outlier
+
+# std dev of MP last phonon DOS peak
+print(f"MP last phonon DOS peak std dev: {df_last_peak['MP'].std():.2f} THz")
 
 fig = px.scatter(
     df_last_peak.set_index("MP")[["MACE", "CHGNet"]].query("index < 50") + shift
@@ -83,11 +87,10 @@ add_identity_line(fig)
 fig.show()
 
 
-# %% get material ID with most over-softened DOS (i.e. last peak most underestimated)
-most_underestimated = df_last_peak.filter(like=" - ").idxmin().value_counts().idxmax()
-
-print(glob(f"{FIGS_DIR}/{most_underestimated}*/*")[0])
-
-
-# %% std dev of MP last phonon DOS peak
-print(f"MP last phonon DOS peak std dev: {df_last_peak['MP'].std():.2f} THz")
+# %% get 5 material IDs for each model with most over-softened DOS (i.e. last
+# peak most underestimated)
+for col in df_last_peak.filter(like=" - "):
+    most_underestimated = df_last_peak[col].sort_values()
+    print(most_underestimated[:5])
+    for mp_id in most_underestimated[:5].index:
+        print(glob(f"{FIGS_DIR}/{mp_id}*/*")[0])

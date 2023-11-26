@@ -15,7 +15,14 @@ from mp_api.client import MPRester
 from pymatgen.core import Structure
 from pymatviz.io import save_fig
 
-from ffonons import DATA_DIR, FIGS_DIR, ROOT, bs_key, dos_key, find_last_dos_peak
+from ffonons import (
+    DATA_DIR,
+    FIGS_DIR,
+    ROOT,
+    bs_key,
+    dos_key,
+    find_last_dos_peak,
+)
 from ffonons.plots import plot_phonon_bs, plot_phonon_dos
 
 __author__ = "Janosh Riebesell"
@@ -24,6 +31,7 @@ __date__ = "2023-11-19"
 
 # %%
 runs_dir = f"{ROOT}/runs"
+docs_dir = f"{DATA_DIR}/phonon-bs-dos"
 shutil.rmtree(runs_dir, ignore_errors=True)  # remove old runs
 os.makedirs(runs_dir, exist_ok=True)
 
@@ -90,9 +98,8 @@ for mp_id in mp_ids:
     struct: Structure = mpr.get_structure_by_material_id(mp_id)
     struct.properties["id"] = mp_id
 
-    dir_name = f"{mp_id}-{struct.formula.replace(' ', '')}"
-    figs_out_dir = f"{FIGS_DIR}/{dir_name}"
-    docs_out_dir = f"{DATA_DIR}/{dir_name}"
+    id_formula = f"{mp_id}-{struct.formula.replace(' ', '')}"
+    figs_out_dir = f"{FIGS_DIR}/{id_formula}"
     mp_dos_fig_path = f"{figs_out_dir}/dos-mp.pdf"
     mp_bands_fig_path = f"{figs_out_dir}/bands-mp.pdf"
     # struct.to(filename=f"{out_dir}/struct.cif")
@@ -106,7 +113,7 @@ for mp_id in mp_ids:
         }
         # create dir only if MP has phonon data
         os.makedirs(figs_out_dir, exist_ok=True)
-        with gzip.open(f"{docs_out_dir}/phonon-bs-dos-mp.json.gz", "wt") as file:
+        with gzip.open(f"{docs_dir}/{id_formula}-mp.json.gz", "wt") as file:
             file.write(json.dumps(mp_doc_dict))
 
         ax_bs_mp = plot_phonon_bs(mp_phonon_doc.ph_bs, "MP", struct)
@@ -121,7 +128,7 @@ for mp_id in mp_ids:
         try:
             dos_fig_path = f"{figs_out_dir}/dos-{model.lower()}.pdf"
             bands_fig_path = f"{figs_out_dir}/bands-{model.lower()}.pdf"
-            ml_doc_path = f"{docs_out_dir}/phonon-bs-dos-{model.lower()}.json.gz"
+            ml_doc_path = f"{docs_dir}/{id_formula}-{model.lower()}.json.gz"
             if all(map(os.path.isfile, (dos_fig_path, bands_fig_path, ml_doc_path))):
                 print(f"Skipping {model} for {struct.formula}")
                 continue
@@ -147,8 +154,6 @@ for mp_id in mp_ids:
                 for val in responses.values()
                 if isinstance(val[1].output, AtomPhononBSDOSDoc)
             )[1].output
-            labels = ml_phonon_doc.phonon_bandstructure.labels_dict
-            labels["$\\Gamma$"] = labels.pop("GAMMA")
             ml_doc_dict = {
                 dos_key: ml_phonon_doc.phonon_dos.as_dict(),
                 bs_key: ml_phonon_doc.phonon_bandstructure.as_dict(),
