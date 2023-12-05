@@ -6,6 +6,7 @@ from glob import glob
 import numpy as np
 import pandas as pd
 import plotly.express as px
+from pymatviz.io import save_fig
 from pymatviz.utils import add_identity_line
 from sklearn.metrics import r2_score
 
@@ -30,10 +31,13 @@ for mp_id, docs in all_docs.items():
 df_last_peak = pd.DataFrame(last_peaks).T
 
 # iterate over all pairs of columns
+print("MAE of last phonon DOS peak frequencies:")
 for col1, col2 in itertools.combinations(df_last_peak.columns, 2):
     diff = df_last_peak[col1] - df_last_peak[col2]
     df_last_peak[f"{col1} - {col2} ({len(diff.dropna())} points)"] = diff
-    print(f"{col1} - {col2}: {diff.mean():.2f} +- {diff.std():.2f} THz")
+    MAE = diff.abs().mean()
+    R2 = r2_score(*df_last_peak[[col1, col2]].dropna().to_numpy().T)
+    print(f"{col1} vs {col2} = {MAE:.2f} THz, {R2 = :.2f}")
 
 
 # %% plot histogram of MP vs model last phonon DOS peaks
@@ -84,7 +88,9 @@ for trace in fig.data:
     trace.name = f"{trace.name} ({MAE=:.2f}, R<sup>2</sup>={R2:.2f})"
 
 add_identity_line(fig)
+fig.layout.margin = dict(l=8, r=8, b=8, t=8)
 fig.show()
+save_fig(fig, f"{FIGS_DIR}/mp-vs-model-last-peak-scatter.pdf")
 
 
 # %% get 5 material IDs for each model with most over-softened DOS (i.e. last
@@ -93,4 +99,13 @@ for col in df_last_peak.filter(like=" - "):
     most_underestimated = df_last_peak[col].sort_values()
     print(most_underestimated[:5])
     for mp_id in most_underestimated[:5].index:
+        print(glob(f"{FIGS_DIR}/{mp_id}*/*")[0])
+
+
+# %% get 5 material IDs for each model with most accurate DOS (i.e. last peak
+# closest to MP)
+for col in df_last_peak.filter(like=" - "):
+    most_accurate = df_last_peak[col].abs().sort_values()
+    print(most_accurate[:5])
+    for mp_id in most_accurate[:5].index:
         print(glob(f"{FIGS_DIR}/{mp_id}*/*")[0])

@@ -24,4 +24,4 @@ def test_root() -> None:
 
 def test_find_last_dos_peak(mace_dos: PhononDos) -> None:
     last_peak = find_last_dos_peak(mace_dos)
-    assert last_peak == pytest.approx(10.026070, abs=0.01)
+    assert last_peak == pytest.approx(10.057336, abs=0.01)

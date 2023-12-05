@@ -40,6 +40,7 @@ ignore = [
   "PTH",     # prefer pathlib to os.path
   "S101",    # use of assert detected
   "T201",
+  "TD",
   "TRY003",  # Avoid specifying long messages outside the exception class
 ]
 pydocstyle.convention = "google"

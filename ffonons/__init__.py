@@ -52,8 +52,10 @@ def find_last_dos_peak(dos: AnyDos, min_ratio: float = 0.1) -> float:
     maxima_idx = (
         (first_deriv[:-1] > 0) & (first_deriv[1:] < 0) & (second_deriv[:-1] < 0)
     )  # maxima of the first derivative
-
-    maxima_frequencies = dos.frequencies[:-1][maxima_idx]
+    # get mean of the two frequencies around the maximum
+    maxima_frequencies = (
+        dos.frequencies[:-1][maxima_idx] + dos.frequencies[1:][maxima_idx]
+    ) / 2
 
     # Filter maxima based on the threshold
     max_dos = max(dos.densities)

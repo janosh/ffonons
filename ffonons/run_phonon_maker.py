@@ -10,7 +10,6 @@ from atomate2.common.schemas.phonons import PhononBSDOSDoc as AtomPhononBSDOSDoc
 from atomate2.forcefields.flows.phonons import PhononMaker
 from emmet.core.phonon import PhononBSDOSDoc
 from jobflow import run_locally
-from matbench_discovery import ROOT as MBD_ROOT
 from mp_api.client import MPRester
 from pymatgen.core import Structure
 from pymatviz.io import save_fig
@@ -38,15 +37,13 @@ os.makedirs(runs_dir, exist_ok=True)
 # common_relax_kwds = dict(fmax=0.00001, relax_cell=True)
 common_relax_kwds = dict(fmax=0.00001)
 mace_kwds = dict(
-    model=f"{MBD_ROOT}/models/mace/checkpoints/"
-    # "2023-11-15-mace-16M-pbenner-mptrj-200-epochs.model",
-    "2023-10-29-mace-16M-pbenner-mptrj-no-conditional-loss.model",
+    model="https://tinyurl.com/y7uhwpje",
     model_kwargs={"device": "cpu", "default_dtype": "float64"},
 )
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
 
-models = dict(
-    MACE=dict(
+models = {
+    "MACE y7uhwpje": dict(
         bulk_relax_maker=ff_jobs.MACERelaxMaker(
             relax_kwargs=common_relax_kwds,
             **mace_kwds,
@@ -54,19 +51,19 @@ models = dict(
         phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
         static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
     ),
-    # M3GNet=dict(
+    # "M3GNet":dict(
     #     bulk_relax_maker=ff_jobs.M3GNetRelaxMaker(relax_kwargs=common_relax_kwds),
     #     phonon_displacement_maker=ff_jobs.M3GNetStaticMaker(),
     #     static_energy_maker=ff_jobs.M3GNetStaticMaker(),
     # ),
-    CHGNet=dict(
+    "CHGNet v0.3.0": dict(
         bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
             relax_kwargs=common_relax_kwds, **chgnet_kwds
         ),
         phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
         static_energy_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
     ),
-)
+}
 
 
 # see https://legacy.materialsproject.org/#search/materials/{%22has_phonons%22%3Atrue}
@@ -125,22 +122,30 @@ for mp_id in mp_ids:
         save_fig(ax_dos_mp, mp_dos_fig_path)
 
     for model, makers in models.items():
+        key = model.lower().replace(" ", "-")
         try:
-            dos_fig_path = f"{figs_out_dir}/dos-{model.lower()}.pdf"
-            bands_fig_path = f"{figs_out_dir}/bands-{model.lower()}.pdf"
-            ml_doc_path = f"{docs_dir}/{id_formula}-{model.lower()}.json.gz"
+            dos_fig_path = f"{figs_out_dir}/dos-{key}.pdf"
+            bands_fig_path = f"{figs_out_dir}/bands-{key}.pdf"
+            ml_doc_path = f"{docs_dir}/{id_formula}-{key}.json.gz"
             if all(map(os.path.isfile, (dos_fig_path, bands_fig_path, ml_doc_path))):
                 print(f"Skipping {model} for {struct.formula}")
                 continue
 
             start = perf_counter()
             phonon_flow = PhononMaker(
-                **makers, min_length=15, store_force_constants=False
+                **makers,
+                use_symmetrized_structure="primitive",
+                min_length=15,
+                store_force_constants=False,
+                # use kpath_scheme="setyawan_curtarolo" when comparing to MP
+                # and 'seek_path' when comparing with PhonoDB!
+                # note: setyawan_curtarolo only compatible with primitive cell
+                kpath_scheme="setyawan_curtarolo",
             ).make(structure=struct)
 
             # phonon_flow.draw_graph().show()
 
-            os.makedirs(root_dir := f"{runs_dir}/{model.lower()}", exist_ok=True)
+            os.makedirs(root_dir := f"{runs_dir}/{key}", exist_ok=True)
             responses = run_locally(
                 phonon_flow,
                 root_dir=root_dir,
@@ -162,13 +167,15 @@ for mp_id in mp_ids:
             with gzip.open(ml_doc_path, "wt") as file:
                 file.write(json.dumps(ml_doc_dict))
 
-            ax_dos = plot_phonon_dos({model: ml_phonon_doc.phonon_dos}, model, struct)
+            ax_dos = plot_phonon_dos(
+                {model: ml_phonon_doc.phonon_dos}, f"{model} - ", struct
+            )
 
             last_peak = find_last_dos_peak(ml_phonon_doc.phonon_dos)
             save_fig(ax_dos, dos_fig_path)
 
             phonon_bands = ml_phonon_doc.phonon_bandstructure
-            ax_bs = plot_phonon_bs(phonon_bands, model, struct)
+            ax_bs = plot_phonon_bs(phonon_bands, f"{model} - ", struct)
             save_fig(ax_bs, bands_fig_path)
         except (RuntimeError, ValueError) as exc:
             print(f"!!! {model} failed: {exc}")

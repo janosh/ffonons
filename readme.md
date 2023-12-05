@@ -2,4 +2,4 @@
 
 > Phonons from force fields.
 
-Analysis of universal forcefield abilities (M3GNet, CHGnet, MACE) to predict phonon bandstructures and density of states.
+Analysis of universal force field abilities (M3GNet, CHGnet, MACE) to predict phonon bandstructures and density of states.
