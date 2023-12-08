@@ -21,6 +21,7 @@ include = ["ffonons*"]
 target-version = "py310"
 select = ["ALL"]
 ignore = [
+  "ANN401",  # Dynamically typed expressions (typing.Any) disallowed
   "BLE001",  # do not catch blind except
   "C408",    # unnecessary-collection-call
   "COM812",  # missing trailing comma
@@ -29,6 +30,9 @@ ignore = [
   "E731",    # lambda-assignment
   "EM102",   #
   "ERA",     # commented-out-code
+  "FBT001",
+  "FBT002",
+  "FIX002",
   "N806",    # non-lowercase-variable-in-function
   "PD901",   # pandas-df-variable-name
   "PERF203", # try-except-in-loop
