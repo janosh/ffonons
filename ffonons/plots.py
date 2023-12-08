@@ -81,19 +81,17 @@ def plot_phonon_dos(
             single_anchor = dict(
                 va="bottom", ha="center" if last_peak > 0.7 * dos_x_max else "left"
             )
-            multi_anchor = dict(
-                rotation=90, va="top", ha="left" if (idx == 0) else "right"
-            )
+            multi_anchor = dict(rotation=90, va="top", ha="right")
             ax.axvline(last_peak, color=color, linestyle="--", label="last peak")
             ax.text(
                 last_peak,
                 0.99 * dos_y_max,
-                last_peak_anno.format(key=key, last_peak=last_peak),
+                last_peak_anno.format(key=key.split(" ")[0], last_peak=last_peak),
                 fontsize=16,
                 color=color,
                 **(single_anchor if len(phonon_dos) == 1 else multi_anchor),
             )
 
-    ax.set_title(title, fontsize=22, fontweight="bold")
+    ax.set_title(title, fontsize=22)
     ax.figure.subplots_adjust(top=0.95)
     return ax
