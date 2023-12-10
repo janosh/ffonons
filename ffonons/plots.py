@@ -39,7 +39,7 @@ def plot_phonon_dos(
     title: str = "",
     struct: Structure | None = None,
     ax: plt.Axes | None = None,
-    last_peak_anno: str | None = r"$\omega_\text{{max}}^{{{key}}}={last_peak:.1f}$ THz",
+    last_peak_anno: str | None = r"$\omega_\text{{max}}^{{{key}}}={last_peak:.1f}$",
 ) -> plt.Axes:
     r"""Plot phonon DOS.
 
@@ -81,11 +81,12 @@ def plot_phonon_dos(
             single_anchor = dict(
                 va="bottom", ha="center" if last_peak > 0.7 * dos_x_max else "left"
             )
-            multi_anchor = dict(rotation=90, va="top", ha="right")
+            # multi_anchor = dict(rotation=90, va="top", ha="right")  # vertical mode
+            multi_anchor = dict(va="top", ha="right")  # horizontal mode
             ax.axvline(last_peak, color=color, linestyle="--", label="last peak")
             ax.text(
                 last_peak,
-                0.99 * dos_y_max,
+                0.99 * dos_y_max - idx * 0.25,
                 last_peak_anno.format(key=key.split(" ")[0], last_peak=last_peak),
                 fontsize=16,
                 color=color,
