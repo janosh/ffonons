@@ -3,6 +3,7 @@
 """
 
 import os
+from typing import Literal
 
 import numpy as np
 import plotly.express as px
@@ -27,6 +28,7 @@ id_key = "material_id"
 formula_key = "formula"
 dos_peak_key = "last phdos peak"
 
+WhichDB = Literal["mp", "phonon_db", "gnome"]
 name_case_map = dict(mp="MP", mace="MACE", chgnet="CHGNet")
 
 AnyDos = CompleteDos | PhononDos | Dos
