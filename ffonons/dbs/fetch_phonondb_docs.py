@@ -17,7 +17,7 @@ __date__ = "2023-12-07"
 
 # %%
 def get_mp_doc_ids_from_url(url: str) -> pd.DataFrame:
-    """Extract doc id, MP ID from togo db and download the phonopy file."""
+    """Extract doc id, MP ID from Togo DB and download the phonopy file."""
     # Send an HTTP request to the URL
     response = requests.get(url, timeout=15)
 

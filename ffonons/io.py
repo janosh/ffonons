@@ -7,6 +7,7 @@ import lzma
 import os
 import re
 from collections import defaultdict
+from collections.abc import Sequence
 from glob import glob
 from pathlib import Path
 from typing import Any, Literal
@@ -16,6 +17,7 @@ import numpy as np
 import phonopy
 from phonopy.phonon.band_structure import get_band_qpoints_and_path_connections
 from phonopy.units import VaspToTHz
+from pymatgen.core import Structure
 from pymatgen.io.phonopy import (
     get_ph_bs_symm_line,
     get_ph_dos,
@@ -276,3 +278,40 @@ def parse_phonondb_docs(
         if kwargs.get("create_thermal_displacements")
         else None,
     }
+
+
+def get_gnome_pmg_structures(
+    zip_path: str = f"{DATA_DIR}/gnome/stable-cifs-by-id.zip",
+    ids: int | Sequence[str] = 10,
+) -> dict[str, Structure]:
+    """Load structures from GNoME ZIP file.
+
+    Args:
+        zip_path (str): Path to GNoME ZIP file. Defaults to
+            f"{DATA_DIR}/gnome/stable-cifs-by-id.zip".
+        ids (int | Sequence[str]): number of structures to load or list of material IDs.
+            Defaults to 10.
+
+    Returns:
+        dict[str, Structure]: dict of structures with material ID as key
+    """
+    structs: dict[str, Structure] = {}
+    with ZipFile(zip_path, "r") as zip_ref:
+        if isinstance(ids, int):
+            file_list = zip_ref.namelist()[:ids]
+        elif isinstance(ids, Sequence):
+            file_list = [f"by_id/{mp_id}.CIF" for mp_id in ids]
+        else:
+            raise TypeError(f"Invalid {ids=}")
+
+        desc = "Loading GNoME structures"
+        for filename in tqdm(file_list, desc=desc, disable=len(file_list) < 100):
+            if filename.endswith(".CIF"):
+                mat_id = filename.split("/")[-1].split(".")[0]
+                with zip_ref.open(filename) as file:
+                    struct = Structure.from_str(file.read().decode(), "cif")
+
+                struct.properties["id"] = mat_id
+                structs[mat_id] = struct
+
+    return structs
