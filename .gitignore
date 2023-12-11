@@ -5,3 +5,6 @@ __pycache__/
 *.egg-info/
 runs/
 data/gnome/stable-cifs-by-id.zip
+data/phonon_db/mp-*-pbe.zip
+figs/phonon_db/
+data/phonon_db/

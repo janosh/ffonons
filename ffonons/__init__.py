@@ -26,6 +26,7 @@ bs_key = "phonon_bandstructure"
 dos_key = "phonon_dos"
 id_key = "material_id"
 formula_key = "formula"
+struct_key = "structure"
 dos_peak_key = "last phdos peak"
 
 WhichDB = Literal["mp", "phonon_db", "gnome"]

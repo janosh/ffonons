@@ -17,7 +17,7 @@ def get_phonopy_kpath(
     Args:
         structure (Structure): pymatgen structure object
         kpath_scheme (str): kpath scheme
-        symprec (float): precision for symmetry determination
+        symprec (float): precision for structure symmetry determination
         **kwargs: additional params passed to HighSymmKpath or KPathSeek
 
     Returns:
