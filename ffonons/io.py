@@ -1,26 +1,25 @@
 """This model defines utility functions for loading existing DFT or ML phonon
 band structures and DOSs.
 """
-import gzip
+import io
 import json
-import lzma
 import os
 import re
 from collections import defaultdict
 from collections.abc import Sequence
 from glob import glob
-from pathlib import Path
 from typing import Any, Literal
 from zipfile import ZipFile
 
 import numpy as np
 import phonopy
+import yaml
+from monty.io import zopen
 from phonopy.phonon.band_structure import get_band_qpoints_and_path_connections
 from phonopy.units import VaspToTHz
 from pymatgen.core import Structure
 from pymatgen.io.phonopy import (
-    get_ph_bs_symm_line,
-    get_ph_dos,
+    get_ph_bs_symm_line_from_dict,
     get_pmg_structure,
 )
 from pymatgen.io.vasp import Kpoints
@@ -28,7 +27,7 @@ from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
 from pymatgen.phonon.dos import PhononDos
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, FIGS_DIR, bs_key, dos_key, formula_key, id_key
+from ffonons import DATA_DIR, bs_key, dos_key, formula_key, id_key
 from ffonons.dbs.phonondb import get_phonopy_kpath
 
 __author__ = "Janine George, Aakash Naik, Janosh Riebesell"
@@ -49,33 +48,35 @@ def load_pymatgen_phonon_docs(
             model name, and third-level key is either "phonon_dos" or
             "phonon_bandstructure".
     """
-    mp_docs_paths = glob(f"{DATA_DIR}/{which_db}/*.json.gz")
-    mp_docs = defaultdict(dict)
+    # glob json.gz or .json.lzma files
+    paths = glob(f"{DATA_DIR}/{which_db}/*.json.gz") + glob(
+        f"{DATA_DIR}/{which_db}/*.json.lzma"
+    )
+    ph_docs = defaultdict(dict)
 
-    for doc_path in tqdm(mp_docs_paths, desc=f"Loading {which_db} docs"):
-        with gzip.open(doc_path, "rt") as file:
+    for path in tqdm(paths, desc=f"Loading {which_db} docs"):
+        with zopen(path, "rt") as file:
             doc_dict = json.load(file)
 
         doc_dict[dos_key] = PhononDos.from_dict(doc_dict[dos_key])
         doc_dict[bs_key] = PhononBandStructureSymmLine.from_dict(doc_dict[bs_key])
 
         mp_id, formula, model = re.search(
-            rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.gz", doc_path
+            rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.*", path
         ).groups()
         assert mp_id.startswith("mp-"), f"Invalid {mp_id=}"
 
-        mp_docs[mp_id][model] = doc_dict | {
+        ph_docs[mp_id][model] = doc_dict | {
             formula_key: formula,
             id_key: mp_id,
-            "dir_path": os.path.dirname(doc_path),
+            "dir_path": os.path.dirname(path),
         }
 
-    return mp_docs
+    return ph_docs
 
 
 def parse_phonondb_docs(
-    phonopy_yaml: str | None = None,
-    out_dir: str = FIGS_DIR,
+    phonopy_doc_path: str | None = None,
     supercell: list[int] = (2, 2, 2),
     primitive_matrix: str | list[list[float]] = "auto",
     nac: bool = True,
@@ -85,14 +86,14 @@ def parse_phonondb_docs(
     code: str = "vasp",
     kpath_scheme: str = "seekpath",
     symprec: float = 1e-5,
+    out_dir: str | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """Get phonon data from phonopy and save it to disk. Returns the structure and the
     phonon data as dict.
 
     Args:
-        phonopy_yaml (str, optional): path to phonopy yaml file. Defaults to None.
-        out_dir (str, optional): path to output directory. Defaults to FIGS_DIR.
+        phonopy_doc_path (str, optional): path to phonopy yaml file. Defaults to None.
         supercell (list[int], optional): supercell matrix. Defaults to (2, 2, 2).
         primitive_matrix (str | list[list[float]], optional): primitive matrix.
             Defaults to "auto".
@@ -106,23 +107,29 @@ def parse_phonondb_docs(
             Important to use "seekpath" if not using primitive cell as input!
         symprec (float, optional): precision for symmetry determination.
             Defaults to 1e-5.
+        out_dir (str, optional): path to output directory. Defaults to None.
+            Must be specified if passing band_structure_eigenvectors or
+            band_structure_eigenvectors as kwargs.
         **kwargs: additional parameters that can be passed to this method as a dict
 
     Returns:
         dict: phonon data
     """
-    os.makedirs(out_dir, exist_ok=True)
     if code == "vasp":
         factor = VaspToTHz
-    if phonopy_yaml.lower().endswith(".zip"):
+    if phonopy_doc_path.lower().endswith(".zip"):
         # open zip archive and only read the phonopy_params.yaml.xz file from it
-        with ZipFile(phonopy_yaml, "r") as zip_file:
-            yaml_xz = zip_file.open("phonopy_params.yaml.xz")
-            # wrap uncompressed yaml.xz file content with io.IOBase object
-            # to make it compatible with phonopy.load
-            phonopy_yaml = lzma.open(yaml_xz, "rt")
+        with ZipFile(phonopy_doc_path, "r") as zip_file:
+            try:
+                yaml_xz = zip_file.open("phonopy_params.yaml.xz")
+                phonopy_doc_path = zopen(yaml_xz, "rt")
+            except Exception as exc:
+                available_files = zip_file.namelist()
+                raise RuntimeError(
+                    f"Failed to read {phonopy_doc_path=}, {available_files=}"
+                ) from exc
 
-    if phonopy_yaml is None:
+    if phonopy_doc_path is None:
         phonon = phonopy.load(
             supercell_matrix=supercell,
             primitive_matrix=primitive_matrix,
@@ -134,7 +141,7 @@ def parse_phonondb_docs(
         )
     else:
         phonon = phonopy.load(
-            phonopy_yaml,
+            phonopy_doc_path,
             factor=factor,
             is_nac=nac,
         )
@@ -150,8 +157,6 @@ def parse_phonondb_docs(
     )
 
     # phonon band structures will always be computed
-    filename_band_yaml = f"{out_dir}/phonon-band-structure.yaml"
-
     # TODO: potentially add kwargs to avoid computation of eigenvectors
     phonon.run_band_structure(
         q_points,
@@ -159,13 +164,17 @@ def parse_phonondb_docs(
         with_eigenvectors=kwargs.get("band_structure_eigenvectors", False),
         is_band_connection=kwargs.get("band_structure_eigenvectors", False),
     )
-    phonon.write_yaml_band_structure(filename=filename_band_yaml)
-    bs_symm_line = get_ph_bs_symm_line(
-        filename_band_yaml,
+
+    # convert bands to pymatgen PhononBandStructureSymmLine
+    bands_io = io.StringIO()  # create in-memory io like like object to write yaml to
+    phonon._band_structure._write_yaml(w=bands_io, comment=None)  # noqa: SLF001
+    # parse bands_io.getvalue() as YAML
+    bands_dict = yaml.safe_load(bands_io.getvalue())
+    bs_symm_line = get_ph_bs_symm_line_from_dict(
+        bands_dict,
         labels_dict=k_path_dict,
         has_nac=phonon.nac_params is not None,
     )
-    os.remove(filename_band_yaml)
 
     # will determine if imaginary modes are present in the structure
     imaginary_modes = bs_symm_line.has_imaginary_freq(
@@ -174,11 +183,10 @@ def parse_phonondb_docs(
 
     # gets data for visualization on website - yaml is also enough
     if kwargs.get("band_structure_eigenvectors"):
+        os.makedirs(out_dir, exist_ok=True)
         bs_symm_line.write_phononwebsite(f"{out_dir}/phonon-website.json")
 
-    # get phonon density of states
-    filename_dos_yaml = f"{out_dir}/phonon-dos.yaml"
-
+    # convert phonon DOS to pymatgen PhononDos
     kpoint_density_dos = kwargs.get("kpoint_density_dos", 7000)
     kpoint = Kpoints.automatic_density(
         structure=get_pmg_structure(phonon.primitive),
@@ -187,10 +195,9 @@ def parse_phonondb_docs(
     )
     phonon.run_mesh(kpoint.kpts[0])
     phonon.run_total_dos()
-    phonon.write_total_dos(filename=filename_dos_yaml)
-    dos = get_ph_dos(filename_dos_yaml)
-    # rm filename_dos_yaml
-    os.remove(filename_dos_yaml)
+    ph_dos = PhononDos(
+        frequencies=phonon.total_dos.frequency_points, densities=phonon.total_dos.dos
+    )
 
     # compute vibrational part of free energies per formula unit
     temperature_range = np.arange(
@@ -198,26 +205,26 @@ def parse_phonondb_docs(
     )
 
     free_energies = [
-        dos.helmholtz_free_energy(
+        ph_dos.helmholtz_free_energy(
             structure=get_pmg_structure(phonon.primitive), t=temperature
         )
         for temperature in temperature_range
     ]
 
     entropies = [
-        dos.entropy(structure=get_pmg_structure(phonon.primitive), t=temperature)
+        ph_dos.entropy(structure=get_pmg_structure(phonon.primitive), t=temperature)
         for temperature in temperature_range
     ]
 
     internal_energies = [
-        dos.internal_energy(
+        ph_dos.internal_energy(
             structure=get_pmg_structure(phonon.primitive), t=temperature
         )
         for temperature in temperature_range
     ]
 
     heat_capacities = [
-        dos.cv(structure=get_pmg_structure(phonon.primitive), t=temperature)
+        ph_dos.cv(structure=get_pmg_structure(phonon.primitive), t=temperature)
         for temperature in temperature_range
     ]
 
@@ -241,11 +248,12 @@ def parse_phonondb_docs(
             kwargs.get("tmax_thermal_displacements", 500),
             kwargs.get("tstep_thermal_displacements", 100),
         )
+        os.makedirs(out_dir, exist_ok=True)
         for idx, temp in enumerate(temperature_range_thermal_displacements):
             phonon.thermal_displacement_matrices.write_cif(
                 phonon.primitive,
                 idx,
-                filename=Path(out_dir) / f"therm-displace-mat-{temp}K.cif",
+                filename=f"{out_dir}/therm-displace-mat-{temp}K.cif",
             )
         _disp_mat = phonon._thermal_displacement_matrices  # noqa: SLF001
         tdisp_mat = _disp_mat.thermal_displacement_matrices.tolist()
@@ -262,7 +270,7 @@ def parse_phonondb_docs(
         "supercell_matrix": phonon.supercell_matrix,
         "nac_params": phonon.nac_params,
         "phonon_bandstructure": bs_symm_line,
-        "phonon_dos": dos,
+        "phonon_dos": ph_dos,
         "free_energies": free_energies,
         "internal_energies": internal_energies,
         "heat_capacities": heat_capacities,

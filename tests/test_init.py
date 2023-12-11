@@ -1,8 +1,8 @@
-import gzip
 import json
 import os
 
 import pytest
+from monty.io import zopen
 from pymatgen.phonon.dos import PhononDos
 
 from ffonons import DATA_DIR, FIGS_DIR, ROOT, dos_key, find_last_dos_peak
@@ -10,7 +10,7 @@ from ffonons import DATA_DIR, FIGS_DIR, ROOT, dos_key, find_last_dos_peak
 
 @pytest.fixture(scope="session")
 def mace_dos() -> PhononDos:
-    with gzip.open(f"{DATA_DIR}/phonon-bs-dos/mp-149-Si2-mace.json.gz", "rt") as file:
+    with zopen(f"{DATA_DIR}/phonon-bs-dos/mp-149-Si2-mace.json.gz", "rt") as file:
         doc_dict = json.load(file)
 
     return PhononDos.from_dict(doc_dict[dos_key])

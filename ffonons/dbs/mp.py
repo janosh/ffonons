@@ -1,8 +1,8 @@
-import gzip
 import json
 import os
 from typing import TYPE_CHECKING
 
+from monty.io import zopen
 from mp_api.client import MPRester
 from pymatviz.io import save_fig
 
@@ -41,7 +41,7 @@ def get_mp_ph_data(mp_id: str, docs_dir: str = DATA_DIR) -> None:
         }
         # create dir only if MP has phonon data
         os.makedirs(figs_out_dir, exist_ok=True)
-        with gzip.open(f"{docs_dir}/{id_formula}-mp.json.gz", "wt") as file:
+        with zopen(f"{docs_dir}/{id_formula}-mp.json.lzma", "wt") as file:
             file.write(json.dumps(mp_doc_dict))
 
         ax_bs_mp = plot_phonon_bs(mp_phonon_doc.ph_bs, "MP", struct)
