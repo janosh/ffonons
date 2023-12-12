@@ -6,6 +6,7 @@ from glob import glob
 import numpy as np
 import pandas as pd
 import plotly.express as px
+from pymatgen.util.string import htmlify
 from pymatviz.io import save_fig
 from pymatviz.utils import add_identity_line
 from sklearn.metrics import r2_score
@@ -13,6 +14,7 @@ from sklearn.metrics import r2_score
 from ffonons import (
     FIGS_DIR,
     WhichDB,
+    dft_key,
     dos_key,
     find_last_dos_peak,
     formula_key,
@@ -42,7 +44,8 @@ df_last_peak = pd.DataFrame(last_peaks).T
 df_last_peak.index.name = id_key
 df_last_peak = df_last_peak.set_index(formula_key, append=True)
 
-model_cols = list(df_last_peak)
+# don't rerun this line after adding more cols to df_last_peak
+model_cols = list(set(df_last_peak) - {dft_key})
 
 
 # iterate over all pairs of columns
@@ -75,52 +78,55 @@ fig.show()
 # post-hoc PES hardening shift in THz (ML-predictions will be boosted by this value)
 pes_shift = 0  # 0.6
 
-
 # std dev of MP last phonon DOS peak
-print(
-    f"{which_db} last phonon DOS peak std dev: {df_last_peak[which_db].std():.2f} THz"
-)
+print(f"PBE last phonon DOS peak std dev: {df_last_peak[dft_key].std():.2f} THz")
 
-df_plot = df_last_peak.copy().reset_index().round(2).query(f"{which_db} < 80")
+df_plot = df_last_peak.copy().reset_index().round(2).query(f"{dft_key} < 80")
 df_plot[model_cols] += pes_shift
 
-fig = px.scatter(df_plot, x=which_db, y=model_cols, hover_name=id_key)
-fig.layout.xaxis.title = f"{which_db} last phDOS peak frequency (THz)"
+fig = px.scatter(df_plot, x=dft_key, y=model_cols, hover_name=id_key)
+db_label_map = {"phonon_db": "PhononDB PBE", "gnome": "GNOME", "mp": "MP"}
+fig.layout.xaxis.title = f"{db_label_map[which_db]} last phDOS peak frequency (THz)"
 fig.layout.yaxis.title = "MLFF last phDOS peak frequency (THz)"
 fig.layout.legend = dict(x=0, y=1, yanchor="top")
 fig.layout.update(width=800, height=600)
 
 for trace in fig.data:
-    trace.marker.size = 14
+    trace.marker.size = 10
     trace.marker.opacity = 0.8
 
-    targets, preds = df_plot[[which_db, trace.name]].dropna().to_numpy().T
+    targets, preds = df_plot[[dft_key, trace.name]].dropna().to_numpy().T
     MAE = np.abs(targets - (preds + pes_shift)).mean()
     R2 = r2_score(targets, (preds + pes_shift))
-    trace.name = f"{trace.name} ({MAE=:.2f}, R<sup>2</sup>={R2:.2f}, n={len(targets)})"
+    trace.name = f"MACE ({MAE=:.2f}, R<sup>2</sup>={R2:.2f}, n={len(targets)})"
 
 
 # increase legend font size
-fig.layout.legend.update(font=dict(size=20), x=0.5, y=1.1, xanchor="center")
+fig.layout.legend.update(x=0.01, y=0.83, borderwidth=1, bordercolor="lightgray")
 
 
 # annotate outliers from parity line
-df_outliers = df_plot.rename(columns={"mace-y7uhwpje": "mace"}).query(
-    f"{which_db} - mace > 4.5 or mace - {which_db} > 3"
+mace_col = model_cols[0]
+assert mace_col.startswith("mace")
+df_outliers = df_plot.query(
+    f"{dft_key} - `{mace_col}` > 4.5 or `{mace_col}` - {dft_key} > 3"
 )
+style = "font-size: 11px;"  # span style for material ID
 for _idx, row in df_outliers.iterrows():
-    too_low = row[which_db] > row["mace"]  # to change arrow direction
+    too_low = row[dft_key] > row[mace_col]  # to change arrow direction
     fig.add_annotation(
-        x=row[which_db],
-        y=row["mace"],
-        text=f"{row['formula']}<br><span style='font-size: 12px;'>{row[id_key]}</span>",
-        showarrow=True,
-        arrowhead=1,
-        font=dict(size=14),
-        ax=(too_low or -1) * 30,
-        ay=0,
-        xanchor="left" if too_low else "right",
-        standoff=9,  # shorten arrow at end
+        x=row[dft_key],
+        y=row[mace_col],
+        text=f"{htmlify(row['formula'])}<br><span {style=}>{row[id_key]}</span>",
+        xanchor="center" if too_low else "right",
+        yanchor="top" if too_low else "middle",
+        xshift=0 if too_low else -10,
+        yshift=-5 if too_low else 0,
+        showarrow=False,
+        # arrowhead=1,
+        # ax=(0 if too_low else 1) * 20,
+        # ay=too_low * 1000,
+        # standoff=9,  # shorten arrow at end
     )
 
 # fix axis range to start at 0
@@ -131,7 +137,8 @@ fig.update_yaxes(range=[0, xy_max])
 add_identity_line(fig)
 fig.layout.margin = dict(l=12, r=12, b=12, t=12)
 fig.show()
-save_fig(fig, f"{FIGS_DIR}/{which_db}/pbe-vs-model-last-peak-scatter.pdf")
+parity_fig_path = f"{FIGS_DIR}/{which_db}/parity-pbe-vs-model-last-peak.pdf"
+save_fig(fig, parity_fig_path, width=600, height=400)
 
 
 # %% get 5 material IDs for each model with most over-softened DOS (i.e. last

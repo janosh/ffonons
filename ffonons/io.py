@@ -3,6 +3,7 @@ band structures and DOSs.
 """
 import io
 import json
+import lzma
 import os
 import re
 from collections import defaultdict
@@ -79,7 +80,7 @@ def parse_phonondb_docs(
     phonopy_doc_path: str | None = None,
     supercell: list[int] = (2, 2, 2),
     primitive_matrix: str | list[list[float]] = "auto",
-    nac: bool = True,
+    nac: bool = False,
     poscar: str = "POSCAR",
     force_sets: str = "FORCE_SETS",
     born: str = "BORN",
@@ -97,8 +98,9 @@ def parse_phonondb_docs(
         supercell (list[int], optional): supercell matrix. Defaults to (2, 2, 2).
         primitive_matrix (str | list[list[float]], optional): primitive matrix.
             Defaults to "auto".
-        nac (bool, optional): whether to use non-analytical corrections.
-            Defaults to True.
+        nac (bool, optional): whether to use apply non-analytical corrections from Born
+            charges. Defaults to False (since Born charges are not available from
+            MLIPs).
         poscar (str, optional): path to POSCAR file. Defaults to "POSCAR".
         force_sets (str, optional): path to FORCE_SETS file. Defaults to "FORCE_SETS".
         born (str, optional): path to BORN file. Defaults to "BORN".
@@ -122,7 +124,7 @@ def parse_phonondb_docs(
         with ZipFile(phonopy_doc_path, "r") as zip_file:
             try:
                 yaml_xz = zip_file.open("phonopy_params.yaml.xz")
-                phonopy_doc_path = zopen(yaml_xz, "rt")
+                phonopy_doc_path = lzma.open(yaml_xz, "rt")
             except Exception as exc:
                 available_files = zip_file.namelist()
                 raise RuntimeError(

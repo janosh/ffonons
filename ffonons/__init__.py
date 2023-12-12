@@ -28,9 +28,18 @@ id_key = "material_id"
 formula_key = "formula"
 struct_key = "structure"
 dos_peak_key = "last phdos peak"
+dft_key = "pbe"
 
 WhichDB = Literal["mp", "phonon_db", "gnome"]
-name_case_map = dict(mp="MP", mace="MACE", chgnet="CHGNet")
+pretty_label_map = {
+    "mp": "MP",
+    "mace": "MACE",
+    "chgnet": "CHGNet",
+    "pbe": "PBE",
+    "pbesol": "PBEsol",
+    "mace-y7uhwpje": "MACE",
+    "chgnet-v0.3.0": "CHGNet",
+}
 
 AnyDos = CompleteDos | PhononDos | Dos
 AnyBandStructure = BandStructureSymmLine | PhononBandStructureSymmLine

@@ -90,7 +90,7 @@ for zip_path in tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip")):  # PhononDB
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
 
-    phonon_db_results = parse_phonondb_docs(zip_path)
+    phonon_db_results = parse_phonondb_docs(zip_path, nac=False)
 
     struct, supercell_matrix, pbe_dos, pbe_bands = (
         phonon_db_results[key]
