@@ -95,12 +95,15 @@ desc = "Processing PhononDB docs"
 for zip_path in (pbar := tqdm(glob(f"{ph_docs_dir}/mp-*-pbe.zip"), desc=desc)):
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
+    existing_docs = glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma")
     # if material was already processed, skip
-    if glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma"):
+    if len(existing_docs) == 1:
         continue
+    if len(existing_docs) > 1:
+        raise RuntimeError(f"> 1 doc for {mat_id=}: {existing_docs}")
 
     pbar.set_description(f"{mat_id}")
-    phonon_db_results = parse_phonondb_docs(zip_path)
+    phonon_db_results = parse_phonondb_docs(zip_path, nac=False)
 
     struct = phonon_db_results["unit_cell"]
     formula = struct.formula.replace(" ", "")
