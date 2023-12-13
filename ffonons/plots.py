@@ -3,6 +3,7 @@ from pymatgen.core import Structure
 from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
 from pymatgen.phonon.dos import PhononDos
 from pymatgen.phonon.plotter import PhononBSPlotter, PhononDosPlotter
+from pymatgen.util.string import latexify
 
 from ffonons import find_last_dos_peak
 
@@ -28,7 +29,7 @@ def plot_phonon_bs(
     ax_bs = PhononBSPlotter(phonon_bs).get_plot()
     if struct:
         mat_id = struct.properties.get("id", "")
-        title += f" {struct.formula} {mat_id}"
+        title += f" {latexify(struct.formula)} {mat_id}"
     ax_bs.set_title(title, fontsize=22, fontweight="bold")
     ax_bs.figure.subplots_adjust(top=0.95)
     return ax_bs
@@ -63,13 +64,15 @@ def plot_phonon_dos(
     ph_dos_plot = PhononDosPlotter()
     phonon_dos = phonon_dos if isinstance(phonon_dos, dict) else {"": phonon_dos}
 
-    for key, dos in phonon_dos.items():
-        ph_dos_plot.add_dos(dos=dos, label=key)
+    for key, kwargs in phonon_dos.items():
+        if isinstance(kwargs, PhononDos):
+            kwargs = dict(dos=kwargs)
+        ph_dos_plot.add_dos(label=key, **kwargs)
 
     ax = ph_dos_plot.get_plot(legend=dict(fontsize=22), ax=ax)
     if struct:
         mat_id = struct.properties.get("id", "")
-        title += f" {struct.formula} {mat_id}"
+        title += f" {latexify(struct.formula)} {mat_id}"
 
     if last_peak_anno:
         _, dos_x_max, _, dos_y_max = ax.axis()

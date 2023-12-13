@@ -3,7 +3,6 @@ tokens.py
 __pycache__/
 .DS_Store
 *.egg-info/
-runs/
 data/gnome/stable-cifs-by-id.zip
 data/phonon_db/mp-*-pbe.zip
 figs/phonon_db/
