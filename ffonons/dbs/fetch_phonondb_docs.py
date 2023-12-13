@@ -1,98 +1,43 @@
 # %%
-import json
-import lzma
-import os
 import re
-import sys
 from glob import glob
 
 import pandas as pd
-import requests
-from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, bs_key, dos_key, struct_key
-from ffonons.io import parse_phonondb_docs
+from ffonons import DATA_DIR
+from ffonons.dbs.phonondb import (
+    fetch_togo_doc_by_id,
+    phonondb_doc_zip_to_pmg_lzma,
+    scrape_and_fetch_togo_docs_from_page,
+)
 
 db_name = "phonon_db"
 ph_docs_dir = f"{DATA_DIR}/{db_name}"
-
+togo_id_key = "togo_id"
 __author__ = "Janine George, Aakash Nair, Janosh Riebesell"
 __date__ = "2023-12-07"
-
-
-# %%
-def get_mp_doc_ids_from_url(url: str) -> pd.DataFrame:
-    """Extract doc id, MP ID from Togo DB and download the phonopy file."""
-    # Send an HTTP request to the URL
-    response = requests.get(url, timeout=15)
-
-    # Check if the request was successful (status code 200)
-    if response.status_code == 200:
-        # Parse the HTML content of the page
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        # Extract all links from the page
-        tables = [
-            tr.prettify() for tr in soup.find_all("tr") if "document_" in tr.prettify()
-        ]
-
-        doc_ids, mp_ids, download_urls = [], [], []
-
-        for table in tables:
-            soup1 = BeautifulSoup(table, "html.parser")
-
-            # Find the relevant elements within the table row
-            doc_id = soup1.find("tr")["id"].split("_")[-1]
-            link_element = soup1.find_all("a", class_="")[0]
-            mp_id = f"mp-{link_element.text.strip().split()[-1]}"
-            out_path = f"{ph_docs_dir}/{mp_id}-{doc_id}-pbe.zip"
-
-            if os.path.isfile(out_path):
-                print(f"{out_path=} already exists. skipping")
-                continue
-
-            doc_ids += doc_id
-            mp_ids += mp_id
-
-            download_url = f"https://mdr.nims.go.jp/download_all/{doc_id}.zip"
-            download_urls += download_url
-            resp = requests.get(download_url, allow_redirects=True, timeout=15)
-            with open(out_path, "wb") as file:
-                file.write(resp.content)
-
-        df_out = pd.DataFrame(index=mp_ids, columns=["doc_ids", "download_urls"])
-        df_out["doc_ids"] = doc_ids
-        df_out["download_urls"] = download_urls
-
-        return df_out
-    # Print an error message if the request was not successful
-    print(f"Error: Unable to fetch the page. Status code: {response.status_code}")
-    return None
+phonondb_base_url = "https://mdr.nims.go.jp/collections/8g84ms862"
 
 
 # %% get all phonon_db page urls
-urls = [
-    f"https://mdr.nims.go.jp/collections/8g84ms862?{page=}" for page in range(1, 1005)
-]
+urls = [f"{phonondb_base_url}?{page=}" for page in range(1, 1005)]
 
-rows = []
+dfs = []
 for url in tqdm(urls, desc="Downloading Togo Phonopy DB"):
-    try:
-        result = get_mp_doc_ids_from_url(url)
-        rows += result
-    except Exception as exc:
-        print(exc, file=sys.stderr)
+    dfs += [scrape_and_fetch_togo_docs_from_page(url, on_error="ignore")]
 
 
 # %%
-df = pd.concat(map(bool, rows))
+df = pd.concat(df for df in dfs if isinstance(df, pd.DataFrame))
 df = df.sort_index()
 
 
 # %%
 desc = "Processing PhononDB docs"
-for zip_path in (pbar := tqdm(glob(f"{ph_docs_dir}/mp-*-pbe.zip"), desc=desc)):
+for zip_path in (
+    pbar := tqdm(glob(f"{ph_docs_dir}/mp-*-7d2790917-pbe.zip"), desc=desc)
+):
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
     existing_docs = glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma")
@@ -103,19 +48,40 @@ for zip_path in (pbar := tqdm(glob(f"{ph_docs_dir}/mp-*-pbe.zip"), desc=desc)):
         raise RuntimeError(f"> 1 doc for {mat_id=}: {existing_docs}")
 
     pbar.set_description(f"{mat_id}")
-    phonon_db_results = parse_phonondb_docs(zip_path, nac=False)
+    phonondb_doc_zip_to_pmg_lzma(zip_path)
 
-    struct = phonon_db_results["unit_cell"]
-    formula = struct.formula.replace(" ", "")
-    id_formula = f"{mat_id}-{formula}"
 
-    dft_doc_dict = {
-        dos_key: phonon_db_results["phonon_dos"].as_dict(),
-        bs_key: phonon_db_results["phonon_bandstructure"].as_dict(),
-        struct_key: struct.as_dict(),
-        "mp_id": mat_id,
-    }
-    dft_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-pbe.json.lzma"
+# %%
+id_formula_map = {
+    "mp-2998": "BaTiO3",
+    "mp-4651": "SrTiO3",
+    "mp-2892": "BaNd2O4",
+    "mp-6586": "K2NaAlF6",
+    "mp-3996": "GaAsO4",
+    "mp-3978": "SrSiO3",
+    "mp-3472": "PbSO4",
+    "mp-2798": "SiP",
+    "mp-2789": "NO2",
+    "mp-2657": "TiO2",
+    "mp-2659": "LiN3",
+    "mp-2667": "CsAu",
+    "mp-2672": "K2O2",
+    "mp-2691": "CdSe",
+    "mp-2697": "SrO2",
+    "mp-2706": "SnF4",
+    "mp-2739": "TeO2",
+    "mp-2741": "CaF2",
+    "mp-2758": "SrSe",
+    "mp-2763": "Nd2O3",
+    "mp-2782": "ZnP2",
+    "mp-2784": "Na2Te",
+}
+for mp_id in id_formula_map:
+    zip_path = fetch_togo_doc_by_id(mp_id)
+    assert zip_path.endswith(".zip"), f"Invalid {zip_path=}"
 
-    with lzma.open(dft_doc_path, "wt") as file:
-        file.write(json.dumps(dft_doc_dict))
+    try:
+        dft_doc_path = phonondb_doc_zip_to_pmg_lzma(zip_path)
+    except Exception as exc:
+        print(f"{mp_id=}: {exc}")
+        continue
