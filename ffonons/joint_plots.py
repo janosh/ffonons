@@ -1,4 +1,6 @@
 # %%
+import os
+
 from pymatgen.phonon.plotter import PhononBSPlotter
 from pymatgen.util.string import htmlify, latexify
 from pymatviz import plot_band_structure
@@ -84,11 +86,22 @@ for mp_id in tqdm(materials_with_2):
         pretty_label_map[key]: phonon_docs[mp_id][key][bs_key]
         for key in (dft_key, model1_key)  # , model2_key)
     }
-    fig = plot_band_structure(band_structs)
-    formula = phonon_docs[mp_id][dft_key][formula_key]
+    out_path = f"{figs_out_dir}/{mp_id}-bands-pbe-vs-{model1_key}-plotly.pdf"
+    if os.path.isfile(out_path):
+        continue
+    try:
+        fig = plot_band_structure(band_structs)
+    except ValueError as exc:
+        print(f"{mp_id=} {exc=}")
+        continue
 
     # turn title into link to materials project page
+    formula = phonon_docs[mp_id][dft_key][formula_key]
     href = f"https://legacy.materialsproject.org/materials/{mp_id}"
-    title = f"<a {href=}>{mp_id}</a>  {htmlify(formula)}"
-    fig.layout.title = dict(text=title, x=0.5)
+    title = f"{htmlify(formula)}  <a {href=}>{mp_id}</a>"
+    fig.layout.title = dict(text=title, x=0.5, y=0.99)
+    fig.layout.margin = dict(t=30, b=0, l=5, r=5)
+
     fig.show()
+
+    save_fig(fig, out_path, prec=4)
