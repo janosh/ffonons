@@ -32,6 +32,8 @@ last_peaks = defaultdict(lambda: defaultdict(float))
 which_db: WhichDB = "phonon_db"
 ph_docs = load_pymatgen_phonon_docs(which_db)
 
+
+# %%
 for mp_id, docs in ph_docs.items():
     for model_key, doc in docs.items():
         phonon_dos = doc[dos_key]

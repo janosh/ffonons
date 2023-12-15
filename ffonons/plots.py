@@ -79,14 +79,17 @@ def plot_phonon_dos(
 
         for idx, (key, dos) in enumerate(phonon_dos.items()):
             last_peak = find_last_dos_peak(dos)
-            line = next(line for line in ax.lines if key == line.get_label())
+            line_dict = {line.get_label(): line for line in ax.lines}
+            line = line_dict.get(key, ax.lines[0])  # use first line if no label matches
             color = line.get_color()
 
             single_anchor = dict(
                 va="bottom", ha="center" if last_peak > 0.7 * dos_x_max else "left"
             )
             # multi_anchor = dict(rotation=90, va="top", ha="right")  # vertical mode
-            multi_anchor = dict(va="top", ha="right")  # horizontal mode
+            multi_anchor = dict(
+                va="top", ha="right", xytext=(-5, -5)
+            )  # horizontal mode
             ax.axvline(last_peak, color=color, linestyle="--", label="last peak")
             ax.annotate(
                 last_peak_anno.format(key=key.split(" ")[0], last_peak=last_peak),
@@ -94,7 +97,6 @@ def plot_phonon_dos(
                 # textcoords=ax.transAxes,
                 # use data/axes coordinates for x/y respectively
                 xycoords=("data", "axes fraction"),
-                xytext=(-5, -5),
                 textcoords="offset points",
                 fontsize=16,
                 color=color,
