@@ -18,10 +18,7 @@ from bs4 import BeautifulSoup
 from phonopy.phonon.band_structure import get_band_qpoints_and_path_connections
 from phonopy.units import VaspToTHz
 from pymatgen.core import Structure
-from pymatgen.io.phonopy import (
-    get_ph_bs_symm_line_from_dict,
-    get_pmg_structure,
-)
+from pymatgen.io.phonopy import get_ph_bs_symm_line_from_dict, get_pmg_structure
 from pymatgen.io.vasp import Kpoints
 from pymatgen.phonon.dos import PhononDos
 from pymatgen.symmetry.bandstructure import HighSymmKpath

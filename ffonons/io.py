@@ -10,31 +10,46 @@ from glob import glob
 from typing import Literal
 from zipfile import ZipFile
 
+import pandas as pd
 from monty.io import zopen
 from pymatgen.core import Structure
 from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
 from pymatgen.phonon.dos import PhononDos
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, bs_key, dos_key, formula_key, id_key
+from ffonons import (
+    DATA_DIR,
+    bs_key,
+    dft_key,
+    dos_key,
+    find_last_dos_peak,
+    formula_key,
+    id_key,
+)
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
 
 
+NestedDict = dict[str, dict[str, dict]]
+
+
 def load_pymatgen_phonon_docs(
-    which_db: Literal["mp", "phonon_db"],
-) -> dict[str, dict[str, dict]]:
+    which_db: Literal["mp", "phonon_db"], with_df: bool = True
+) -> NestedDict | tuple[NestedDict, pd.DataFrame]:
     """Load existing DFT/ML phonon band structure and DOS docs from disk for a
     specified database.
 
     Args:
         which_db ("mp" | "phonon_db"): Which database to load docs from.
+        with_df (bool): Whether to return a pandas DataFrame as well with last phonon
+            DOS peak frequencies, DOS MAE and presence of imaginary modes as columns.
+            Defaults to True.
 
     Returns:
-        dict[str, dict[str, dict]]: Outer key is material ID, 2nd-level key is the
-            model name, and third-level key is either "phonon_dos" or
-            "phonon_bandstructure".
+        dict[str, dict[str, dict]] | tuple[dict, pd.DataFrame]: Outer key is material
+            ID, 2nd-level key is the model name, and third-level key is either
+            "phonon_dos" or "phonon_bandstructure".
     """
     # glob json.gz or .json.lzma files
     paths = glob(f"{DATA_DIR}/{which_db}/*.json.gz") + glob(
@@ -59,6 +74,41 @@ def load_pymatgen_phonon_docs(
             id_key: mp_id,
             "dir_path": os.path.dirname(path),
         }
+
+    if with_df:
+        summary_dict: dict[str, dict] = defaultdict(dict)
+        for mp_id, docs in ph_docs.items():
+            if dft_key not in docs:
+                continue
+
+            for model_key, doc in docs.items():
+                summary_dict[mp_id][formula_key] = doc[formula_key]
+                col_key = model_key.replace("-", "_")
+
+                phonon_dos: PhononDos = doc[dos_key]
+                last_peak = find_last_dos_peak(phonon_dos)
+                summary_dict[mp_id][f"last_phdos_peak_{col_key}_THz"] = last_peak
+
+                if model_key != dft_key:
+                    pbe_dos = ph_docs[mp_id][dft_key][dos_key]
+                    summary_dict[mp_id][f"phdos_mae_{col_key}_THz"] = phonon_dos.mae(
+                        pbe_dos
+                    )
+
+                ph_bs: PhononBandStructureSymmLine = doc[bs_key]
+                has_imag_modes = ph_bs.has_imaginary_freq(tol=1e-3)
+                summary_dict[mp_id][f"imaginary_freq_{col_key}"] = has_imag_modes
+                has_imag_gamma_mode = ph_bs.has_imaginary_gamma_freq(tol=1e-3)
+                summary_dict[mp_id][
+                    f"imaginary_gamma_freq_{col_key}"
+                ] = has_imag_gamma_mode
+
+        # convert_dtypes() turns boolean cols imaginary_(gamma_)freq to bool
+        df_summary = pd.DataFrame(summary_dict).T.convert_dtypes()
+        df_summary.index.name = id_key
+        df_summary = df_summary.set_index(formula_key, append=True)
+
+        return ph_docs, df_summary
 
     return ph_docs
 
