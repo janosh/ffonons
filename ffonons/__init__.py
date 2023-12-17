@@ -1,8 +1,8 @@
 """Unpublished Python package supporting the analysis and results in the
 2nd pymatgen publication.
 """
-
 import os
+from datetime import UTC, datetime
 from typing import Literal
 
 import numpy as np
@@ -21,7 +21,10 @@ PKG_DIR = os.path.dirname(__file__)
 ROOT = os.path.dirname(PKG_DIR)
 DATA_DIR = f"{ROOT}/data"
 FIGS_DIR = f"{ROOT}/figs"
+PAPER_DIR = f"{ROOT}/../unimace/figures_phonons"
 
+
+today = f"{datetime.now(tz=UTC):%Y-%m-%d}"
 bs_key = "phonon_bandstructure"
 dos_key = "phonon_dos"
 id_key = "material_id"
@@ -30,14 +33,18 @@ struct_key = "structure"
 dos_peak_key = "last phdos peak"
 dft_key = "pbe"
 
+speed_of_light = 299792458  # [m/s]
+# convert THz to cm^-1
+thz_to_per_cm = 1e12 / (speed_of_light * 100)  # [cm^-1] 33.356410
+
 WhichDB = Literal["mp", "phonon_db", "gnome"]
 pretty_label_map = {
     "mp": "MP",
-    "mace": "MACE",
+    "mace": "MACE-MP0",
     "chgnet": "CHGNet",
     "pbe": "PBE",
     "pbesol": "PBEsol",
-    "mace-y7uhwpje": "MACE",
+    "mace-y7uhwpje": "MACE-MP0",
     "chgnet-v0.3.0": "CHGNet",
 }
 
