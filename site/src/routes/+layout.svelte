@@ -30,10 +30,6 @@
 
 <Toc {headingSelector} breakpoint={1250} warnOnEmpty={false} />
 
-{#if ![base, `/`].includes($page.url.pathname)}
-  <a href="{base}/" aria-label="Back to index page">&laquo; home</a>
-{/if}
-
 <GitHubCorner href={repository} />
 
 <slot />
@@ -53,18 +49,5 @@
     place-items: center;
     margin: 2em 0 0;
     padding: 3vh 3vw;
-  }
-  a[aria-label] {
-    font-size: 15pt;
-    position: absolute;
-    top: 2em;
-    left: 2em;
-    background-color: rgba(255, 255, 255, 0.1);
-    padding: 1pt 5pt;
-    border-radius: 3pt;
-    transition: 0.2s;
-  }
-  a[aria-label]:hover {
-    background-color: rgba(255, 255, 255, 0.2);
   }
 </style>

@@ -12,7 +12,15 @@ from pymatviz import plot_phonon_dos as plot_phonon_dos_plotly
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import FIGS_DIR, bs_key, dft_key, dos_key, formula_key, pretty_label_map
+from ffonons import (
+    FIGS_DIR,
+    SITE_FIGS,
+    bs_key,
+    dft_key,
+    dos_key,
+    formula_key,
+    pretty_label_map,
+)
 from ffonons.io import load_pymatgen_phonon_docs
 from ffonons.plots import plot_phonon_dos
 
@@ -109,13 +117,13 @@ for mp_id in tqdm(materials_with_2):
 
 # %% PLOTLY DOS comparison plots
 for mp_id in tqdm(materials_with_2):
-    doses = {
-        pretty_label_map[key]: ph_docs[mp_id][key][dos_key]
-        for key in (dft_key, model1_key)  # , model2_key)
-    }
-    out_path = f"{figs_out_dir}/{mp_id}-dos-pbe-vs-{model1_key}-plotly.pdf"
-    if os.path.isfile(out_path):
-        continue
+    ml_dos = ph_docs[mp_id][model1_key][dos_key]
+    pbe_dos = ph_docs[mp_id][dft_key][dos_key]
+    doses = {pretty_label_map[model1_key]: ml_dos, pretty_label_map[dft_key]: pbe_dos}
+    img_name = f"{mp_id}-dos-pbe-vs-{model1_key}"
+    out_path = f"{figs_out_dir}/{img_name}.pdf"
+    # if os.path.isfile(out_path):
+    #     continue
     fig_dos = plot_phonon_dos_plotly(
         doses, normalize="integral", sigma=0.03, fill="tozeroy"
     )
@@ -123,9 +131,14 @@ for mp_id in tqdm(materials_with_2):
     # turn title into link to materials project page
     formula = ph_docs[mp_id][dft_key][formula_key]
     href = f"https://legacy.materialsproject.org/materials/{mp_id}"
-    title = f"{htmlify(formula)}  <a {href=}>{mp_id}</a>"
+    dos_mae = pbe_dos.mae(ml_dos)
+    mae_text = f"<span style='font-size: 16px;'>MAE={dos_mae:.3} THz</span>"
+    title = f"{htmlify(formula)}  <a {href=}>{mp_id}</a>  {mae_text}"
     fig_dos.layout.title = dict(text=title, x=0.5, y=0.97)
     fig_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
 
     fig_dos.show()
     save_fig(fig_dos, out_path, prec=4)
+    fig_dos.layout.template = "pymatviz_black"
+    fig_dos.layout.paper_bgcolor = "rgba(0,0,0,0)"
+    save_fig(fig_dos, f"{SITE_FIGS}/{img_name}.svelte", prec=4)
