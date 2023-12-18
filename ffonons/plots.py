@@ -80,7 +80,8 @@ def plot_phonon_dos(
         for idx, (key, dos) in enumerate(phonon_dos.items()):
             last_peak = find_last_dos_peak(dos)
             line_dict = {line.get_label(): line for line in ax.lines}
-            line = line_dict.get(key, ax.lines[0])  # use first line if no label matches
+            # use line with same index if no label matches
+            line = line_dict.get(key, ax.lines[idx])
             color = line.get_color()
 
             single_anchor = dict(

@@ -24,6 +24,7 @@ repos:
       - id: codespell
         stages: [commit, commit-msg]
         exclude_types: [html, csv, bib]
+        exclude: ^site/src/figs/.*$
         args: [--check-filenames]
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
