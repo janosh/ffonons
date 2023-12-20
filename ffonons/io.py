@@ -35,7 +35,9 @@ NestedDict = dict[str, dict[str, dict]]
 
 
 def load_pymatgen_phonon_docs(
-    which_db: Literal["mp", "phonon_db"], with_df: bool = True
+    which_db: Literal["mp", "phonon_db"],
+    with_df: bool = True,
+    imaginary_freq_tol: float = 0.1,
 ) -> NestedDict | tuple[NestedDict, pd.DataFrame]:
     """Load existing DFT/ML phonon band structure and DOS docs from disk for a
     specified database.
@@ -45,6 +47,9 @@ def load_pymatgen_phonon_docs(
         with_df (bool): Whether to return a pandas DataFrame as well with last phonon
             DOS peak frequencies, DOS MAE and presence of imaginary modes as columns.
             Defaults to True.
+        imaginary_freq_tol (float): Tolerance for classifying a frequency as imaginary.
+            Defaults to 0.1. See pymatgen's PhononBandStructureSymmLine
+            has_imaginary_freq() method.
 
     Returns:
         dict[str, dict[str, dict]] | tuple[dict, pd.DataFrame]: Outer key is material
@@ -85,20 +90,29 @@ def load_pymatgen_phonon_docs(
                 summary_dict[mp_id][formula_key] = doc[formula_key]
                 col_key = model_key.replace("-", "_")
 
+                # last phonon DOS peak
                 phonon_dos: PhononDos = doc[dos_key]
                 last_peak = find_last_dos_peak(phonon_dos)
                 summary_dict[mp_id][f"last_phdos_peak_{col_key}_THz"] = last_peak
 
+                # max frequency from band structure
+                ph_bs: PhononBandStructureSymmLine = doc[bs_key]
+                summary_dict[mp_id][f"max_freq_{col_key}_THz"] = ph_bs.bands.max()
+                summary_dict[mp_id][f"min_freq_{col_key}_THz"] = ph_bs.bands.min()
+                summary_dict[mp_id][f"band_width_{col_key}_THz"] = ph_bs.width()
+
                 if model_key != dft_key:
+                    # DOS MAE
                     pbe_dos = ph_docs[mp_id][dft_key][dos_key]
                     summary_dict[mp_id][f"phdos_mae_{col_key}_THz"] = phonon_dos.mae(
                         pbe_dos
                     )
 
-                ph_bs: PhononBandStructureSymmLine = doc[bs_key]
-                has_imag_modes = ph_bs.has_imaginary_freq(tol=1e-3)
+                # has imaginary modes
+                tol = imaginary_freq_tol
+                has_imag_modes = ph_bs.has_imaginary_freq(tol=tol)
                 summary_dict[mp_id][f"imaginary_freq_{col_key}"] = has_imag_modes
-                has_imag_gamma_mode = ph_bs.has_imaginary_gamma_freq(tol=1e-3)
+                has_imag_gamma_mode = ph_bs.has_imaginary_gamma_freq(tol=tol)
                 summary_dict[mp_id][
                     f"imaginary_gamma_freq_{col_key}"
                 ] = has_imag_gamma_mode

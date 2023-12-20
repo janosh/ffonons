@@ -92,10 +92,13 @@ for mp_id in tqdm(materials_with_2):
 
 # %% PLOTLY band structure comparison plots
 for mp_id in tqdm(materials_with_2):
-    band_structs = {
-        pretty_label_map[key]: ph_docs[mp_id][key][bs_key]
-        for key in (dft_key, model1_key)  # , model2_key)
-    }
+    bs_pbe = ph_docs[mp_id][dft_key][bs_key]
+    dft_label = pretty_label_map[dft_key]
+
+    bs_ml = ph_docs[mp_id][model1_key][bs_key]
+    ml_label = pretty_label_map[model1_key]
+
+    band_structs = {dft_label: bs_pbe, ml_label: bs_ml}
     out_path = f"{figs_out_dir}/{mp_id}-bands-pbe-vs-{model1_key}.pdf"
     if os.path.isfile(out_path):
         continue
