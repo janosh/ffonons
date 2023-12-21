@@ -35,7 +35,7 @@ def plot_phonon_bs(
     return ax_bs
 
 
-def plot_phonon_dos(
+def plot_phonon_dos_mpl(
     phonon_dos: PhononDos | dict[str, PhononDos],
     title: str = "",
     struct: Structure | None = None,

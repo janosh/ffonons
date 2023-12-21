@@ -7,7 +7,7 @@ from mp_api.client import MPRester
 from pymatviz.io import save_fig
 
 from ffonons import DATA_DIR, FIGS_DIR, bs_key, dos_key
-from ffonons.plots import plot_phonon_bs, plot_phonon_dos
+from ffonons.plots import plot_phonon_bs, plot_phonon_dos_mpl
 
 if TYPE_CHECKING:
     from emmet.core.phonon import PhononBSDOSDoc
@@ -48,7 +48,7 @@ def get_mp_ph_data(mp_id: str, docs_dir: str = DATA_DIR) -> None:
         # always save figure right away, plotting another figure will clear the axis!
         save_fig(ax_bs_mp, mp_bands_fig_path)
 
-        ax_dos_mp = plot_phonon_dos({"MP": mp_phonon_doc.ph_dos}, "MP", struct)
+        ax_dos_mp = plot_phonon_dos_mpl({"MP": mp_phonon_doc.ph_dos}, "MP", struct)
 
         save_fig(ax_dos_mp, mp_dos_fig_path)
 

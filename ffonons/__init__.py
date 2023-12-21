@@ -22,7 +22,7 @@ ROOT = os.path.dirname(PKG_DIR)
 DATA_DIR = f"{ROOT}/data"
 FIGS_DIR = f"{ROOT}/figs"
 PAPER_DIR = f"{ROOT}/../unimace/figures_phonons"
-SITE_FIGS = f"{ROOT}/site/figs"
+SITE_FIGS = f"{ROOT}/site/src/figs"
 
 today = f"{datetime.now(tz=UTC):%Y-%m-%d}"
 bs_key = "phonon_bandstructure"

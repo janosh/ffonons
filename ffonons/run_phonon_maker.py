@@ -28,7 +28,7 @@ from ffonons import (
     pretty_label_map,
 )
 from ffonons.dbs.phonondb import parse_phonondb_docs
-from ffonons.plots import plot_phonon_bs, plot_phonon_dos
+from ffonons.plots import plot_phonon_bs, plot_phonon_dos_mpl
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-19"
@@ -150,7 +150,7 @@ for zip_path in tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip")):  # PhononDB
             dos_dict = {ml_label: ml_phonon_doc.phonon_dos}
             if "pbe_dos" in locals():
                 dos_dict[pbe_label] = pbe_dos
-            ax_dos = plot_phonon_dos(dos_dict, struct=struct)
+            ax_dos = plot_phonon_dos_mpl(dos_dict, struct=struct)
             save_fig(ax_dos, dos_fig_path)
 
             ml_phonon_bands = ml_phonon_doc.phonon_bandstructure

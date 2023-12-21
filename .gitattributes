@@ -1,0 +1,2 @@
+# exclude generated plot files when calculating repo language statistics on GitHub
+**/figs/* linguist-generated

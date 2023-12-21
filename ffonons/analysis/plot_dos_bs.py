@@ -7,8 +7,7 @@ import os
 
 from pymatgen.phonon.plotter import PhononBSPlotter
 from pymatgen.util.string import htmlify, latexify
-from pymatviz import plot_phonon_bands
-from pymatviz import plot_phonon_dos as plot_phonon_dos_plotly
+from pymatviz import plot_phonon_bands, plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
@@ -22,13 +21,19 @@ from ffonons import (
     pretty_label_map,
 )
 from ffonons.io import load_pymatgen_phonon_docs
-from ffonons.plots import plot_phonon_dos
+from ffonons.plots import plot_phonon_dos_mpl
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
 
 model1_key = "mace-y7uhwpje"
 model2_key = "chgnet-v0.3.0"
+
+
+def plotly_title(mp_id: str, formula: str) -> str:
+    """Make title link to MP details page (legacy since only legacy has phonons)."""
+    href = f"https://legacy.materialsproject.org/materials/{mp_id}"
+    return f"{htmlify(formula)}  <a {href=}>{mp_id}</a>"
 
 
 # %% load docs
@@ -58,7 +63,7 @@ for mp_id in materials_with_2:
         # pretty_label_map[model2_key]: model2[dos_key],
         pretty_label_map[dft_key]: ph_docs[mp_id][dft_key][dos_key],
     }
-    ax_dos = plot_phonon_dos(doses, last_peak_anno=r"${key}={last_peak:.1f}$")
+    ax_dos = plot_phonon_dos_mpl(doses, last_peak_anno=r"${key}={last_peak:.1f}$")
     ax_dos.set_title(
         f"{mp_id} {latexify(formula, bold=True)}", fontsize=22, fontweight="bold"
     )
@@ -108,40 +113,45 @@ for mp_id in tqdm(materials_with_2):
         print(f"{mp_id=} {exc=}")
         continue
 
-    # turn title into link to materials project page
     formula = ph_docs[mp_id][dft_key][formula_key]
-    href = f"https://legacy.materialsproject.org/materials/{mp_id}"
-    title = f"{htmlify(formula)}  <a {href=}>{mp_id}</a>"
-    fig_bs.layout.title = dict(text=title, x=0.5, y=0.99)
-    fig_bs.layout.margin = dict(t=30, b=0, l=5, r=5)
+    title = plotly_title(mp_id, formula)
+    fig_bs.layout.title = dict(text=title, x=0.5, y=0.96)
+    fig_bs.layout.margin = dict(t=65, b=0, l=5, r=5)
+
+    # fig_bs.show()
 
     save_fig(fig_bs, out_path, prec=5)
 
 
 # %% PLOTLY DOS comparison plots
 for mp_id in tqdm(materials_with_2):
-    ml_dos = ph_docs[mp_id][model1_key][dos_key]
     pbe_dos = ph_docs[mp_id][dft_key][dos_key]
-    doses = {pretty_label_map[model1_key]: ml_dos, pretty_label_map[dft_key]: pbe_dos}
-    img_name = f"{mp_id}-dos-pbe-vs-{model1_key}"
+    ml_dos = ph_docs[mp_id][model1_key][dos_key]
+
+    pbe_bs = ph_docs[mp_id][dft_key][bs_key]
+    ml_bs = ph_docs[mp_id][model1_key][bs_key]
+
+    pbe_label = pretty_label_map[dft_key]
+    ml_label = pretty_label_map[model1_key]
+    doses = {ml_label: ml_dos, pbe_label: pbe_dos}
+    bses = {ml_label: ml_bs, pbe_label: pbe_bs}
+    img_name = f"{mp_id}-bs-dos-pbe-vs-{model1_key}"
     out_path = f"{figs_out_dir}/{img_name}.pdf"
     # if os.path.isfile(out_path):
     #     continue
-    fig_dos = plot_phonon_dos_plotly(
-        doses, normalize="integral", sigma=0.03, fill="tozeroy"
-    )
+    try:
+        fig_bs_dos = plot_phonon_bands_and_dos(bses, doses)
+    except ValueError as exc:
+        print(f"{mp_id=} {exc=}")
+        continue
 
-    # turn title into link to materials project page
     formula = ph_docs[mp_id][dft_key][formula_key]
-    href = f"https://legacy.materialsproject.org/materials/{mp_id}"
-    dos_mae = pbe_dos.mae(ml_dos)
-    mae_text = f"<span style='font-size: 16px;'>MAE={dos_mae:.3} THz</span>"
-    title = f"{htmlify(formula)}  <a {href=}>{mp_id}</a>  {mae_text}"
-    fig_dos.layout.title = dict(text=title, x=0.5, y=0.97)
-    fig_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
+    fig_bs_dos.layout.title = dict(text=plotly_title(mp_id, formula), x=0.5, y=0.97)
+    fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
 
-    fig_dos.show()
-    save_fig(fig_dos, out_path, prec=4)
-    fig_dos.layout.template = "pymatviz_black"
-    fig_dos.layout.paper_bgcolor = "rgba(0,0,0,0)"
-    save_fig(fig_dos, f"{SITE_FIGS}/{img_name}.svelte", prec=4)
+    fig_bs_dos.show()
+
+    save_fig(fig_bs_dos, out_path, prec=4)
+    fig_bs_dos.layout.template = "pymatviz_black"
+    fig_bs_dos.layout.paper_bgcolor = "rgba(0,0,0,0)"
+    save_fig(fig_bs_dos, f"{SITE_FIGS}/{img_name}.svelte", prec=4)
