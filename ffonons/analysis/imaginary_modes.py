@@ -4,12 +4,15 @@ for each material at the Gamma point.
 
 # %%
 import numpy as np
+import plotly.express as px
 import plotly.figure_factory as ff
 from pymatviz.io import save_fig
+from pymatviz.utils import add_identity_line
 from sklearn.metrics import confusion_matrix
 
-from ffonons import FIGS_DIR, PAPER_DIR, dft_key, pretty_label_map
+from ffonons import FIGS_DIR, PAPER_DIR, dft_key, formula_key, id_key
 from ffonons.io import load_pymatgen_phonon_docs
+from ffonons.plots import pretty_label_map
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-12-15"
@@ -95,3 +98,71 @@ n_unstable = df_summary[dft_imag_col].mean()
 print(f"DFT unstable rate {n_unstable:.0%}")
 n_unstable = df_summary[ml_imag_col].mean()
 print(f"ML unstable rate {n_unstable:.0%}")
+
+
+# %% plot imaginary modes confusion matrix as parity plot using min. freq. across all
+# bands and k-points (with shaded regions for TP, FP, FN, TN)
+pbe_key = "min_freq_pbe_THz"
+y_key, color_key = "min_freq_THz", "model"
+df_melt = df_summary.reset_index().melt(
+    id_vars=[id_key, formula_key, pbe_key],
+    value_vars=(y_cols := set(df_summary.filter(like="min_freq_")) - {pbe_key}),
+    var_name=color_key,
+    value_name=y_key,
+)
+df_melt["model"] = df_melt["model"].str.split("_").str[2:-1].str.join("-")
+
+fig = px.scatter(
+    df_melt.dropna(),
+    x=pbe_key,
+    y=y_key,
+    hover_data=[id_key, formula_key],
+    color=color_key,
+)
+
+imag_tol = 0.1
+# add dashed dynamic instability decision boundary separators
+fig.add_vline(x=-imag_tol, line=dict(width=1, dash="dash"))
+fig.add_hline(y=-imag_tol, line=dict(width=1, dash="dash"))
+add_identity_line(fig)
+
+# add transparent rectangle with TN, TP, FN, FP labels in each quadrant
+for sign_x, sign_y, label, color in (
+    (-1, -1, "TP", "green"),
+    (-1, 1, "FN", "orange"),
+    (1, -1, "FP", "red"),
+    (1, 1, "TN", "blue"),
+):
+    common = dict(row="all", col="all")
+    fig.add_shape(
+        type="rect",
+        x0=-imag_tol,
+        y0=-imag_tol,
+        x1=10 * sign_x,
+        y1=10 * sign_y,
+        fillcolor=color,
+        line=dict(width=0),  # remove edge line
+        layer="below",
+        opacity=0.2,
+        **common,
+    )
+    fig.add_annotation(
+        x=int(sign_x > 0),
+        y=int(sign_y > 0),
+        xshift=-15 * sign_x,
+        yshift=-5 * sign_y,
+        text=label,
+        showarrow=False,
+        font=dict(size=16, color=color),
+        xref="x domain",
+        yref="y domain",
+        **common,
+    )
+min_xy = df_melt[[y_key, pbe_key]].min().min() - 0.4
+max_xy = df_melt[[y_key, pbe_key]].max().max() + 0.4
+fig.update_xaxes(range=[min_xy, max_xy], title="PBE min. freq. (THz)")
+fig.update_yaxes(range=[min_xy, max_xy], title="ML min. freq. (THz)")
+fig.layout.legend.update(x=0.02, y=0.9, title="")
+fig.layout.margin = dict(l=10, r=10, t=10, b=10)
+
+fig.show()

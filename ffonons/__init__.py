@@ -38,18 +38,6 @@ speed_of_light = 299792458  # [m/s]
 thz_to_per_cm = 1e12 / (speed_of_light * 100)  # [cm^-1] 33.356410
 
 WhichDB = Literal["mp", "phonon_db", "gnome"]
-pretty_label_map = {
-    "mp": "MP",
-    "mace": "MACE-MP0",
-    "chgnet": "CHGNet",
-    "pbe": "PBE",
-    "pbesol": "PBEsol",
-    "mace-y7uhwpje": "MACE-MP0",
-    "chgnet-v0.3.0": "CHGNet",
-    "phonon_db": "PhononDB",
-    "gnome": "GNoMe",
-}
-
 AnyDos = CompleteDos | PhononDos | Dos
 AnyBandStructure = BandStructureSymmLine | PhononBandStructureSymmLine
 

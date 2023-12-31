@@ -6,34 +6,20 @@ at least 2 models (where DFT also counts as a model).
 import os
 
 from pymatgen.phonon.plotter import PhononBSPlotter
-from pymatgen.util.string import htmlify, latexify
+from pymatgen.util.string import latexify
 from pymatviz import plot_phonon_bands, plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import (
-    FIGS_DIR,
-    SITE_FIGS,
-    bs_key,
-    dft_key,
-    dos_key,
-    formula_key,
-    pretty_label_map,
-)
+from ffonons import FIGS_DIR, SITE_FIGS, bs_key, dft_key, dos_key, formula_key
 from ffonons.io import load_pymatgen_phonon_docs
-from ffonons.plots import plot_phonon_dos_mpl
+from ffonons.plots import plot_phonon_dos_mpl, plotly_title, pretty_label_map
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
 
 model1_key = "mace-y7uhwpje"
 model2_key = "chgnet-v0.3.0"
-
-
-def plotly_title(mp_id: str, formula: str) -> str:
-    """Make title link to MP details page (legacy since only legacy has phonons)."""
-    href = f"https://legacy.materialsproject.org/materials/{mp_id}"
-    return f"{htmlify(formula)}  <a {href=}>{mp_id}</a>"
 
 
 # %% load docs
@@ -46,7 +32,7 @@ materials_with_3 = [key for key, val in ph_docs.items() if len(val) >= 3]
 print(f"{len(materials_with_3)=}")
 
 
-# %% redraw multi-model DOS comparison plots
+# %% matplotlib DOS
 model1_key = "mace-y7uhwpje"
 model2_key = "chgnet-v0.3.0"
 
@@ -70,7 +56,7 @@ for mp_id in materials_with_2:
     save_fig(ax_dos, f"{FIGS_DIR}/{mp_id}-{formula.replace(' ', '')}/dos-all.pdf")
 
 
-# %% MATPLOTLIB band structure comparison plots
+# %% matplotlib bands
 for mp_id in tqdm(materials_with_2):
     pbe_bands = ph_docs[mp_id][dft_key][bs_key]
     ml1_bands = ph_docs[mp_id][model1_key][bs_key]
@@ -95,7 +81,7 @@ for mp_id in tqdm(materials_with_2):
     save_fig(ax_bands, bands_fig_path)
 
 
-# %% PLOTLY band structure comparison plots
+# %% plotly bands
 for mp_id in tqdm(materials_with_2):
     bs_pbe = ph_docs[mp_id][dft_key][bs_key]
     dft_label = pretty_label_map[dft_key]
@@ -114,7 +100,7 @@ for mp_id in tqdm(materials_with_2):
         continue
 
     formula = ph_docs[mp_id][dft_key][formula_key]
-    title = plotly_title(mp_id, formula)
+    title = plotly_title(formula, mp_id)
     fig_bs.layout.title = dict(text=title, x=0.5, y=0.96)
     fig_bs.layout.margin = dict(t=65, b=0, l=5, r=5)
 
@@ -123,35 +109,32 @@ for mp_id in tqdm(materials_with_2):
     save_fig(fig_bs, out_path, prec=5)
 
 
-# %% PLOTLY DOS comparison plots
-for mp_id in tqdm(materials_with_2):
-    pbe_dos = ph_docs[mp_id][dft_key][dos_key]
-    ml_dos = ph_docs[mp_id][model1_key][dos_key]
-
-    pbe_bs = ph_docs[mp_id][dft_key][bs_key]
-    ml_bs = ph_docs[mp_id][model1_key][bs_key]
-
-    pbe_label = pretty_label_map[dft_key]
-    ml_label = pretty_label_map[model1_key]
-    doses = {ml_label: ml_dos, pbe_label: pbe_dos}
-    bses = {ml_label: ml_bs, pbe_label: pbe_bs}
+# %% plotly bands+DOS
+for mp_id in tqdm(ph_docs):
+    bands_dict = {
+        pretty_label_map.get(key, key): val[bs_key]
+        for key, val in ph_docs[mp_id].items()
+    }
+    dos_dict = {
+        pretty_label_map.get(key, key): val[dos_key]
+        for key, val in ph_docs[mp_id].items()
+    }
     img_name = f"{mp_id}-bs-dos-pbe-vs-{model1_key}"
     out_path = f"{figs_out_dir}/{img_name}.pdf"
     # if os.path.isfile(out_path):
     #     continue
     try:
-        fig_bs_dos = plot_phonon_bands_and_dos(bses, doses)
+        fig_bs_dos = plot_phonon_bands_and_dos(bands_dict, dos_dict)
     except ValueError as exc:
         print(f"{mp_id=} {exc=}")
         continue
 
-    formula = ph_docs[mp_id][dft_key][formula_key]
-    fig_bs_dos.layout.title = dict(text=plotly_title(mp_id, formula), x=0.5, y=0.97)
+    formula = next(iter(ph_docs[mp_id].values()))[formula_key]
+    fig_bs_dos.layout.title = dict(text=plotly_title(formula, mp_id), x=0.5, y=0.97)
     fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
+    fig_bs_dos.layout.legend.update(x=1, y=1.08, xanchor="right")
 
     fig_bs_dos.show()
-
     save_fig(fig_bs_dos, out_path, prec=4)
-    fig_bs_dos.layout.template = "pymatviz_black"
-    fig_bs_dos.layout.paper_bgcolor = "rgba(0,0,0,0)"
+    fig_bs_dos.layout.update(template="pymatviz_black", paper_bgcolor="rgba(0,0,0,0)")
     save_fig(fig_bs_dos, f"{SITE_FIGS}/{img_name}.svelte", prec=4)

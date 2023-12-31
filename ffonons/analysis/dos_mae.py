@@ -5,8 +5,9 @@ import numpy as np
 import plotly.express as px
 from pymatviz.io import save_fig
 
-from ffonons import PAPER_DIR, pretty_label_map
+from ffonons import PAPER_DIR
 from ffonons.io import load_pymatgen_phonon_docs
+from ffonons.plots import pretty_label_map
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-12-17"

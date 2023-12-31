@@ -12,23 +12,13 @@ from atomate2.forcefields.flows.phonons import PhononMaker
 from jobflow import run_locally
 from monty.io import zopen
 from mp_api.client import MPRester
-from pymatgen.phonon.plotter import PhononBSPlotter
-from pymatgen.util.string import latexify
+from pymatviz import plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import (
-    DATA_DIR,
-    FIGS_DIR,
-    ROOT,
-    WhichDB,
-    bs_key,
-    dft_key,
-    dos_key,
-    pretty_label_map,
-)
+from ffonons import DATA_DIR, FIGS_DIR, ROOT, WhichDB, bs_key, dft_key, dos_key
 from ffonons.dbs.phonondb import parse_phonondb_docs
-from ffonons.plots import plot_phonon_bs, plot_phonon_dos_mpl
+from ffonons.plots import plotly_title, pretty_label_map
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-19"
@@ -122,7 +112,7 @@ for zip_path in tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip")):  # PhononDB
                 **makers,
                 store_force_constants=False,
                 # use "setyawan_curtarolo" when comparing to MP and "seekpath" else
-                # note: setyawan_curtarolo only compatible with primitive cell
+                # since setyawan_curtarolo only compatible with primitive cell
                 kpath_scheme="setyawan_curtarolo" if which_db == "mp" else "seekpath",
                 create_thermal_displacements=False,
                 # use_symmetrized_structure="primitive",
@@ -148,24 +138,18 @@ for zip_path in tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip")):  # PhononDB
 
             pbe_label, ml_label = pretty_label_map[dft_key], pretty_label_map[model]
             dos_dict = {ml_label: ml_phonon_doc.phonon_dos}
-            if "pbe_dos" in locals():
+            bands_dict = {ml_label: ml_phonon_doc.phonon_bandstructure}
+            if "pbe_dos" in locals() and "pbe_bands" in locals():
                 dos_dict[pbe_label] = pbe_dos
-            ax_dos = plot_phonon_dos_mpl(dos_dict, struct=struct)
-            save_fig(ax_dos, dos_fig_path)
+                bands_dict[pbe_label] = pbe_bands
+            fig_bs_dos = plot_phonon_bands_and_dos(bands_dict, dos_dict)
 
-            ml_phonon_bands = ml_phonon_doc.phonon_bandstructure
-            if which_db in ("gnome",):
-                ax_bs = plot_phonon_bs(ml_phonon_bands, f"{model} - ", struct)
-                save_fig(ax_bs, bands_fig_path)
-
-            pbe_bs_plotter = PhononBSPlotter(pbe_bands, label=pbe_label)
-            ml_bs_plotter = PhononBSPlotter(ml_phonon_bands, label=ml_label)
-
-            ax_bands = pbe_bs_plotter.plot_compare(ml_bs_plotter, linewidth=2)
-            ax_bands.set_title(f"{latexify(formula)} {mat_id}", fontsize=24)
-            ax_bands.figure.subplots_adjust(top=0.95)  # make room for title
-
-            save_fig(ax_bands, bands_fig_path)
+            fig_bs_dos.layout.title = dict(
+                text=plotly_title(formula, mat_id), x=0.5, y=0.97
+            )
+            fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
+            fig_bs_dos.show()
+            save_fig(fig_bs_dos, dos_fig_path)
         except ValueError as exc:
             # known possible errors:
             # - the 2 band structures are not compatible, due to symmetry change during

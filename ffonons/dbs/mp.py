@@ -7,7 +7,7 @@ from mp_api.client import MPRester
 from pymatviz.io import save_fig
 
 from ffonons import DATA_DIR, FIGS_DIR, bs_key, dos_key
-from ffonons.plots import plot_phonon_bs, plot_phonon_dos_mpl
+from ffonons.plots import plot_phonon_bs_mpl, plot_phonon_dos_mpl
 
 if TYPE_CHECKING:
     from emmet.core.phonon import PhononBSDOSDoc
@@ -44,7 +44,7 @@ def get_mp_ph_data(mp_id: str, docs_dir: str = DATA_DIR) -> None:
         with zopen(f"{docs_dir}/{id_formula}-mp.json.lzma", "wt") as file:
             file.write(json.dumps(mp_doc_dict))
 
-        ax_bs_mp = plot_phonon_bs(mp_phonon_doc.ph_bs, "MP", struct)
+        ax_bs_mp = plot_phonon_bs_mpl(mp_phonon_doc.ph_bs, "MP", struct)
         # always save figure right away, plotting another figure will clear the axis!
         save_fig(ax_bs_mp, mp_bands_fig_path)
 

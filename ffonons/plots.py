@@ -3,12 +3,24 @@ from pymatgen.core import Structure
 from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
 from pymatgen.phonon.dos import PhononDos
 from pymatgen.phonon.plotter import PhononBSPlotter, PhononDosPlotter
-from pymatgen.util.string import latexify
+from pymatgen.util.string import htmlify, latexify
 
 from ffonons import find_last_dos_peak
 
+pretty_label_map = {
+    "mp": "MP",
+    "mace": "MACE-MP0",
+    "chgnet": "CHGNet",
+    "pbe": "PBE",
+    "pbesol": "PBEsol",
+    "mace-y7uhwpje": "MACE-MP0",
+    "chgnet-v0.3.0": "CHGNet",
+    "phonon_db": "PhononDB",
+    "gnome": "GNoMe",
+}
 
-def plot_phonon_bs(
+
+def plot_phonon_bs_mpl(
     phonon_bs: PhononBandStructureSymmLine,
     title: str = "",
     struct: Structure | None = None,
@@ -107,3 +119,18 @@ def plot_phonon_dos_mpl(
     ax.set_title(title, fontsize=22)
     ax.figure.subplots_adjust(top=0.95)
     return ax
+
+
+def plotly_title(formula: str, mat_id: str = "") -> str:
+    """Make plotly figure title from HTML-ified formula and and link to MP details page
+    (legacy since only legacy has phonons) or other URL.
+    """
+    if mat_id.startswith(("mp-", "mvc-")):
+        href = f"https://legacy.materialsproject.org/materials/{mat_id}"
+    if mat_id.startswith("https://"):
+        href = mat_id
+        mat_id = mat_id.split("/")[-1]
+    title = f"{htmlify(formula)}"
+    if mat_id:
+        title += f'  <a href="{href}">{mat_id}</a>'
+    return title

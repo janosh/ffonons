@@ -11,8 +11,9 @@ from pymatviz.io import save_fig
 from pymatviz.utils import add_identity_line, annotate_metrics
 from sklearn.metrics import r2_score
 
-from ffonons import FIGS_DIR, PAPER_DIR, dft_key, id_key, pretty_label_map
+from ffonons import FIGS_DIR, PAPER_DIR, dft_key, id_key
 from ffonons.io import load_pymatgen_phonon_docs
+from ffonons.plots import pretty_label_map
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"

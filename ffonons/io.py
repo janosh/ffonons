@@ -35,7 +35,7 @@ NestedDict = dict[str, dict[str, dict]]
 
 
 def load_pymatgen_phonon_docs(
-    which_db: Literal["mp", "phonon_db"],
+    which_db: Literal["mp", "phonon_db", "one-off"],
     with_df: bool = True,
     imaginary_freq_tol: float = 0.1,
 ) -> NestedDict | tuple[NestedDict, pd.DataFrame]:
@@ -60,6 +60,8 @@ def load_pymatgen_phonon_docs(
     paths = glob(f"{DATA_DIR}/{which_db}/*.json.gz") + glob(
         f"{DATA_DIR}/{which_db}/*.json.lzma"
     )
+    if len(paths) == 0:
+        raise FileNotFoundError(f"No files found in {DATA_DIR}/{which_db}")
     ph_docs = defaultdict(dict)
 
     for path in tqdm(paths, desc=f"Loading {which_db} docs"):
@@ -72,7 +74,8 @@ def load_pymatgen_phonon_docs(
         mp_id, formula, model = re.search(
             rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.*", path
         ).groups()
-        assert mp_id.startswith("mp-"), f"Invalid {mp_id=}"
+        if not mp_id.startswith("mp-"):
+            raise ValueError(f"Invalid {mp_id=}")
 
         ph_docs[mp_id][model] = doc_dict | {
             formula_key: formula,
@@ -83,9 +86,6 @@ def load_pymatgen_phonon_docs(
     if with_df:
         summary_dict: dict[str, dict] = defaultdict(dict)
         for mp_id, docs in ph_docs.items():
-            if dft_key not in docs:
-                continue
-
             for model_key, doc in docs.items():
                 summary_dict[mp_id][formula_key] = doc[formula_key]
                 col_key = model_key.replace("-", "_")
@@ -101,7 +101,7 @@ def load_pymatgen_phonon_docs(
                 summary_dict[mp_id][f"min_freq_{col_key}_THz"] = ph_bs.bands.min()
                 summary_dict[mp_id][f"band_width_{col_key}_THz"] = ph_bs.width()
 
-                if model_key != dft_key:
+                if model_key != dft_key and dft_key in docs:
                     # DOS MAE
                     pbe_dos = ph_docs[mp_id][dft_key][dos_key]
                     summary_dict[mp_id][f"phdos_mae_{col_key}_THz"] = phonon_dos.mae(
@@ -120,7 +120,8 @@ def load_pymatgen_phonon_docs(
         # convert_dtypes() turns boolean cols imaginary_(gamma_)freq to bool
         df_summary = pd.DataFrame(summary_dict).T.convert_dtypes()
         df_summary.index.name = id_key
-        df_summary = df_summary.set_index(formula_key, append=True)
+        if formula_key in df_summary:
+            df_summary = df_summary.set_index(formula_key, append=True)
 
         return ph_docs, df_summary
 

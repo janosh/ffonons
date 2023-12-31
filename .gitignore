@@ -2,6 +2,7 @@
 __pycache__/
 .DS_Store
 *.egg-info/
+data/one-off
 data/gnome/stable-cifs-by-id.zip
 data/phonon_db/mp-*-pbe.zip
 figs/phonon_db/
