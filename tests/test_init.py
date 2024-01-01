@@ -16,7 +16,7 @@ def mp_149_mace_dos() -> PhononDos:
 
 @pytest.fixture(scope="session")
 def mp_2789_pbe_dos() -> PhononDos:
-    with zopen(f"{DATA_DIR}/phonon_db/mp-2789-N12O24-pbe.json.lzma", "rt") as file:
+    with zopen(f"{DATA_DIR}/phonon-db/mp-2789-N12O24-pbe.json.lzma", "rt") as file:
         return PhononDos.from_dict(json.load(file)[dos_key])
 
 

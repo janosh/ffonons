@@ -37,7 +37,7 @@ speed_of_light = 299792458  # [m/s]
 # convert THz to cm^-1
 thz_to_per_cm = 1e12 / (speed_of_light * 100)  # [cm^-1] 33.356410
 
-WhichDB = Literal["mp", "phonon_db", "gnome"]
+WhichDB = Literal["mp", "phonon-db", "gnome", "one-off"]
 AnyDos = CompleteDos | PhononDos | Dos
 AnyBandStructure = BandStructureSymmLine | PhononBandStructureSymmLine
 

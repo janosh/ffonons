@@ -29,7 +29,7 @@ from ffonons import DATA_DIR, bs_key, dos_key, struct_key
 __author__ = "Janine George, Aakash Naik, Janosh Riebesell"
 __date__ = "2023-12-07"
 
-db_name = "phonon_db"
+db_name = "phonon-db"
 ph_docs_dir = f"{DATA_DIR}/{db_name}"
 togo_id_key = "togo_id"
 
@@ -41,7 +41,7 @@ togo_to_mp_id = {val: key for key, val in mp_to_togo_id.items()}
 # %%
 def fetch_togo_doc_by_id(doc_id: str) -> str:
     """Download the phonopy file for a given MP ID. The file is saved in the
-    data/phonon_db directory and the filename returned. If the file already exists,
+    data/phonon-db directory and the filename returned. If the file already exists,
     it is skipped.
     """
     if doc_id.startswith("mp-"):

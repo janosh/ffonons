@@ -21,7 +21,7 @@ __date__ = "2023-12-15"
 # %% compute last phonon DOS peak for each model and MP
 imaginary_freq_tol = 1e-1
 ph_docs, df_summary = load_pymatgen_phonon_docs(
-    which_db := "phonon_db", imaginary_freq_tol=imaginary_freq_tol
+    which_db := "phonon-db", imaginary_freq_tol=imaginary_freq_tol
 )
 model_key = "mace-y7uhwpje"
 

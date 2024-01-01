@@ -20,7 +20,7 @@ __date__ = "2023-11-24"
 
 
 # %%
-ph_docs, df_summary = load_pymatgen_phonon_docs(which_db := "phonon_db")
+ph_docs, df_summary = load_pymatgen_phonon_docs(which_db := "phonon-db")
 model_key = "mace-y7uhwpje"
 
 df_summary.to_csv(

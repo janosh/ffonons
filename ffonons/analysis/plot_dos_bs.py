@@ -23,8 +23,8 @@ model2_key = "chgnet-v0.3.0"
 
 
 # %% load docs
-ph_docs, df_summary = load_pymatgen_phonon_docs(which_db := "phonon_db")
-figs_out_dir = f"{FIGS_DIR}/{which_db}"
+ph_docs, df_summary = load_pymatgen_phonon_docs(which_db := "one-off")
+os.makedirs(figs_out_dir := f"{FIGS_DIR}/{which_db}", exist_ok=True)
 
 materials_with_2 = [key for key, val in ph_docs.items() if len(val) >= 2]
 print(f"{len(materials_with_2)=}")
@@ -112,12 +112,12 @@ for mp_id in tqdm(materials_with_2):
 # %% plotly bands+DOS
 for mp_id in tqdm(ph_docs):
     bands_dict = {
-        pretty_label_map.get(key, key): val[bs_key]
-        for key, val in ph_docs[mp_id].items()
+        pretty_label_map.get(key, key): getattr(dct, bs_key)
+        for key, dct in ph_docs[mp_id].items()
     }
     dos_dict = {
-        pretty_label_map.get(key, key): val[dos_key]
-        for key, val in ph_docs[mp_id].items()
+        pretty_label_map.get(key, key): getattr(dct, dos_key)
+        for key, dct in ph_docs[mp_id].items()
     }
     img_name = f"{mp_id}-bs-dos-pbe-vs-{model1_key}"
     out_path = f"{figs_out_dir}/{img_name}.pdf"
@@ -129,7 +129,7 @@ for mp_id in tqdm(ph_docs):
         print(f"{mp_id=} {exc=}")
         continue
 
-    formula = next(iter(ph_docs[mp_id].values()))[formula_key]
+    formula = next(iter(ph_docs[mp_id].values())).structure.formula
     fig_bs_dos.layout.title = dict(text=plotly_title(formula, mp_id), x=0.5, y=0.97)
     fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
     fig_bs_dos.layout.legend.update(x=1, y=1.08, xanchor="right")

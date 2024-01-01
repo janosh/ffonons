@@ -14,7 +14,7 @@ __date__ = "2023-12-17"
 
 
 # %%
-ph_docs, df_summary = load_pymatgen_phonon_docs(which_db := "phonon_db")
+ph_docs, df_summary = load_pymatgen_phonon_docs(which_db := "phonon-db")
 model_key = "mace-y7uhwpje"
 srs_ph_dos_mae = df_summary[f"phdos_mae_{model_key.replace('-', '_')}_THz"].dropna()
 srs_ph_dos_mae.name = f"{pretty_label_map[model_key]}"

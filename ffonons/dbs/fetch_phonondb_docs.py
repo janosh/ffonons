@@ -12,7 +12,7 @@ from ffonons.dbs.phonondb import (
     scrape_and_fetch_togo_docs_from_page,
 )
 
-db_name = "phonon_db"
+db_name = "phonon-db"
 ph_docs_dir = f"{DATA_DIR}/{db_name}"
 togo_id_key = "togo_id"
 __author__ = "Janine George, Aakash Nair, Janosh Riebesell"

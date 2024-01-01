@@ -15,7 +15,7 @@ pretty_label_map = {
     "pbesol": "PBEsol",
     "mace-y7uhwpje": "MACE-MP0",
     "chgnet-v0.3.0": "CHGNet",
-    "phonon_db": "PhononDB",
+    "phonon-db": "PhononDB",
     "gnome": "GNoMe",
 }
 

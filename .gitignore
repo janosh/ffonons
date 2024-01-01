@@ -4,7 +4,7 @@ __pycache__/
 *.egg-info/
 data/one-off
 data/gnome/stable-cifs-by-id.zip
-data/phonon_db/mp-*-pbe.zip
-figs/phonon_db/
-data/phonon_db/
+data/phonon-db/mp-*-pbe.zip
+figs/phonon-db/
+data/phonon-db/
 **/figs/*bs*.svelte

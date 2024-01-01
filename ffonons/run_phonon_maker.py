@@ -11,12 +11,13 @@ from atomate2.common.schemas.phonons import PhononBSDOSDoc as Atomate2PhononBSDO
 from atomate2.forcefields.flows.phonons import PhononMaker
 from jobflow import run_locally
 from monty.io import zopen
+from monty.json import MontyEncoder
 from mp_api.client import MPRester
 from pymatviz import plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, FIGS_DIR, ROOT, WhichDB, bs_key, dft_key, dos_key
+from ffonons import DATA_DIR, FIGS_DIR, ROOT, WhichDB, dft_key
 from ffonons.dbs.phonondb import parse_phonondb_docs
 from ffonons.plots import plotly_title, pretty_label_map
 
@@ -128,13 +129,8 @@ for zip_path in tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip")):  # PhononDB
             last_job_id = phonon_flow[-1].uuid
             ml_phonon_doc: Atomate2PhononBSDOSDoc = result[last_job_id][1].output
 
-            ml_doc_dict = {
-                dos_key: ml_phonon_doc.phonon_dos.as_dict(),
-                bs_key: ml_phonon_doc.phonon_bandstructure.as_dict(),
-            }
-
-            with zopen(ml_doc_path, "wt") as file:
-                file.write(json.dumps(ml_doc_dict))
+            with zopen(ml_doc_path, "wb") as file:
+                json.dump(ml_phonon_doc, file, cls=MontyEncoder)
 
             pbe_label, ml_label = pretty_label_map[dft_key], pretty_label_map[model]
             dos_dict = {ml_label: ml_phonon_doc.phonon_dos}

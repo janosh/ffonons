@@ -2,30 +2,23 @@
 band structures and DOSs from disk.
 """
 import json
-import os
 import re
 from collections import defaultdict
 from collections.abc import Sequence
 from glob import glob
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from zipfile import ZipFile
 
 import pandas as pd
 from monty.io import zopen
+from monty.json import MontyDecoder
 from pymatgen.core import Structure
-from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
-from pymatgen.phonon.dos import PhononDos
 from tqdm import tqdm
 
-from ffonons import (
-    DATA_DIR,
-    bs_key,
-    dft_key,
-    dos_key,
-    find_last_dos_peak,
-    formula_key,
-    id_key,
-)
+from ffonons import DATA_DIR, dft_key, dos_key, find_last_dos_peak, formula_key, id_key
+
+if TYPE_CHECKING:
+    from atomate2.common.schemas.phonons import PhononBSDOSDoc
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
@@ -35,7 +28,7 @@ NestedDict = dict[str, dict[str, dict]]
 
 
 def load_pymatgen_phonon_docs(
-    which_db: Literal["mp", "phonon_db", "one-off"],
+    which_db: Literal["mp", "phonon-db"],
     with_df: bool = True,
     imaginary_freq_tol: float = 0.1,
 ) -> NestedDict | tuple[NestedDict, pd.DataFrame]:
@@ -43,7 +36,7 @@ def load_pymatgen_phonon_docs(
     specified database.
 
     Args:
-        which_db ("mp" | "phonon_db"): Which database to load docs from.
+        which_db ("mp" | "phonon-db"): Which database to load docs from.
         with_df (bool): Whether to return a pandas DataFrame as well with last phonon
             DOS peak frequencies, DOS MAE and presence of imaginary modes as columns.
             Defaults to True.
@@ -66,10 +59,7 @@ def load_pymatgen_phonon_docs(
 
     for path in tqdm(paths, desc=f"Loading {which_db} docs"):
         with zopen(path, "rt") as file:
-            doc_dict = json.load(file)
-
-        doc_dict[dos_key] = PhononDos.from_dict(doc_dict[dos_key])
-        doc_dict[bs_key] = PhononBandStructureSymmLine.from_dict(doc_dict[bs_key])
+            ph_doc: PhononBSDOSDoc = json.load(file, cls=MontyDecoder)
 
         mp_id, formula, model = re.search(
             rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.*", path
@@ -77,55 +67,50 @@ def load_pymatgen_phonon_docs(
         if not mp_id.startswith("mp-"):
             raise ValueError(f"Invalid {mp_id=}")
 
-        ph_docs[mp_id][model] = doc_dict | {
-            formula_key: formula,
-            id_key: mp_id,
-            "dir_path": os.path.dirname(path),
-        }
+        ph_doc.file_path = path
+        setattr(ph_doc, id_key, mp_id)
 
-    if with_df:
-        summary_dict: dict[str, dict] = defaultdict(dict)
-        for mp_id, docs in ph_docs.items():
-            for model_key, doc in docs.items():
-                summary_dict[mp_id][formula_key] = doc[formula_key]
-                col_key = model_key.replace("-", "_")
+        ph_docs[mp_id][model] = ph_doc
 
-                # last phonon DOS peak
-                phonon_dos: PhononDos = doc[dos_key]
-                last_peak = find_last_dos_peak(phonon_dos)
-                summary_dict[mp_id][f"last_phdos_peak_{col_key}_THz"] = last_peak
+    if not with_df:
+        return ph_docs
 
-                # max frequency from band structure
-                ph_bs: PhononBandStructureSymmLine = doc[bs_key]
-                summary_dict[mp_id][f"max_freq_{col_key}_THz"] = ph_bs.bands.max()
-                summary_dict[mp_id][f"min_freq_{col_key}_THz"] = ph_bs.bands.min()
-                summary_dict[mp_id][f"band_width_{col_key}_THz"] = ph_bs.width()
+    summary_dict: dict[str, dict] = defaultdict(dict)
+    for mp_id, docs in ph_docs.items():
+        for model_key, doc in docs.items():
+            doc: PhononBSDOSDoc
+            summary_dict[mp_id][formula_key] = doc.structure.formula
+            col_key = model_key.replace("-", "_")
 
-                if model_key != dft_key and dft_key in docs:
-                    # DOS MAE
-                    pbe_dos = ph_docs[mp_id][dft_key][dos_key]
-                    summary_dict[mp_id][f"phdos_mae_{col_key}_THz"] = phonon_dos.mae(
-                        pbe_dos
-                    )
+            # last phonon DOS peak
+            ph_dos = doc.phonon_dos
+            last_peak = find_last_dos_peak(ph_dos)
+            summary_dict[mp_id][f"last_phdos_peak_{col_key}_THz"] = last_peak
 
-                # has imaginary modes
-                tol = imaginary_freq_tol
-                has_imag_modes = ph_bs.has_imaginary_freq(tol=tol)
-                summary_dict[mp_id][f"imaginary_freq_{col_key}"] = has_imag_modes
-                has_imag_gamma_mode = ph_bs.has_imaginary_gamma_freq(tol=tol)
-                summary_dict[mp_id][
-                    f"imaginary_gamma_freq_{col_key}"
-                ] = has_imag_gamma_mode
+            # max frequency from band structure
+            ph_bs = doc.phonon_bandstructure
+            summary_dict[mp_id][f"max_freq_{col_key}_THz"] = ph_bs.bands.max()
+            summary_dict[mp_id][f"min_freq_{col_key}_THz"] = ph_bs.bands.min()
+            summary_dict[mp_id][f"band_width_{col_key}_THz"] = ph_bs.width()
 
-        # convert_dtypes() turns boolean cols imaginary_(gamma_)freq to bool
-        df_summary = pd.DataFrame(summary_dict).T.convert_dtypes()
-        df_summary.index.name = id_key
-        if formula_key in df_summary:
-            df_summary = df_summary.set_index(formula_key, append=True)
+            if model_key != dft_key and dft_key in docs:  # calculate DOS MAE
+                pbe_dos = ph_docs[mp_id][dft_key][dos_key]
+                summary_dict[mp_id][f"phdos_mae_{col_key}_THz"] = ph_dos.mae(pbe_dos)
 
-        return ph_docs, df_summary
+            # has imaginary modes
+            tol = imaginary_freq_tol
+            has_imag_modes = ph_bs.has_imaginary_freq(tol=tol)
+            summary_dict[mp_id][f"imaginary_freq_{col_key}"] = has_imag_modes
+            has_imag_gamma_mode = ph_bs.has_imaginary_gamma_freq(tol=tol)
+            summary_dict[mp_id][f"imaginary_gamma_freq_{col_key}"] = has_imag_gamma_mode
 
-    return ph_docs
+    # convert_dtypes() turns boolean cols imaginary_(gamma_)freq to bool
+    df_summary = pd.DataFrame(summary_dict).T.convert_dtypes()
+    df_summary.index.name = id_key
+    if formula_key in df_summary:
+        df_summary = df_summary.set_index(formula_key, append=True)
+
+    return ph_docs, df_summary
 
 
 def get_gnome_pmg_structures(
