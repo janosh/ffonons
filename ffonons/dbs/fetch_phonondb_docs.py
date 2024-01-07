@@ -8,7 +8,7 @@ from tqdm import tqdm
 from ffonons import DATA_DIR
 from ffonons.dbs.phonondb import (
     fetch_togo_doc_by_id,
-    phonondb_doc_zip_to_pmg_lzma,
+    phonondb_doc_to_pmg_lzma,
     scrape_and_fetch_togo_docs_from_page,
 )
 
@@ -48,7 +48,7 @@ for zip_path in (
         raise RuntimeError(f"> 1 doc for {mat_id=}: {existing_docs}")
 
     pbar.set_description(f"{mat_id}")
-    phonondb_doc_zip_to_pmg_lzma(zip_path)
+    phonondb_doc_to_pmg_lzma(zip_path)
 
 
 # %%
@@ -81,7 +81,7 @@ for mp_id in id_formula_map:
     assert zip_path.endswith(".zip"), f"Invalid {zip_path=}"
 
     try:
-        dft_doc_path = phonondb_doc_zip_to_pmg_lzma(zip_path)
+        pmg_doc_path = phonondb_doc_to_pmg_lzma(zip_path)
     except Exception as exc:
         print(f"{mp_id=}: {exc}")
         continue

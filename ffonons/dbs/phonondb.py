@@ -39,10 +39,10 @@ togo_to_mp_id = {val: key for key, val in mp_to_togo_id.items()}
 
 
 # %%
-def fetch_togo_doc_by_id(doc_id: str) -> str:
-    """Download the phonopy file for a given MP ID. The file is saved in the
-    data/phonon-db directory and the filename returned. If the file already exists,
-    it is skipped.
+def fetch_togo_doc_by_id(doc_id: str, out_path: str = "") -> str:
+    """Download the phonopy file for a given MP ID. The file is saved to out_path which
+    defaults to "data/phonon-db/{mp_id}-{togo_id}-pbe.zip". out_path is returned.
+    If the file already exists, it is skipped but its path is still returned.
     """
     if doc_id.startswith("mp-"):
         togo_id = mp_to_togo_id[doc_id]
@@ -52,9 +52,9 @@ def fetch_togo_doc_by_id(doc_id: str) -> str:
         mp_id = togo_to_mp_id[doc_id]
 
     filename = f"{mp_id}-{togo_id}-pbe.zip"
-    out_path = f"{ph_docs_dir}/{filename}"
+    out_path = out_path or f"{ph_docs_dir}/{filename}"
     if os.path.isfile(out_path):
-        print(f"{filename=} already exists. skipping")
+        print(f"{out_path=} already exists. skipping")
         return out_path
 
     download_url = f"https://mdr.nims.go.jp/download_all/{togo_id}.zip"
@@ -132,31 +132,20 @@ def scrape_and_fetch_togo_docs_from_page(
     return df_out
 
 
-def phonondb_doc_zip_to_pmg_lzma(zip_path: str) -> tuple[Structure, dict[str, Any]]:
-    """Convert a phonopy zip file to a pymatgen Structure and dict of phonon data.
+def phonondb_doc_to_pmg_lzma(zip_path: str) -> tuple[Structure, dict[str, Any]]:
+    """Convert a zipped phonon DB doc to a pymatgen Structure and dict of phonon data.
 
     Args:
-        zip_path (str): path to the zip file
+        zip_path (str): path to the zipped phonon DB doc
 
     Returns:
         tuple[Structure, dict[str, Any]]: Structure and dict of phonon data
-    r
     """
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
     if matches := glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma"):
         return matches[0]
 
-    # open zip archive and only read the phonopy_params.yaml.xz file from it
-    with ZipFile(zip_path) as zip_file:
-        try:
-            yaml_xz = zip_file.open("phonopy_params.yaml.xz")
-            phonopy_params = lzma.open(yaml_xz, "rt")
-        except Exception as exc:
-            available_files = zip_file.namelist()
-            raise FileNotFoundError(
-                f"Failed to read {phonopy_params=}, {available_files=}"
-            ) from exc
-    phonon_db_results = parse_phonondb_docs(phonopy_params, is_nac=False)
+    phonon_db_results = parse_phonondb_docs(zip_path, is_nac=False)
 
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
 
@@ -209,7 +198,8 @@ def get_phonopy_kpath(
 
 
 def parse_phonondb_docs(
-    phonopy_params: dict | None = None,
+    phonopy_doc_path: str | None = None,
+    phonopy_params: dict[str, Any] | None = None,
     supercell: list[int] = (2, 2, 2),
     primitive_matrix: str | list[list[float]] = "auto",
     is_nac: bool = False,
@@ -226,7 +216,10 @@ def parse_phonondb_docs(
     phonon data as dict.
 
     Args:
-        phonopy_params (dict, optional): path to phonopy yaml file. Defaults to None.
+        phonopy_doc_path (str): Path to zipped phonopy doc containing YAML file with
+            phonopy params.
+        phonopy_params (dict[str, Any]): phonopy params as dict (only used if
+            phonopy_doc_path is None).
         supercell (list[int], optional): supercell matrix. Defaults to (2, 2, 2).
         primitive_matrix (str | list[list[float]], optional): primitive matrix.
             Defaults to "auto".
@@ -252,6 +245,16 @@ def parse_phonondb_docs(
     if code == "vasp":
         factor = VaspToTHz
 
+    if phonopy_doc_path:
+        # open zip archive and only read the phonopy_params.yaml.xz file from it
+        try:
+            with ZipFile(phonopy_doc_path) as zip_file:
+                yaml_xz = zip_file.open("phonopy_params.yaml.xz")
+                phonopy_params = lzma.open(yaml_xz, "rt")
+        except Exception as exc:
+            exc.add_note(f"Failed to load {phonopy_doc_path=}")
+            raise
+
     if phonopy_params:
         phonon = phonopy.load(phonopy_params, factor=factor, is_nac=is_nac)
     else:
@@ -265,10 +268,9 @@ def parse_phonondb_docs(
             is_nac=is_nac,
         )
 
+    pmg_struct = get_pmg_structure(phonon.primitive)
     k_path_dict, k_path_concrete = get_phonopy_kpath(
-        structure=get_pmg_structure(phonon.primitive),
-        kpath_scheme=kpath_scheme,
-        symprec=symprec,
+        structure=pmg_struct, kpath_scheme=kpath_scheme, symprec=symprec
     )
 
     q_points, connections = get_band_qpoints_and_path_connections(
@@ -277,11 +279,12 @@ def parse_phonondb_docs(
 
     # phonon band structures will always be computed
     # TODO: potentially add kwargs to avoid computation of eigenvectors
+    with_bs_eig_vecs = kwargs.get("band_structure_eigenvectors", False)
     phonon.run_band_structure(
         q_points,
         path_connections=connections,
-        with_eigenvectors=kwargs.get("band_structure_eigenvectors", False),
-        is_band_connection=kwargs.get("band_structure_eigenvectors", False),
+        with_eigenvectors=with_bs_eig_vecs,
+        is_band_connection=with_bs_eig_vecs,
     )
 
     # convert bands to pymatgen PhononBandStructureSymmLine
@@ -348,6 +351,7 @@ def parse_phonondb_docs(
     # will compute thermal displacement matrices
     # for the primitive cell (phonon.primitive!)
     # only this is available in phonopy
+    therm_disp_mat = therm_disp_mat_cif = None  # initialize
     if kwargs.get("create_thermal_displacements"):
         phonon.run_mesh(kpoint.kpts[0], with_eigenvectors=True, is_mesh_symmetry=False)
         freq_min_thermal_displacements = kwargs.get("freq_min_thermal_displacements", 0)
@@ -370,14 +374,10 @@ def parse_phonondb_docs(
             phonon.thermal_displacement_matrices.write_cif(
                 phonon.primitive, idx, filename=cif_path
             )
-        _disp_mat = phonon._thermal_displacement_matrices  # noqa: SLF001
-        tdisp_mat = _disp_mat.thermal_displacement_matrices.tolist()
+        td_matrices = phonon._thermal_displacement_matrices  # noqa: SLF001
+        therm_disp_mat = td_matrices.thermal_displacement_matrices.tolist()
 
-        tdisp_mat_cif = _disp_mat.thermal_displacement_matrices_cif.tolist()
-
-    else:
-        tdisp_mat = None
-        tdisp_mat_cif = None
+        therm_disp_mat_cif = td_matrices.thermal_displacement_matrices_cif.tolist()
 
     return {
         "unit_cell": get_pmg_structure(phonon.unitcell),
@@ -394,8 +394,8 @@ def parse_phonondb_docs(
         "has_imaginary_modes": imaginary_modes,
         "thermal_displacement_data": {
             "temps_thermal_displacements": temp_range_thermal_displacements.tolist(),
-            "thermal_displacement_matrix_cif": tdisp_mat_cif,
-            "thermal_displacement_matrix": tdisp_mat,
+            "thermal_displacement_matrix_cif": therm_disp_mat_cif,
+            "thermal_displacement_matrix": therm_disp_mat,
             "freq_min_thermal_displacements": freq_min_thermal_displacements,
         }
         if kwargs.get("create_thermal_displacements")

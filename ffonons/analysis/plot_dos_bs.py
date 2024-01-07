@@ -132,7 +132,7 @@ for mp_id in tqdm(ph_docs):
     formula = next(iter(ph_docs[mp_id].values())).structure.formula
     fig_bs_dos.layout.title = dict(text=plotly_title(formula, mp_id), x=0.5, y=0.97)
     fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
-    fig_bs_dos.layout.legend.update(x=1, y=1.08, xanchor="right")
+    fig_bs_dos.layout.legend.update(x=1, y=1.07, xanchor="right")
 
     fig_bs_dos.show()
     save_fig(fig_bs_dos, out_path, prec=4)

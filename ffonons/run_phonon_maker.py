@@ -27,7 +27,7 @@ __date__ = "2023-11-19"
 
 # %%
 runs_dir = f"{ROOT}/tmp/runs"  # noqa: S108
-which_db: WhichDB = "phonon_db"
+which_db: WhichDB = "phonon-db"
 ph_docs_dir = f"{DATA_DIR}/{which_db}"
 figs_out_dir = f"{FIGS_DIR}/{which_db}"
 shutil.rmtree(runs_dir, ignore_errors=True)  # remove old runs to save space
@@ -42,26 +42,26 @@ mace_kwds = dict(
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
 
 models = {
-    "mace-y7uhwpje": dict(
-        bulk_relax_maker=ff_jobs.MACERelaxMaker(
-            relax_kwargs=common_relax_kwds,
-            **mace_kwds,
-        ),
-        phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-        static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-    ),
+    # "mace-y7uhwpje": dict(
+    #     bulk_relax_maker=ff_jobs.MACERelaxMaker(
+    #         relax_kwargs=common_relax_kwds,
+    #         **mace_kwds,
+    #     ),
+    #     phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+    #     static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+    # ),
     # "m3gnet":dict(
     #     bulk_relax_maker=ff_jobs.M3GNetRelaxMaker(relax_kwargs=common_relax_kwds),
     #     phonon_displacement_maker=ff_jobs.M3GNetStaticMaker(),
     #     static_energy_maker=ff_jobs.M3GNetStaticMaker(),
     # ),
-    # "chgnet-v0.3.0": dict(
-    #     bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
-    #         relax_kwargs=common_relax_kwds, **chgnet_kwds
-    #     ),
-    #     phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
-    #     static_energy_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
-    # ),
+    "chgnet-v0.3.0": dict(
+        bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
+            relax_kwargs=common_relax_kwds, **chgnet_kwds
+        ),
+        phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
+        static_energy_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
+    ),
 }
 
 
@@ -80,8 +80,9 @@ mpr = MPRester(mute_progress_bars=True)
 # for mat_id, struct in get_gnome_pmg_structures().items():  # GNOME
 errors: dict[str, Exception] = {}
 
-for zip_path in tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip")):  # PhononDB
+for zip_path in (pbar := tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip"))):  # PhononDB
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
+    pbar.set_description(f"{mat_id=}")
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
 
     phonon_db_results = parse_phonondb_docs(zip_path, is_nac=False)
@@ -129,7 +130,7 @@ for zip_path in tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip")):  # PhononDB
             last_job_id = phonon_flow[-1].uuid
             ml_phonon_doc: Atomate2PhononBSDOSDoc = result[last_job_id][1].output
 
-            with zopen(ml_doc_path, "wb") as file:
+            with zopen(ml_doc_path, "wt") as file:
                 json.dump(ml_phonon_doc, file, cls=MontyEncoder)
 
             pbe_label, ml_label = pretty_label_map[dft_key], pretty_label_map[model]
@@ -144,15 +145,18 @@ for zip_path in tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip")):  # PhononDB
                 text=plotly_title(formula, mat_id), x=0.5, y=0.97
             )
             fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
+            fig_bs_dos.layout.legend.update(x=1, y=1.07, xanchor="right")
             fig_bs_dos.show()
             save_fig(fig_bs_dos, dos_fig_path)
-        except ValueError as exc:
+        except (ValueError, RuntimeError) as exc:
             # known possible errors:
             # - the 2 band structures are not compatible, due to symmetry change during
             # MACE relaxation, try different PhononMaker symprec (default=1e-4). compare
             # PBE and MACE space groups to verify cause
             # - phonopy found imaginary dispersion > 1e-10 (fixed by disabling thermal
             # displacement matrices)
+            # - phonopy-internal: RuntimeError: Creating primitive cell failed.
+            # PRIMITIVE_AXIS may be incorrectly specified. For mp-754196 Ba2Sr1I6
             ml_spg = ml_phonon_doc.structure.get_space_group_info()[1]
             pbe_spg = struct.get_space_group_info()[1]
             errors[id_formula] = f"{model}: {exc} {ml_spg=} {pbe_spg=}"
