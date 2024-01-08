@@ -5,6 +5,7 @@ import lzma
 import os
 import re
 import sys
+from dataclasses import dataclass
 from glob import glob
 from typing import Any, Literal
 from zipfile import ZipFile
@@ -15,16 +16,17 @@ import phonopy
 import requests
 import yaml
 from bs4 import BeautifulSoup
+from monty.json import MontyEncoder
 from phonopy.phonon.band_structure import get_band_qpoints_and_path_connections
 from phonopy.units import VaspToTHz
 from pymatgen.core import Structure
 from pymatgen.io.phonopy import get_ph_bs_symm_line_from_dict, get_pmg_structure
 from pymatgen.io.vasp import Kpoints
-from pymatgen.phonon.dos import PhononDos
+from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 from pymatgen.symmetry.bandstructure import HighSymmKpath
 from pymatgen.symmetry.kpath import KPathSeek
 
-from ffonons import DATA_DIR, bs_key, dos_key, struct_key
+from ffonons import DATA_DIR
 
 __author__ = "Janine George, Aakash Naik, Janosh Riebesell"
 __date__ = "2023-12-07"
@@ -120,8 +122,10 @@ def scrape_and_fetch_togo_docs_from_page(
         mp_ids += [mp_id]
 
         download_url = f"https://mdr.nims.go.jp/download_all/{doc_id}.zip"
-        download_urls += [download_url]
         resp = requests.get(download_url, allow_redirects=True, timeout=15)
+        if resp.status_code != 200:
+            continue  # skip if download failed
+        download_urls += [download_url]
         with open(out_path, "wb") as file:
             file.write(resp.content)
 
@@ -132,36 +136,38 @@ def scrape_and_fetch_togo_docs_from_page(
     return df_out
 
 
-def phonondb_doc_to_pmg_lzma(zip_path: str) -> tuple[Structure, dict[str, Any]]:
+def phonondb_doc_to_pmg_lzma(
+    zip_path: str, existing: Literal["skip", "overwrite", "raise"] = "skip"
+) -> tuple[Structure, dict[str, Any]]:
     """Convert a zipped phonon DB doc to a pymatgen Structure and dict of phonon data.
 
     Args:
         zip_path (str): path to the zipped phonon DB doc
+        existing ("skip" | "overwrite" | "raise"): What to do if output file already
+            exists. Defaults to "skip".
 
     Returns:
         tuple[Structure, dict[str, Any]]: Structure and dict of phonon data
     """
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
     if matches := glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma"):
-        return matches[0]
+        if existing == "skip":
+            print(f"{matches[0]} already exists. skipping")
+            return matches[0]
+        if existing == "raise":
+            raise RuntimeError(f"{matches[0]} already exists.")
+        # else: overwrite i.e. continue
 
-    phonon_db_results = parse_phonondb_docs(zip_path, is_nac=False)
+    phonondb_doc = parse_phonondb_docs(zip_path, is_nac=False)
 
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
 
-    struct = phonon_db_results["unit_cell"]
+    struct = phonondb_doc.unit_cell
     formula = struct.formula.replace(" ", "")
     pmg_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-pbe.json.lzma"
 
-    dft_doc_dict = {
-        dos_key: phonon_db_results["phonon_dos"].as_dict(),
-        bs_key: phonon_db_results["phonon_bandstructure"].as_dict(),
-        struct_key: struct.as_dict(),
-        "mp_id": mat_id,
-    }
-
     with lzma.open(pmg_doc_path, "wt") as file:
-        file.write(json.dumps(dft_doc_dict))
+        json.dump(phonondb_doc, file, cls=MontyEncoder)
 
     return pmg_doc_path
 
@@ -197,6 +203,27 @@ def get_phonopy_kpath(
     return kpath["kpoints"], path
 
 
+@dataclass
+class PhononDBDocParsed:
+    """Dataclass for phonon DB docs."""
+
+    structure: Structure
+    primitive: Structure
+    supercell_matrix: list[list[int]]  # 3x3 matrix
+    nac_params: dict[str, Any]  # non-analytical corrections based on Born charges
+    phonon_bandstructure: PhononBandStructureSymmLine
+    phonon_dos: PhononDos
+    free_energies: list[float]  # vibrational part of free energies per formula unit
+    internal_energies: list[float]  # vibrational part of internal energies per f.u.
+    heat_capacities: list[float]
+    entropies: list[float]
+    temps: list[float]  # temperatures
+    has_imaginary_modes: bool  # whether imaginary modes are present anywhere in the BS
+    thermal_displacement_data: dict[str, Any] | None = None
+    mp_id: str | None = None  # material ID
+    formula: str | None = None  # chemical formula
+
+
 def parse_phonondb_docs(
     phonopy_doc_path: str | None = None,
     phonopy_params: dict[str, Any] | None = None,
@@ -211,7 +238,7 @@ def parse_phonondb_docs(
     symprec: float = 1e-5,
     out_dir: str | None = None,
     **kwargs: Any,
-) -> dict[str, Any]:
+) -> PhononDBDocParsed:
     """Get phonon data from phonopy and save it to disk. Returns the structure and the
     phonon data as dict.
 
@@ -240,7 +267,7 @@ def parse_phonondb_docs(
         **kwargs: additional parameters that can be passed to this method as a dict
 
     Returns:
-        dict: phonon data
+        PhononDBDoc: dataclass with phonon data
     """
     if code == "vasp":
         factor = VaspToTHz
@@ -299,7 +326,7 @@ def parse_phonondb_docs(
     )
 
     # will determine if imaginary modes are present in the structure
-    imaginary_modes = bs_symm_line.has_imaginary_freq(
+    has_imag_modes = bs_symm_line.has_imaginary_freq(
         tol=kwargs.get("tol_imaginary_modes", 1e-5)
     )
 
@@ -310,8 +337,9 @@ def parse_phonondb_docs(
 
     # convert phonon DOS to pymatgen PhononDos
     kpoint_density_dos = kwargs.get("kpoint_density_dos", 7000)
+    struct = get_pmg_structure(phonon.primitive)
     kpoint = Kpoints.automatic_density(
-        structure=get_pmg_structure(phonon.primitive),
+        structure=struct,
         kppa=kpoint_density_dos,
         force_gamma=True,
     )
@@ -327,26 +355,16 @@ def parse_phonondb_docs(
     )
 
     free_energies = [
-        ph_dos.helmholtz_free_energy(
-            temp=temp, structure=get_pmg_structure(phonon.primitive)
-        )
-        for temp in temp_range
+        ph_dos.helmholtz_free_energy(temp=temp, structure=struct) for temp in temp_range
     ]
 
-    entropies = [
-        ph_dos.entropy(temp=temp, structure=get_pmg_structure(phonon.primitive))
-        for temp in temp_range
-    ]
+    entropies = [ph_dos.entropy(temp=temp, structure=struct) for temp in temp_range]
 
     internal_energies = [
-        ph_dos.internal_energy(temp=temp, structure=get_pmg_structure(phonon.primitive))
-        for temp in temp_range
+        ph_dos.internal_energy(temp=temp, structure=struct) for temp in temp_range
     ]
 
-    heat_capacities = [
-        ph_dos.cv(temp=temp, structure=get_pmg_structure(phonon.primitive))
-        for temp in temp_range
-    ]
+    heat_capacities = [ph_dos.cv(temp=temp, structure=struct) for temp in temp_range]
 
     # will compute thermal displacement matrices
     # for the primitive cell (phonon.primitive!)
@@ -379,20 +397,20 @@ def parse_phonondb_docs(
 
         therm_disp_mat_cif = td_matrices.thermal_displacement_matrices_cif.tolist()
 
-    return {
-        "unit_cell": get_pmg_structure(phonon.unitcell),
-        "primitive": get_pmg_structure(phonon.primitive),
-        "supercell_matrix": phonon.supercell_matrix,
-        "nac_params": phonon.nac_params,
-        "phonon_bandstructure": bs_symm_line,
-        "phonon_dos": ph_dos,
-        "free_energies": free_energies,
-        "internal_energies": internal_energies,
-        "heat_capacities": heat_capacities,
-        "entropies": entropies,
-        "temps": temp_range.tolist(),
-        "has_imaginary_modes": imaginary_modes,
-        "thermal_displacement_data": {
+    return PhononDBDocParsed(
+        unit_cell=get_pmg_structure(phonon.unitcell),
+        primitive=struct,
+        supercell_matrix=phonon.supercell_matrix,
+        nac_params=phonon.nac_params,
+        phonon_bandstructure=bs_symm_line,
+        phonon_dos=ph_dos,
+        free_energies=free_energies,
+        internal_energies=internal_energies,
+        heat_capacities=heat_capacities,
+        entropies=entropies,
+        temps=temp_range.tolist(),
+        has_imaginary_modes=has_imag_modes,
+        thermal_displacement_data={
             "temps_thermal_displacements": temp_range_thermal_displacements.tolist(),
             "thermal_displacement_matrix_cif": therm_disp_mat_cif,
             "thermal_displacement_matrix": therm_disp_mat,
@@ -400,4 +418,4 @@ def parse_phonondb_docs(
         }
         if kwargs.get("create_thermal_displacements")
         else None,
-    }
+    )

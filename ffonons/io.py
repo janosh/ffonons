@@ -15,10 +15,12 @@ from monty.json import MontyDecoder
 from pymatgen.core import Structure
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, dft_key, dos_key, find_last_dos_peak, formula_key, id_key
+from ffonons import DATA_DIR, dft_key, find_last_dos_peak, formula_key, id_key
 
 if TYPE_CHECKING:
     from atomate2.common.schemas.phonons import PhononBSDOSDoc
+
+    from ffonons.dbs.phonondb import PhononDBDocParsed
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
@@ -59,7 +61,9 @@ def load_pymatgen_phonon_docs(
 
     for path in tqdm(paths, desc=f"Loading {which_db} docs"):
         with zopen(path, "rt") as file:
-            ph_doc: PhononBSDOSDoc = json.load(file, cls=MontyDecoder)
+            ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(
+                file, cls=MontyDecoder
+            )
 
         mp_id, formula, model = re.search(
             rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.*", path
@@ -77,25 +81,25 @@ def load_pymatgen_phonon_docs(
 
     summary_dict: dict[str, dict] = defaultdict(dict)
     for mp_id, docs in ph_docs.items():
-        for model_key, doc in docs.items():
-            doc: PhononBSDOSDoc
-            summary_dict[mp_id][formula_key] = doc.structure.formula
+        for model_key, ph_doc in docs.items():
+            summary_dict[mp_id][formula_key] = ph_doc.structure.formula
             col_key = model_key.replace("-", "_")
 
             # last phonon DOS peak
-            ph_dos = doc.phonon_dos
+            ph_dos = ph_doc.phonon_dos
             last_peak = find_last_dos_peak(ph_dos)
             summary_dict[mp_id][f"last_phdos_peak_{col_key}_THz"] = last_peak
 
             # max frequency from band structure
-            ph_bs = doc.phonon_bandstructure
+            ph_bs = ph_doc.phonon_bandstructure
             summary_dict[mp_id][f"max_freq_{col_key}_THz"] = ph_bs.bands.max()
             summary_dict[mp_id][f"min_freq_{col_key}_THz"] = ph_bs.bands.min()
             summary_dict[mp_id][f"band_width_{col_key}_THz"] = ph_bs.width()
 
-            if model_key != dft_key and dft_key in docs:  # calculate DOS MAE
-                pbe_dos = ph_docs[mp_id][dft_key][dos_key]
+            if model_key != dft_key and dft_key in docs:  # calculate DOS MAE and R2
+                pbe_dos = ph_docs[mp_id][dft_key].phonon_dos
                 summary_dict[mp_id][f"phdos_mae_{col_key}_THz"] = ph_dos.mae(pbe_dos)
+                summary_dict[mp_id][f"phdos_r2_{col_key}"] = ph_dos.r2_score(pbe_dos)
 
             # has imaginary modes
             tol = imaginary_freq_tol

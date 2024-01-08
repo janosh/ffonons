@@ -5,20 +5,21 @@ import re
 import shutil
 from glob import glob
 from time import perf_counter
+from zipfile import BadZipFile
 
 import atomate2.forcefields.jobs as ff_jobs
 from atomate2.common.schemas.phonons import PhononBSDOSDoc as Atomate2PhononBSDOSDoc
 from atomate2.forcefields.flows.phonons import PhononMaker
 from jobflow import run_locally
 from monty.io import zopen
-from monty.json import MontyEncoder
+from monty.json import MontyDecoder, MontyEncoder
 from mp_api.client import MPRester
 from pymatviz import plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
 from ffonons import DATA_DIR, FIGS_DIR, ROOT, WhichDB, dft_key
-from ffonons.dbs.phonondb import parse_phonondb_docs
+from ffonons.dbs.phonondb import PhononDBDocParsed
 from ffonons.plots import plotly_title, pretty_label_map
 
 __author__ = "Janosh Riebesell"
@@ -42,26 +43,26 @@ mace_kwds = dict(
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
 
 models = {
-    # "mace-y7uhwpje": dict(
-    #     bulk_relax_maker=ff_jobs.MACERelaxMaker(
-    #         relax_kwargs=common_relax_kwds,
-    #         **mace_kwds,
-    #     ),
-    #     phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-    #     static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-    # ),
+    "mace-y7uhwpje": dict(
+        bulk_relax_maker=ff_jobs.MACERelaxMaker(
+            relax_kwargs=common_relax_kwds,
+            **mace_kwds,
+        ),
+        phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+        static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+    ),
     # "m3gnet":dict(
     #     bulk_relax_maker=ff_jobs.M3GNetRelaxMaker(relax_kwargs=common_relax_kwds),
     #     phonon_displacement_maker=ff_jobs.M3GNetStaticMaker(),
     #     static_energy_maker=ff_jobs.M3GNetStaticMaker(),
     # ),
-    "chgnet-v0.3.0": dict(
-        bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
-            relax_kwargs=common_relax_kwds, **chgnet_kwds
-        ),
-        phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
-        static_energy_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
-    ),
+    # "chgnet-v0.3.0": dict(
+    #     bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
+    #         relax_kwargs=common_relax_kwds, **chgnet_kwds
+    #     ),
+    #     phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
+    #     static_energy_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
+    # ),
 }
 
 
@@ -80,15 +81,18 @@ mpr = MPRester(mute_progress_bars=True)
 # for mat_id, struct in get_gnome_pmg_structures().items():  # GNOME
 errors: dict[str, Exception] = {}
 
-for zip_path in (pbar := tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip"))):  # PhononDB
-    mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
+for dft_doc_path in (
+    pbar := tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.json.lzma"))
+):  # PhononDB
+    mat_id = "-".join(dft_doc_path.split("/")[-1].split("-")[:2])
     pbar.set_description(f"{mat_id=}")
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
 
-    phonon_db_results = parse_phonondb_docs(zip_path, is_nac=False)
+    with zopen(dft_doc_path, "rt") as file:
+        phonondb_doc: PhononDBDocParsed = json.load(file, cls=MontyDecoder)
 
     struct, supercell_matrix, pbe_dos, pbe_bands = (
-        phonon_db_results[key]
+        getattr(phonondb_doc, key)
         for key in "unit_cell supercell_matrix phonon_dos phonon_bandstructure".split()
     )
     struct.properties["id"] = mat_id
@@ -148,7 +152,7 @@ for zip_path in (pbar := tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip"))):  # 
             fig_bs_dos.layout.legend.update(x=1, y=1.07, xanchor="right")
             fig_bs_dos.show()
             save_fig(fig_bs_dos, dos_fig_path)
-        except (ValueError, RuntimeError) as exc:
+        except (ValueError, RuntimeError, BadZipFile) as exc:
             # known possible errors:
             # - the 2 band structures are not compatible, due to symmetry change during
             # MACE relaxation, try different PhononMaker symprec (default=1e-4). compare
@@ -157,6 +161,7 @@ for zip_path in (pbar := tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.zip"))):  # 
             # displacement matrices)
             # - phonopy-internal: RuntimeError: Creating primitive cell failed.
             # PRIMITIVE_AXIS may be incorrectly specified. For mp-754196 Ba2Sr1I6
+            # faulty downloads of phonondb docs raise "BadZipFile: is not a zip file"
             ml_spg = ml_phonon_doc.structure.get_space_group_info()[1]
             pbe_spg = struct.get_space_group_info()[1]
             errors[id_formula] = f"{model}: {exc} {ml_spg=} {pbe_spg=}"

@@ -3,7 +3,7 @@ import os
 
 import pytest
 from monty.io import zopen
-from pymatgen.phonon.dos import PhononDos
+from pymatgen.phonon import PhononDos
 
 from ffonons import DATA_DIR, FIGS_DIR, ROOT, dos_key, find_last_dos_peak
 

@@ -23,7 +23,7 @@ model2_key = "chgnet-v0.3.0"
 
 
 # %% load docs
-ph_docs, df_summary = load_pymatgen_phonon_docs(which_db := "one-off")
+ph_docs, df_summary = load_pymatgen_phonon_docs(which_db := "phonon-db")
 os.makedirs(figs_out_dir := f"{FIGS_DIR}/{which_db}", exist_ok=True)
 
 materials_with_2 = [key for key, val in ph_docs.items() if len(val) >= 2]
@@ -110,16 +110,16 @@ for mp_id in tqdm(materials_with_2):
 
 
 # %% plotly bands+DOS
-for mp_id in tqdm(ph_docs):
+for mp_id in tqdm(materials_with_3):
     bands_dict = {
         pretty_label_map.get(key, key): getattr(dct, bs_key)
-        for key, dct in ph_docs[mp_id].items()
+        for key, dct in sorted(ph_docs[mp_id].items(), key=lambda x: x[0], reverse=True)
     }
     dos_dict = {
         pretty_label_map.get(key, key): getattr(dct, dos_key)
-        for key, dct in ph_docs[mp_id].items()
+        for key, dct in sorted(ph_docs[mp_id].items(), key=lambda x: x[0], reverse=True)
     }
-    img_name = f"{mp_id}-bs-dos-pbe-vs-{model1_key}"
+    img_name = f"{mp_id}-bs-dos-{'-'.join(sorted(ph_docs[mp_id]))}"
     out_path = f"{figs_out_dir}/{img_name}.pdf"
     # if os.path.isfile(out_path):
     #     continue

@@ -1,8 +1,7 @@
 from matplotlib import pyplot as plt
 from pymatgen.core import Structure
+from pymatgen.phonon import PhononBSPlotter, PhononDos, PhononDosPlotter
 from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
-from pymatgen.phonon.dos import PhononDos
-from pymatgen.phonon.plotter import PhononBSPlotter, PhononDosPlotter
 from pymatgen.util.string import htmlify, latexify
 
 from ffonons import find_last_dos_peak

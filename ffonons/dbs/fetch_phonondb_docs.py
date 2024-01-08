@@ -33,22 +33,18 @@ df = pd.concat(df for df in dfs if isinstance(df, pd.DataFrame))
 df = df.sort_index()
 
 
-# %%
-desc = "Processing PhononDB docs"
-for zip_path in (
-    pbar := tqdm(glob(f"{ph_docs_dir}/mp-*-7d2790917-pbe.zip"), desc=desc)
-):
+# %% convert phonondb docs to lzma compressed JSON which is much faster to load
+zip_files = glob(f"{ph_docs_dir}/mp-*-pbe.zip")
+
+for zip_path in (pbar := tqdm(zip_files, desc="Parsing PhononDB docs to PMG lzma")):
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
     existing_docs = glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma")
-    # if material was already processed, skip
-    if len(existing_docs) == 1:
-        continue
     if len(existing_docs) > 1:
         raise RuntimeError(f"> 1 doc for {mat_id=}: {existing_docs}")
 
-    pbar.set_description(f"{mat_id}")
-    phonondb_doc_to_pmg_lzma(zip_path)
+    pbar.set_postfix_str(f"{mat_id}")
+    phonondb_doc_to_pmg_lzma(zip_path, existing="overwrite")
 
 
 # %%

@@ -9,8 +9,7 @@ import numpy as np
 import plotly.express as px
 from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos, Dos
-from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
-from pymatgen.phonon.dos import PhononDos
+from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-15"
