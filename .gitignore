@@ -3,8 +3,10 @@ __pycache__/
 .DS_Store
 *.egg-info/
 data/one-off
+figs/one-off
 data/gnome/stable-cifs-by-id.zip
 data/phonon-db/mp-*.zip
 data/phonon-db/mp-*.json.lzma
 figs/phonon-db/
 **/figs/*bs*.svelte
+dist/

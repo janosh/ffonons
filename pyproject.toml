@@ -5,17 +5,54 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ffonons"
 version = "0.1.0"
-description = "Code and data for the universal MACE colab with Gabor Csanyi's group"
+description = "A Python package for benchmarking phonon predictions from ML force fields"
 authors = [{ name = "Janosh Riebesell", email = "janosh.riebesell@gmail.com" }]
 readme = "readme.md"
 license = { file = "license" }
+keywords = [
+  "chemistry",
+  "force-fields",
+  "interatomic-potentials",
+  "machine-learning",
+  "materials-science",
+  "phonons",
+  "physics",
+]
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Chemistry",
+  "Topic :: Scientific/Engineering :: Physics",
+]
 requires-python = ">=3.11"
+dependencies = [
+  "matplotlib",
+  "numpy",
+  "pandas>=2.0.0",
+  "plotly",
+  "pymatgen",
+  "pymatviz[export-figs]",
+  "scikit-learn",
+  "scipy",
+  "tqdm",
+]
 
 [project.urls]
+Homepage = "https://janosh.github.io/ffonons"
 Repo = "https://github.com/janosh/ffonons"
+Package = "https://pypi.org/project/ffonons"
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-cov"]
 
 [tool.setuptools.packages.find]
 include = ["ffonons*"]
+
+[tool.distutils.bdist_wheel]
+universal = true
 
 [tool.ruff]
 target-version = "py311"

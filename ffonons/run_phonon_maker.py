@@ -56,13 +56,13 @@ models = {
     #     phonon_displacement_maker=ff_jobs.M3GNetStaticMaker(),
     #     static_energy_maker=ff_jobs.M3GNetStaticMaker(),
     # ),
-    # "chgnet-v0.3.0": dict(
-    #     bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
-    #         relax_kwargs=common_relax_kwds, **chgnet_kwds
-    #     ),
-    #     phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
-    #     static_energy_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
-    # ),
+    "chgnet-v0.3.0": dict(
+        bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
+            relax_kwargs=common_relax_kwds, **chgnet_kwds
+        ),
+        phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
+        static_energy_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
+    ),
 }
 
 
@@ -93,24 +93,22 @@ for dft_doc_path in (
 
     struct, supercell_matrix, pbe_dos, pbe_bands = (
         getattr(phonondb_doc, key)
-        for key in "unit_cell supercell_matrix phonon_dos phonon_bandstructure".split()
+        for key in "structure supercell_matrix phonon_dos phonon_bandstructure".split()
     )
     struct.properties["id"] = mat_id
-
     formula = struct.formula.replace(" ", "")
-
     id_formula = f"{mat_id}-{formula}"
+
     for model, makers in models.items():
         model_key = model.lower().replace(" ", "-")
         os.makedirs(root_dir := f"{runs_dir}/{model_key}", exist_ok=True)
 
-        dos_fig_path = f"{figs_out_dir}/{mat_id}-dos-pbe-vs-{model_key}.pdf"
-        bands_fig_path = f"{figs_out_dir}/{mat_id}-bands-pbe-vs-{model_key}.pdf"
+        bs_dos_fig_path = f"{figs_out_dir}/{mat_id}-bs-dos-{dft_key}-vs-{model_key}.pdf"
         ml_doc_path = f"{ph_docs_dir}/{id_formula}-{model_key}.json.lzma"
 
-        # skip workflow run if all output files already exist
-        if all(map(os.path.isfile, (dos_fig_path, bands_fig_path, ml_doc_path))):
-            print(f"Skipping {model!r} for {id_formula}")
+        if os.path.isfile(ml_doc_path):  # skip if ML doc exists, can easily generate
+            # bs_dos_fig_path from that without rerunning workflow
+            print(f"Skipping {model!r} for {id_formula}: output files exist")
             continue
         try:
             start = perf_counter()
@@ -151,7 +149,7 @@ for dft_doc_path in (
             fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
             fig_bs_dos.layout.legend.update(x=1, y=1.07, xanchor="right")
             fig_bs_dos.show()
-            save_fig(fig_bs_dos, dos_fig_path)
+            save_fig(fig_bs_dos, bs_dos_fig_path)
         except (ValueError, RuntimeError, BadZipFile) as exc:
             # known possible errors:
             # - the 2 band structures are not compatible, due to symmetry change during

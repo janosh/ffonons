@@ -111,15 +111,14 @@ for mp_id in tqdm(materials_with_2):
 
 # %% plotly bands+DOS
 for mp_id in tqdm(materials_with_3):
+    keys = sorted(ph_docs[mp_id], reverse=True)
     bands_dict = {
-        pretty_label_map.get(key, key): getattr(dct, bs_key)
-        for key, dct in sorted(ph_docs[mp_id].items(), key=lambda x: x[0], reverse=True)
+        pretty_label_map.get(key, key): getattr(ph_docs[mp_id], bs_key) for key in keys
     }
     dos_dict = {
-        pretty_label_map.get(key, key): getattr(dct, dos_key)
-        for key, dct in sorted(ph_docs[mp_id].items(), key=lambda x: x[0], reverse=True)
+        pretty_label_map.get(key, key): getattr(ph_docs[mp_id], dos_key) for key in keys
     }
-    img_name = f"{mp_id}-bs-dos-{'-'.join(sorted(ph_docs[mp_id]))}"
+    img_name = f"{mp_id}-bs-dos-{'-vs-'.join(keys)}"
     out_path = f"{figs_out_dir}/{img_name}.pdf"
     # if os.path.isfile(out_path):
     #     continue
