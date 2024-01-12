@@ -19,16 +19,18 @@ __date__ = "2023-12-15"
 
 
 # %% compute last phonon DOS peak for each model and MP
-imaginary_freq_tol = 1e-1
+imaginary_freq_tol = 0.05
 ph_docs, df_summary = load_pymatgen_phonon_docs(
     which_db := "phonon-db", imaginary_freq_tol=imaginary_freq_tol
 )
-model_key = "mace-y7uhwpje"
 
 print(f'{df_summary.filter(like="imaginary_").dropna().shape=}')
 
 
 # %% plot confusion matrix
+model_key = "mace-y7uhwpje"
+model_key = "chgnet-v0.3.0"
+
 for col in ("imaginary_gamma_freq_", "imaginary_freq_"):
     y_true = df_summary.dropna()[f"{col}{dft_key.replace('-', '_')}"]
     y_pred = df_summary.dropna()[f"{col}{model_key.replace('-', '_')}"]
@@ -36,11 +38,9 @@ for col in ("imaginary_gamma_freq_", "imaginary_freq_"):
     # make percentages
     conf_mat = (conf_mat / conf_mat.sum() * 100).round(1)
 
-    if "gamma" in col:
-        label1, label2 = axis_labels = ("Stable", "Unstable")
-    else:
-        axis_labels = {"No": "Negative", "Yes": "Positive"}
-        label1, label2 = axis_labels.values()
+    label1, label2 = (
+        ("Γ-Stable", "Γ-Unstable") if "gamma" in col else ("Stable", "Unstable")
+    )
     annos = (
         (f"True<br>{label1}", f"False<br>{label2}"),
         (f"False<br>{label1}", f"True<br>{label2}"),
@@ -49,8 +49,8 @@ for col in ("imaginary_gamma_freq_", "imaginary_freq_"):
     annotated_vals = np.array(annos, dtype=object) + "<br>" + conf_mat.astype(str) + "%"
     fig = ff.create_annotated_heatmap(
         z=np.rot90(conf_mat.T),
-        x=list(axis_labels),
-        y=list(reversed(axis_labels)),
+        x=(label1, label2),
+        y=(label2, label1),
         annotation_text=np.rot90(annotated_vals.T),
         colorscale="blues",
         xgap=7,
@@ -81,7 +81,7 @@ for col in ("imaginary_gamma_freq_", "imaginary_freq_"):
 
     fig.show()
 
-    img_name = f"{col.replace('_', '-')}confusion-matrix"
+    img_name = f"{col.replace('_', '-')}{model_key}-confusion-matrix"
     save_fig(fig, f"{PAPER_DIR}/{img_name}.pdf")
     save_fig(fig, f"{FIGS_DIR}/{which_db}/{img_name}.pdf")
 
@@ -101,7 +101,7 @@ print(f"ML unstable rate {n_unstable:.0%}")
 
 
 # %% plot imaginary modes confusion matrix as parity plot using min. freq. across all
-# bands and k-points (with shaded regions for TP, FP, FN, TN)
+# k-points (with shaded regions for TP, FP, FN, TN)
 pbe_key = "min_freq_pbe_THz"
 y_key, color_key = "min_freq_THz", "model"
 df_melt = df_summary.reset_index().melt(

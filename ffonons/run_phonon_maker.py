@@ -108,7 +108,7 @@ for dft_doc_path in (
 
         if os.path.isfile(ml_doc_path):  # skip if ML doc exists, can easily generate
             # bs_dos_fig_path from that without rerunning workflow
-            print(f"Skipping {model!r} for {id_formula}: output files exist")
+            print(f"Skipping {model!r} for {id_formula}: phonon doc file exists")
             continue
         try:
             start = perf_counter()

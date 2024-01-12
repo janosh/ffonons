@@ -27,8 +27,8 @@ df_summary.to_csv(
     f"{PAPER_DIR}/{model_key}-phonon-db-summary.csv",
     float_format="%.6g",
 )
-print("MAE of last phonon DOS peak frequencies:")
 
+print("MAE of last phonon DOS peak frequencies:")
 for like in ("last_phdos_peak", "band_width"):
     for col1, col2 in itertools.combinations(df_summary.filter(like=like), 2):
         diff = df_summary[col1] - df_summary[col2]
@@ -50,7 +50,12 @@ fig = px.scatter(
     hover_data=["formula"],
 )
 
-annotate_metrics(fig=fig, xs=df_summary.dropna()[x_col], ys=df_summary.dropna()[y_col])
+annotate_metrics(
+    fig=fig,
+    xs=df_summary.dropna()[x_col],
+    ys=df_summary.dropna()[y_col],
+    suffix=f"n = {len(df_summary.dropna()):,}",
+)
 add_identity_line(fig)
 fig.layout.margin = dict(l=5, r=5, b=5, t=5)
 fig.show()
@@ -78,10 +83,11 @@ fig.show()
 # axes_label, file_suffix = "last phDOS peak (THz)", "last-peak"
 
 band_width_pbe_col = f"band_width_{dft_key}_THz"
-band_width_ml_col = f"band_width_{model_key.replace('-', '_')}_THz"
+model_keys = ["mace-y7uhwpje", "chgnet-v0.3.0"]
+band_width_ml_cols = [f"band_width_{key.replace('-', '_')}_THz" for key in model_keys]
 axes_label, file_suffix = "band width (THz)", "band-width"
 
-x_col, y_col = band_width_pbe_col, band_width_ml_col
+x_col, y_cols = band_width_pbe_col, band_width_ml_cols
 
 # std dev of MP last phonon DOS peak
 print(f"PBE last phonon DOS peak std dev: {df_summary[x_col].std():.2f} THz")
@@ -91,49 +97,59 @@ pes_shift = 0  # 0.6
 df_plot = df_summary.copy().reset_index().dropna()
 df_plot[y_col] += pes_shift
 
-fig = px.scatter(df_plot, x=x_col, y=[y_col], hover_name=id_key, hover_data=["formula"])
+fig = px.scatter(
+    df_plot,
+    x=x_col,
+    y=y_cols,
+    hover_name=id_key,
+    hover_data=["formula"],
+    opacity=0.6,
+)
 
 for trace in fig.data:
-    trace.marker.size = 10
+    trace.marker.size = 6
     trace.marker.opacity = 0.8
 
     targets, preds = df_plot[[x_col, trace.name]].dropna().to_numpy().T
     MAE = np.abs(targets - (preds + pes_shift)).mean()
     R2 = r2_score(targets, (preds + pes_shift))
-    pretty_label = pretty_label_map[model_key]
+    key = next(key for key in model_keys if key.replace("-", "_") in trace.name)
+    pretty_label = pretty_label_map.get(key, key)
     trace.name = (
-        f"{pretty_label} ({MAE=:.2f}, R<sup>2</sup>={R2:.2f}, n={len(targets)})"
+        f"<b>{pretty_label}</b><br>{MAE=:.2f}, R<sup>2</sup>={R2:.2f}, n={len(targets)}"
     )
 
-# increase legend font size
-fig.layout.legend.update(x=0.01, y=0.98, borderwidth=1, bordercolor="lightgray")
+fig.layout.legend.update(
+    x=0.01, y=0.98, borderwidth=1, bordercolor="lightgray", font_size=14
+)
 
 # annotate outliers from parity line
-df_outliers = df_plot.query(f"{x_col} - `{y_col}` > 6 or `{y_col}` - {x_col} > 5")
-for idx in df_outliers.index:
-    row = df_outliers.loc[idx]
-    too_low = row[x_col] > row[y_col]  # to annotation offset
-    err = row[y_col] - row[x_col]
-    fig.add_annotation(
-        x=row[x_col],
-        y=row[y_col],
-        text=f"{htmlify(row['formula'])}<br>{row[id_key]}<br>{err:.0f} THz = "
-        f"{abs(err / row[x_col]):.0%}",
-        # xanchor="center" if too_low else "right",
-        # yanchor="top" if too_low else "middle",
-        # xshift=0 if too_low else -10,
-        # yshift=-5 if too_low else 0,
-        # showarrow=False,
-        arrowhead=1,
-        ax=(20 if too_low else -90),
-        ay=(50 if too_low else 30),
-        standoff=6,  # shorten arrow at end
-    )
+for y_col in y_cols:
+    df_outliers = df_plot.query(f"{x_col} - `{y_col}` > 6 or `{y_col}` - {x_col} > 5")
+    for idx in df_outliers.index:
+        row = df_outliers.loc[idx]
+        too_low = row[x_col] > row[y_col]  # to annotation offset
+        err = row[y_col] - row[x_col]
+        fig.add_annotation(
+            x=row[x_col],
+            y=row[y_col],
+            text=f"{htmlify(row['formula'])}<br>{row[id_key]}<br>{err:.0f} THz = "
+            f"{abs(err / row[x_col]):.0%}",
+            # xanchor="center" if too_low else "right",
+            # yanchor="top" if too_low else "middle",
+            # xshift=0 if too_low else -10,
+            # yshift=-5 if too_low else 0,
+            # showarrow=False,
+            arrowhead=1,
+            ax=(20 if too_low else -90),
+            ay=(50 if too_low else 30),
+            standoff=6,  # shorten arrow at end
+        )
 
-# set axis range to start at 0
-xy_max = (df_plot[y_col].max()) // 10 * 10 + 10  # round up to nearest 10
-fig.update_xaxes(range=[0, xy_max])
-fig.update_yaxes(range=[0, xy_max])
+    # set axis range to start at 0
+    xy_max = (df_plot[y_col].max()) // 10 * 10 + 10  # round up to nearest 10
+    fig.update_xaxes(range=[0, xy_max])
+    fig.update_yaxes(range=[0, xy_max])
 
 dft_label = pretty_label_map[dft_key]
 # title = f"{dft_label} std dev = {df_plot[x_col].std():.3g} THz"
@@ -149,7 +165,6 @@ fig.show()
 img_name = f"parity-pbe-vs-ml-{file_suffix}"
 parity_fig_path = f"{FIGS_DIR}/{which_db}/{img_name}.pdf"
 save_fig(fig, parity_fig_path)
-save_fig(fig, f"{PAPER_DIR}/{img_name}.pdf")
 
 
 # %%

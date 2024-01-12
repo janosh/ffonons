@@ -20,7 +20,7 @@ PKG_DIR = os.path.dirname(__file__)
 ROOT = os.path.dirname(PKG_DIR)
 DATA_DIR = f"{ROOT}/data"
 FIGS_DIR = f"{ROOT}/figs"
-PAPER_DIR = f"{ROOT}/../unimace/figures_phonons"
+PAPER_DIR = f"{ROOT}/../mace-mp/figures_phonons"
 SITE_FIGS = f"{ROOT}/site/src/figs"
 
 today = f"{datetime.now(tz=UTC):%Y-%m-%d}"

@@ -1,7 +1,6 @@
 from matplotlib import pyplot as plt
 from pymatgen.core import Structure
-from pymatgen.phonon import PhononBSPlotter, PhononDos, PhononDosPlotter
-from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
+from pymatgen.phonon import PhononDos, PhononDosPlotter
 from pymatgen.util.string import htmlify, latexify
 
 from ffonons import find_last_dos_peak
@@ -13,37 +12,10 @@ pretty_label_map = {
     "pbe": "PBE",
     "pbesol": "PBEsol",
     "mace-y7uhwpje": "MACE-MP0",
-    "chgnet-v0.3.0": "CHGNet",
+    "chgnet-v0.3.0": "CHGNet v0.3.0",
     "phonon-db": "PhononDB",
     "gnome": "GNoMe",
 }
-
-
-def plot_phonon_bs_mpl(
-    phonon_bs: PhononBandStructureSymmLine,
-    title: str = "",
-    struct: Structure | None = None,
-) -> plt.Axes:
-    """Plot phonon band structure.
-
-    Args:
-        phonon_bs: PhononBandStructureSymmLine
-            Phonon band structure.
-        title: str = ""
-            Title of the plot.
-        struct: Structure | None = None
-            Structure to add to the title.
-
-    Returns:
-        Matplotlib axes
-    """
-    ax_bs = PhononBSPlotter(phonon_bs).get_plot()
-    if struct:
-        mat_id = struct.properties.get("id", "")
-        title += f" {latexify(struct.formula)} {mat_id}"
-    ax_bs.set_title(title, fontsize=22, fontweight="bold")
-    ax_bs.figure.subplots_adjust(top=0.95)
-    return ax_bs
 
 
 def plot_phonon_dos_mpl(
@@ -56,21 +28,21 @@ def plot_phonon_dos_mpl(
     r"""Plot phonon DOS.
 
     Args:
-        phonon_dos: PhononDos | dict[str, PhononDos]
-            Phonon DOS.
-        title: str = ""
-            Title of the plot.
-        struct: Structure | None = None
-            Structure to add to the title.
-        ax: plt.Axes | None = None
-            Matplotlib axes to plot on. If None, a new figure is created.
-        last_peak_anno: str = r"$\\omega_\text{{max}}^{{{key}}}={last_peak:.1f}$ THz"
+        phonon_dos (PhononDos | dict[str, PhononDos]): Single phonon DOS or dict of
+            DOSes with plot labels as keys.
+        title (str = ""): Plot title. Will be appended with formula and material ID if
+            struct is passed.
+        struct (Structure | None = None): Structure whose formula and material ID to add
+            to the title.
+        ax (plt.Axes | None = None): Matplotlib axes to plot on. If None, a new figure
+            is created.
+        last_peak_anno (str = r"$\\omega_\text{{max}}^{{{key}}}={last_peak:.1f}$ THz"):
             Annotation for last DOS peak with f-string placeholders for key (of DOS in
             passed phonon_dos dict) and last_peak (frequency in THz). Set to None or
             empty string to disable.
 
     Returns:
-        Matplotlib axes
+        plt.Axes: Matplotlib axes
     """
     ph_dos_plot = PhononDosPlotter()
     phonon_dos = phonon_dos if isinstance(phonon_dos, dict) else {"": phonon_dos}
