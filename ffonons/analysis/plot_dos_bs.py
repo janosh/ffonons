@@ -11,9 +11,9 @@ from pymatviz import plot_phonon_bands, plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import FIGS_DIR, SITE_FIGS, bs_key, dft_key, dos_key, formula_key
+from ffonons import FIGS_DIR, SITE_FIGS, DBs, Key
 from ffonons.io import load_pymatgen_phonon_docs
-from ffonons.plots import plot_phonon_dos_mpl, plotly_title, pretty_label_map
+from ffonons.plots import plot_phonon_dos_mpl, plotly_title, pretty_labels
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
@@ -23,7 +23,7 @@ model2_key = "chgnet-v0.3.0"
 
 
 # %% load docs
-ph_docs, df_summary = load_pymatgen_phonon_docs(which_db := "phonon-db")
+ph_docs = load_pymatgen_phonon_docs(which_db := DBs.phonon_db)
 os.makedirs(figs_out_dir := f"{FIGS_DIR}/{which_db}", exist_ok=True)
 
 materials_with_2 = [key for key, val in ph_docs.items() if len(val) >= 2]
@@ -41,13 +41,13 @@ for mp_id in materials_with_2:
     mp_id = "mp-21836"
     model1 = ph_docs[mp_id][model1_key]
     # model2 = ph_docs[mp_id][model2_key]
-    formula = model1[formula_key]
+    formula = model1[Key.formula]
 
     # now the same for DOS
     doses = {
-        pretty_label_map[model1_key]: model1[dos_key],
-        # pretty_label_map[model2_key]: model2[dos_key],
-        pretty_label_map[dft_key]: ph_docs[mp_id][dft_key][dos_key],
+        pretty_labels[model1_key]: model1[Key.dos],
+        # pretty_label_map[model2_key]: model2[Keys.dos],
+        pretty_labels[Key.dft]: ph_docs[mp_id][Key.dft][Key.dos],
     }
     ax_dos = plot_phonon_dos_mpl(doses, last_peak_anno=r"${key}={last_peak:.1f}$")
     ax_dos.set_title(
@@ -58,15 +58,15 @@ for mp_id in materials_with_2:
 
 # %% matplotlib bands
 for mp_id in tqdm(materials_with_2):
-    pbe_bands = ph_docs[mp_id][dft_key][bs_key]
-    ml1_bands = ph_docs[mp_id][model1_key][bs_key]
-    # ml2_bands = ph_docs[mp_id][model2_key][bs_key]
+    pbe_bands = ph_docs[mp_id][Key.dft][Key.bs]
+    ml1_bands = ph_docs[mp_id][model1_key][Key.bs]
+    # ml2_bands = ph_docs[mp_id][model2_key][Keys.bs]
 
     bands_fig_path = f"{figs_out_dir}/{mp_id}-bands-pbe-vs-{model1_key}.pdf"
 
-    formula = ph_docs[mp_id][dft_key][formula_key]
-    pbe_bs_plotter = PhononBSPlotter(pbe_bands, label=pretty_label_map[dft_key])
-    ml_bs_plotter = PhononBSPlotter(ml1_bands, label=pretty_label_map[model1_key])
+    formula = ph_docs[mp_id][Key.dft][Key.formula]
+    pbe_bs_plotter = PhononBSPlotter(pbe_bands, label=pretty_labels[Key.dft])
+    ml_bs_plotter = PhononBSPlotter(ml1_bands, label=pretty_labels[model1_key])
 
     ax_bands = pbe_bs_plotter.plot_compare(
         ml_bs_plotter,
@@ -83,11 +83,11 @@ for mp_id in tqdm(materials_with_2):
 
 # %% plotly bands
 for mp_id in tqdm(materials_with_2):
-    bs_pbe = ph_docs[mp_id][dft_key][bs_key]
-    dft_label = pretty_label_map[dft_key]
+    bs_pbe = ph_docs[mp_id][Key.dft][Key.bs]
+    dft_label = pretty_labels[Key.dft]
 
-    bs_ml = ph_docs[mp_id][model1_key][bs_key]
-    ml_label = pretty_label_map[model1_key]
+    bs_ml = ph_docs[mp_id][model1_key][Key.bs]
+    ml_label = pretty_labels[model1_key]
 
     band_structs = {dft_label: bs_pbe, ml_label: bs_ml}
     out_path = f"{figs_out_dir}/{mp_id}-bands-pbe-vs-{model1_key}.pdf"
@@ -99,7 +99,7 @@ for mp_id in tqdm(materials_with_2):
         print(f"{mp_id=} {exc=}")
         continue
 
-    formula = ph_docs[mp_id][dft_key][formula_key]
+    formula = ph_docs[mp_id][Key.dft][Key.formula]
     title = plotly_title(formula, mp_id)
     fig_bs.layout.title = dict(text=title, x=0.5, y=0.96)
     fig_bs.layout.margin = dict(t=65, b=0, l=5, r=5)
@@ -113,10 +113,10 @@ for mp_id in tqdm(materials_with_2):
 for mp_id in tqdm(materials_with_3):
     keys = sorted(ph_docs[mp_id], reverse=True)
     bands_dict = {
-        pretty_label_map.get(key, key): getattr(ph_docs[mp_id], bs_key) for key in keys
+        pretty_labels.get(key, key): getattr(ph_docs[mp_id], Key.bs) for key in keys
     }
     dos_dict = {
-        pretty_label_map.get(key, key): getattr(ph_docs[mp_id], dos_key) for key in keys
+        pretty_labels.get(key, key): getattr(ph_docs[mp_id], Key.dos) for key in keys
     }
     img_name = f"{mp_id}-bs-dos-{'-vs-'.join(keys)}"
     out_path = f"{figs_out_dir}/{img_name}.pdf"

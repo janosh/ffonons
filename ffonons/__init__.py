@@ -3,7 +3,7 @@
 """
 import os
 from datetime import UTC, datetime
-from typing import Literal
+from enum import StrEnum
 
 import numpy as np
 import plotly.express as px
@@ -24,19 +24,37 @@ PAPER_DIR = f"{ROOT}/../mace-mp/figures_phonons"
 SITE_FIGS = f"{ROOT}/site/src/figs"
 
 today = f"{datetime.now(tz=UTC):%Y-%m-%d}"
-bs_key = "phonon_bandstructure"
-dos_key = "phonon_dos"
-id_key = "material_id"
-formula_key = "formula"
-struct_key = "structure"
-dos_peak_key = "last phdos peak"
-dft_key = "pbe"
+
+
+class Key(StrEnum):
+    """Keys for accessing the data in phonon docs and dataframes."""
+
+    bs = "phonon_bandstructure"
+    composition = "composition"
+    dft = "pbe"
+    dos = "phonon_dos"
+    dos_mae = "phdos_mae_THz"
+    formula = "formula"
+    last_dos_peak = "last_phdos_peak_THz"
+    mat_id = "material_id"
+    max_freq = "max_freq_THz"
+    min_freq = "min_freq_THz"
+    reduced_formula = "reduced_formula"
+    struct = "structure"
+    togo_id = "togo_id"
+
+
+class DBs(StrEnum):
+    """Database names."""
+
+    mp = "mp"
+    phonon_db = "phonon-db"
+    gnome = "gnome"
+    one_off = "one-off"
+
 
 speed_of_light = 299792458  # [m/s]
-# convert THz to cm^-1
-thz_to_per_cm = 1e12 / (speed_of_light * 100)  # [cm^-1] 33.356410
-
-WhichDB = Literal["mp", "phonon-db", "gnome", "one-off"]
+thz_to_per_cm = 1e12 / (speed_of_light * 100)  # convert THz to cm^-1: 33.356410
 AnyDos = CompleteDos | PhononDos | Dos
 AnyBandStructure = BandStructureSymmLine | PhononBandStructureSymmLine
 

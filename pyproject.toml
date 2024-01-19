@@ -72,6 +72,7 @@ ignore = [
   "FBT002",
   "FIX002",
   "N806",    # non-lowercase-variable-in-function
+  "PD010",   # pandas prefer pivot_table
   "PD901",   # pandas-df-variable-name
   "PERF203", # try-except-in-loop
   "PLC0414", # useless-import-alias

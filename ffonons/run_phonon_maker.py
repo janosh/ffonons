@@ -18,9 +18,9 @@ from pymatviz import plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, FIGS_DIR, ROOT, WhichDB, dft_key
+from ffonons import DATA_DIR, FIGS_DIR, ROOT, DBs, Key
 from ffonons.dbs.phonondb import PhononDBDocParsed
-from ffonons.plots import plotly_title, pretty_label_map
+from ffonons.plots import plotly_title, pretty_labels
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-19"
@@ -28,7 +28,7 @@ __date__ = "2023-11-19"
 
 # %%
 runs_dir = f"{ROOT}/tmp/runs"  # noqa: S108
-which_db: WhichDB = "phonon-db"
+which_db = DBs.phonon_db
 ph_docs_dir = f"{DATA_DIR}/{which_db}"
 figs_out_dir = f"{FIGS_DIR}/{which_db}"
 shutil.rmtree(runs_dir, ignore_errors=True)  # remove old runs to save space
@@ -91,11 +91,11 @@ for dft_doc_path in (
     with zopen(dft_doc_path, "rt") as file:
         phonondb_doc: PhononDBDocParsed = json.load(file, cls=MontyDecoder)
 
-    struct, supercell_matrix, pbe_dos, pbe_bands = (
-        getattr(phonondb_doc, key)
-        for key in "structure supercell_matrix phonon_dos phonon_bandstructure".split()
-    )
-    struct.properties["id"] = mat_id
+    struct = phonondb_doc.structure
+    supercell = phonondb_doc.supercell_matrix
+    pbe_dos = phonondb_doc.phonon_dos
+    pbe_bands = phonondb_doc.phonon_bandstructure
+    struct.properties[Key.mat_id] = mat_id
     formula = struct.formula.replace(" ", "")
     id_formula = f"{mat_id}-{formula}"
 
@@ -103,7 +103,7 @@ for dft_doc_path in (
         model_key = model.lower().replace(" ", "-")
         os.makedirs(root_dir := f"{runs_dir}/{model_key}", exist_ok=True)
 
-        bs_dos_fig_path = f"{figs_out_dir}/{mat_id}-bs-dos-{dft_key}-vs-{model_key}.pdf"
+        bs_dos_fig_path = f"{figs_out_dir}/{mat_id}-bs-dos-{Key.dft}-vs-{model_key}.pdf"
         ml_doc_path = f"{ph_docs_dir}/{id_formula}-{model_key}.json.lzma"
 
         if os.path.isfile(ml_doc_path):  # skip if ML doc exists, can easily generate
@@ -120,7 +120,7 @@ for dft_doc_path in (
                 kpath_scheme="setyawan_curtarolo" if which_db == "mp" else "seekpath",
                 create_thermal_displacements=False,
                 # use_symmetrized_structure="primitive",
-            ).make(structure=struct, supercell_matrix=supercell_matrix)
+            ).make(structure=struct, supercell_matrix=supercell)
 
             # phonon_flow.draw_graph().show()
 
@@ -135,7 +135,7 @@ for dft_doc_path in (
             with zopen(ml_doc_path, "wt") as file:
                 json.dump(ml_phonon_doc, file, cls=MontyEncoder)
 
-            pbe_label, ml_label = pretty_label_map[dft_key], pretty_label_map[model]
+            pbe_label, ml_label = pretty_labels[Key.dft], pretty_labels[model]
             dos_dict = {ml_label: ml_phonon_doc.phonon_dos}
             bands_dict = {ml_label: ml_phonon_doc.phonon_bandstructure}
             if "pbe_dos" in locals() and "pbe_bands" in locals():
@@ -150,7 +150,7 @@ for dft_doc_path in (
             fig_bs_dos.layout.legend.update(x=1, y=1.07, xanchor="right")
             fig_bs_dos.show()
             save_fig(fig_bs_dos, bs_dos_fig_path)
-        except (ValueError, RuntimeError, BadZipFile) as exc:
+        except (ValueError, RuntimeError, BadZipFile, Exception) as exc:
             # known possible errors:
             # - the 2 band structures are not compatible, due to symmetry change during
             # MACE relaxation, try different PhononMaker symprec (default=1e-4). compare
@@ -160,9 +160,12 @@ for dft_doc_path in (
             # - phonopy-internal: RuntimeError: Creating primitive cell failed.
             # PRIMITIVE_AXIS may be incorrectly specified. For mp-754196 Ba2Sr1I6
             # faulty downloads of phonondb docs raise "BadZipFile: is not a zip file"
-            ml_spg = ml_phonon_doc.structure.get_space_group_info()[1]
-            pbe_spg = struct.get_space_group_info()[1]
-            errors[id_formula] = f"{model}: {exc} {ml_spg=} {pbe_spg=}"
+            # - mp-984055 raised: [1] 51628 segmentation fault
+            # multiprocessing/resource_tracker.py:254: UserWarning: There appear to be 1
+            # leaked semaphore objects to clean up at shutdown
+            if "supercell" in locals():
+                exc.add_note(f"{supercell=}")
+            errors[id_formula] = f"{mat_id=} {model=}: {exc}"
 
 if errors:
     print(f"{errors=}")

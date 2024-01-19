@@ -19,7 +19,7 @@ from pymatgen.io.vasp import Incar, Kpoints
 from pymatgen.io.vasp.sets import MPRelaxSet, MPStaticSet
 from tqdm import tqdm
 
-from ffonons import DATA_DIR
+from ffonons import DATA_DIR, Key
 
 # %%
 warnings.filterwarnings("ignore")
@@ -90,21 +90,16 @@ def get_mp_kppa_kppvol_from_mesh(
 def get_comp_calc_params(file: str) -> pd.DataFrame:
     """Extract calculation parameters for a given database file."""
     zip_file_path = file
-    mpid = zip_file_path.split("-")[0]
+    mp_id = zip_file_path.split("-")[0]
 
-    df = pd.DataFrame(index=[mpid])
-    df["Composition"] = ""
-
-    # Specify the name of the tar.lzma file inside the zip archive
-    tar_lzma_file_name = "vasp-settings.tar.lzma"
-    # Specify the path to your xz file
-    xz_file_path = "phonopy_params.yaml.xz"
+    df = pd.DataFrame(index=[mp_id])
+    df[Key.composition] = ""
 
     # Open the zip file
     # Read the contents of the tar.lzma file
     # Open the xz archive from the lzma file
     with zipfile.ZipFile(zip_file_path, "r") as zip_ref, zip_ref.open(
-        xz_file_path, "r"
+        "phonopy_params.yaml.xz", "r"
     ) as lzma_file, lzma.open(lzma_file, "rb") as lzma_file_content:
         content = lzma_file_content.read()
         phonopy_yaml = yaml.safe_load(content.decode("utf-8"))
@@ -115,14 +110,12 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
     # Open zip and tar.lzma files
     # Open the tar archive from the lzma file
     with zipfile.ZipFile(zip_file_path) as zip_ref, zip_ref.open(
-        tar_lzma_file_name
+        "vasp-settings.tar.lzma"
     ) as lzma_file, lzma.open(lzma_file, "rb") as lzma_file_content, tarfile.open(
         fileobj=lzma_file_content, mode="r"
     ) as tar:
-        # List the contents of the tar archive
-        file_list = tar.getnames()
-        # extract potcar settings
-        user_potcar_settings = {}
+        file_list = tar.getnames()  # list contents of the tar archive
+        user_potcar_settings: dict[str, str] = {}  # extract POTCAR settings
         potcar_title = []
         for file_name in file_list:
             if "PAW_dataset.txt" in file_name:
@@ -150,35 +143,32 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
         content = poscar_file.read().decode("utf-8")
         poscar = Structure.from_str(content, fmt="poscar")
         df.loc[
-            mpid, "Reduced_formula"
+            mp_id, Key.reduced_formula
         ] = poscar.composition.get_reduced_formula_and_factor()[0]
-        df.loc[mpid, "Composition"] = poscar.composition
+        df.loc[mp_id, Key.composition] = poscar.composition
 
         for el in poscar.composition.chemical_system.split("-"):
-            if el in DEFAULT_MAGMOMS:
-                df.loc[mpid, "Require_U_correction"] = True
-            else:
-                df.loc[mpid, "Require_U_correction"] = False
+            df.loc[mp_id, "require_u_correction"] = el in DEFAULT_MAGMOMS
 
         mp_relax = MPRelaxSet(
             structure=poscar, user_potcar_settings=user_potcar_settings
         )
         df["mp_relax_kpts"] = ""
-        df.loc[mpid, "mp_relax_kpts"] = mp_relax.kpoints.kpts[0]
+        df.loc[mp_id, "mp_relax_kpts"] = mp_relax.kpoints.kpts[0]
 
         # get mp kpoint grid density
         kppa, kpt_per_vol, kppa_ref = get_mp_kppa_kppvol_from_mesh(
             struct=poscar, mesh=mp_relax.kpoints.kpts[0], default_grid=64
         )
 
-        df.loc[mpid, "mp_relax_grid_desity"] = kppa
-        df.loc[mpid, "mp_relax_reciprocal_density"] = kpt_per_vol
+        df.loc[mp_id, "mp_relax_grid_density"] = kppa
+        df.loc[mp_id, "mp_relax_reciprocal_density"] = kpt_per_vol
 
-        # aiida k-point density
+        # AiiDA k-point density
         kpt_dens = get_density_from_kmesh(mesh=mp_relax.kpoints.kpts[0], struct=poscar)
-        df.loc[mpid, "mp_relax_grid_desity_aiida"] = kpt_dens
+        df.loc[mp_id, "mp_relax_grid_density_aiida"] = kpt_dens
 
-        df.loc[mpid, "mp_default_kpoint_grid_density"] = kppa_ref
+        df.loc[mp_id, "mp_default_kpoint_grid_density"] = kppa_ref
 
         # get supercell structure
         sc = poscar.copy().make_supercell(scaling_matrix=sc_mat)
@@ -186,44 +176,44 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
         # mp-static for sc
         mp_static = MPStaticSet(structure=sc, user_potcar_settings=user_potcar_settings)
         df["mp_static_kpts_sc"] = ""
-        df.loc[mpid, "mp_static_kpts_sc"] = mp_static.kpoints.kpts[0]
+        df.loc[mp_id, "mp_static_kpts_sc"] = mp_static.kpoints.kpts[0]
 
         # get mp kpoint grid density
         kppa_sc, kppvol_sc, kppa_ref_sc = get_mp_kppa_kppvol_from_mesh(
             struct=sc, mesh=mp_static.kpoints.kpts[0], default_grid=100
         )
 
-        df.loc[mpid, "mp_static_grid_desity_sc"] = kppa_sc
-        df.loc[mpid, "mp_static_reciprocal_density_sc"] = kppvol_sc
+        df.loc[mp_id, "mp_static_grid_density_sc"] = kppa_sc
+        df.loc[mp_id, "mp_static_reciprocal_density_sc"] = kppvol_sc
 
-        # aiida k-point density
+        # AiiDA k-point density
         kpt_dens = get_density_from_kmesh(mesh=mp_static.kpoints.kpts[0], struct=sc)
-        df.loc[mpid, "mp_static_grid_desity_aiida_sc"] = kpt_dens
+        df.loc[mp_id, "mp_static_grid_density_aiida_sc"] = kpt_dens
 
         # kppa_ref_sc = int(100 * vol_sc * len(sc))
-        df.loc[mpid, "mp_default_kpoint_grid_density_sc_static"] = kppa_ref_sc
+        df.loc[mp_id, "mp_default_kpoint_grid_density_sc_static"] = kppa_ref_sc
 
         # mp-relax for sc
         mp_relax_sc = MPRelaxSet(
             structure=sc, user_potcar_settings=user_potcar_settings
         )
         df["mp_relax_kpts_sc"] = ""
-        df.loc[mpid, "mp_relax_kpts_sc"] = mp_relax_sc.kpoints.kpts[0]
+        df.loc[mp_id, "mp_relax_kpts_sc"] = mp_relax_sc.kpoints.kpts[0]
 
         # get mp kpoint grid density
         kppa_sc, kppvol_sc, kppa_ref_sc = get_mp_kppa_kppvol_from_mesh(
             struct=sc, mesh=mp_relax_sc.kpoints.kpts[0], default_grid=64
         )
 
-        df.loc[mpid, "mp_relax_grid_desity_sc"] = kppa_sc
-        df.loc[mpid, "mp_relax_reciprocal_density_sc"] = kppvol_sc
+        df.loc[mp_id, "mp_relax_grid_density_sc"] = kppa_sc
+        df.loc[mp_id, "mp_relax_reciprocal_density_sc"] = kppvol_sc
 
-        # aiida k-point density
+        # AiiDA k-point density
         kpt_dens = get_density_from_kmesh(mesh=mp_relax_sc.kpoints.kpts[0], struct=sc)
-        df.loc[mpid, "mp_relax_grid_desity_aiida_sc"] = kpt_dens
+        df.loc[mp_id, "mp_relax_grid_density_aiida_sc"] = kpt_dens
 
         # kppa_ref_sc = int(64 * vol_sc * len(sc))
-        df.loc[mpid, "mp_default_kpoint_grid_density_sc_relax"] = kppa_ref_sc
+        df.loc[mp_id, "mp_default_kpoint_grid_density_sc_relax"] = kppa_ref_sc
 
         # check for potcars title match
         mp_set_potcar = [potcar.TITEL for potcar in mp_static.potcar]
@@ -233,11 +223,11 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
             )
 
         df["potcar_ENMAX"] = np.nan
-        df.loc[mpid, "potcar_ENMAX"] = int(
+        df.loc[mp_id, "potcar_ENMAX"] = int(
             max([potcar.ENMAX for potcar in mp_static.potcar])
         )
         df["potcar_1.3_ENMAX"] = np.nan
-        df.loc[mpid, "potcar_1.3_ENMAX"] = int(
+        df.loc[mp_id, "potcar_1.3_ENMAX"] = int(
             1.3 * max([potcar.ENMAX for potcar in mp_static.potcar])
         )
 
@@ -249,12 +239,12 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
                 incar = Incar.from_str(content)
                 name = file_name.split("/")[-1]
 
-                df.loc[mpid, f"{name}_ENCUT"] = incar.get("ENCUT")
+                df.loc[mp_id, f"{name}_ENCUT"] = incar.get("ENCUT")
 
                 if incar.get("ISPIN"):
-                    df.loc[mpid, f"{name}_Magnetization"] = True
+                    df.loc[mp_id, f"{name}_Magnetization"] = True
                 else:
-                    df.loc[mpid, f"{name}_Magnetization"] = False
+                    df.loc[mp_id, f"{name}_Magnetization"] = False
             if "KPOINTS" in file_name:
                 kpoint_file = tar.extractfile(file_name)
                 content = kpoint_file.read().decode("utf-8")
@@ -263,7 +253,7 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
 
                 df[f"{name}_kpts"] = ""
 
-                df.loc[mpid, f"{name}_kpts"] = kpoint.kpts[0]
+                df.loc[mp_id, f"{name}_kpts"] = kpoint.kpts[0]
 
                 if "force" in name:
                     # get mp kpoint grid density from togo k-points for sc
@@ -271,12 +261,12 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
                         struct=sc, mesh=kpoint.kpts[0], default_grid=None
                     )
 
-                    df.loc[mpid, f"{name}_grid_desity_sc"] = kppa_sc
-                    df.loc[mpid, f"{name}_reciprocal_density_sc"] = kppvol_sc
+                    df.loc[mp_id, f"{name}_grid_density_sc"] = kppa_sc
+                    df.loc[mp_id, f"{name}_reciprocal_density_sc"] = kppvol_sc
 
-                    # aiida k-point density
+                    # AiiDA k-point density
                     kpt_dens = get_density_from_kmesh(mesh=kpoint.kpts[0], struct=sc)
-                    df.loc[mpid, f"{name}_grid_desity_aiida_sc"] = kpt_dens
+                    df.loc[mp_id, f"{name}_grid_density_aiida_sc"] = kpt_dens
 
                 else:
                     # get mp kpoint grid density from togo k-points for unit cell
@@ -286,14 +276,14 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
                         default_grid=None,
                     )
 
-                    df.loc[mpid, f"{name}_grid_desity"] = kppa
-                    df.loc[mpid, f"{name}_reciprocal_density"] = kpt_per_vol
+                    df.loc[mp_id, f"{name}_grid_density"] = kppa
+                    df.loc[mp_id, f"{name}_reciprocal_density"] = kpt_per_vol
 
-                    # aiida k-point density
+                    # AiiDA k-point density
                     kpt_dens = get_density_from_kmesh(
                         mesh=kpoint.kpts[0], struct=poscar
                     )
-                    df.loc[mpid, f"{name}_grid_desity_aiida"] = kpt_dens
+                    df.loc[mp_id, f"{name}_grid_density_aiida"] = kpt_dens
 
     return df
 
