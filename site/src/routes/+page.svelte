@@ -1,23 +1,27 @@
 <script lang="ts">
   import { browser } from '$app/environment'
+  import MetricsTable from '$figs/metrics-table.svelte'
   import Readme from '$root/readme.md'
 
-  const ph_dos_figs = import.meta.glob(`$figs/mace-mp0-phonondb/*-dos-*.svelte`, {
-    eager: true,
-    import: `default`,
-  })
+  const figs = import.meta.glob(`$figs/mp-*-bs-dos-*.svelte`, { as: `url`, eager: true })
 </script>
 
 <main>
   <Readme>
     <img src="/ffonons.svg" alt="FFonons" slot="logo" width="100" />
+    <MetricsTable slot="metrics-table" />
   </Readme>
 </main>
 
+<h2>Phonon bands + DOS figures by MP ID</h2>
+<p>Hint: Some of these are large files and take a while to load.</p>
 <ul>
   {#if browser}
-    {#each Object.values(ph_dos_figs) as ph_dos_fig}
-      <svelte:component this={ph_dos_fig} style="max-width: 50cqw;" />
+    {#each Object.keys(figs) as key}
+      {@const mp_id = `mp-${key.split(`/`).at(-1)?.split(`-`).at(1)}`}
+      <li>
+        <a href="/{mp_id}">{mp_id}</a>
+      </li>
     {/each}
   {/if}
 </ul>
@@ -33,11 +37,17 @@
   :global(a:has(img[alt='Docs'])) {
     display: none;
   }
+  h2,
+  p {
+    text-align: center;
+  }
   ul {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-    gap: 3em;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    margin: auto;
+    list-style: none;
+    gap: 1em;
     padding: 2em;
-    max-width: 95vw;
+    max-width: max(80vw, 800px);
   }
 </style>

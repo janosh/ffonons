@@ -19,7 +19,7 @@ px.defaults.template = "plotly_dark"
 PKG_DIR = os.path.dirname(__file__)
 ROOT = os.path.dirname(PKG_DIR)
 DATA_DIR = f"{ROOT}/data"
-FIGS_DIR = f"{ROOT}/figs"
+PDF_FIGS = f"{ROOT}/figs"
 PAPER_DIR = f"{ROOT}/../mace-mp/figures_phonons"
 SITE_FIGS = f"{ROOT}/site/src/figs"
 

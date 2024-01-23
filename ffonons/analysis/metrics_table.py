@@ -6,10 +6,10 @@ for each material at the Gamma point.
 from typing import Literal
 
 import pandas as pd
-from pymatviz.io import df_to_pdf
+from pymatviz.io import df_to_html_table, df_to_pdf
 from sklearn.metrics import confusion_matrix, r2_score
 
-from ffonons import FIGS_DIR, DBs, Key
+from ffonons import PDF_FIGS, SITE_FIGS, DBs, Key
 from ffonons.io import get_df_summary
 from ffonons.plots import pretty_labels
 
@@ -93,6 +93,7 @@ styler = (
     .format(precision=2, na_rep="-")
 )
 
-df_to_pdf(styler, f"{FIGS_DIR}/metrics-table.pdf")
-
+if False:
+    df_to_pdf(styler, f"{PDF_FIGS}/metrics-table.pdf")
+df_to_html_table(styler, f"{SITE_FIGS}/metrics-table.svelte")
 styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")

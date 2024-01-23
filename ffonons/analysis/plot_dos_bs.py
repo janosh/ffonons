@@ -11,7 +11,7 @@ from pymatviz import plot_phonon_bands, plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import FIGS_DIR, SITE_FIGS, DBs, Key
+from ffonons import PDF_FIGS, SITE_FIGS, DBs, Key
 from ffonons.io import load_pymatgen_phonon_docs
 from ffonons.plots import plot_phonon_dos_mpl, plotly_title, pretty_labels
 
@@ -24,7 +24,7 @@ model2_key = "chgnet-v0.3.0"
 
 # %% load docs
 ph_docs = load_pymatgen_phonon_docs(which_db := DBs.phonon_db)
-os.makedirs(figs_out_dir := f"{FIGS_DIR}/{which_db}", exist_ok=True)
+os.makedirs(figs_out_dir := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 
 materials_with_2 = [key for key, val in ph_docs.items() if len(val) >= 2]
 print(f"{len(materials_with_2)=}")
@@ -53,7 +53,7 @@ for mp_id in materials_with_2:
     ax_dos.set_title(
         f"{mp_id} {latexify(formula, bold=True)}", fontsize=22, fontweight="bold"
     )
-    save_fig(ax_dos, f"{FIGS_DIR}/{mp_id}-{formula.replace(' ', '')}/dos-all.pdf")
+    save_fig(ax_dos, f"{PDF_FIGS}/{mp_id}-{formula.replace(' ', '')}/dos-all.pdf")
 
 
 # %% matplotlib bands

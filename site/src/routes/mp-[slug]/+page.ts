@@ -1,15 +1,17 @@
 export const prerender = false
 
 export const load = async ({ params }) => {
-  const ph_dos_figs = import.meta.glob(
-    `$figs/mace-mp0-phonondb/*-dos-*.svelte`,
-    { import: `default`, eager: true },
+  const all = import.meta.glob(`$figs/mp-*.svelte`, {
+    import: `default`,
+  }) as Record<string, () => Promise<ConstructorOfATypedSvelteComponent>>
+
+  // get all figs whose path contains mp-${params.slug}
+  const keys = Object.keys(all).filter((path) =>
+    path.includes(`mp-${params.slug}`),
   )
+  const figs = await Promise.all(keys.map((key) => all[key]()))
 
-  const DosFig =
-    await ph_dos_figs[
-      `/src/figs/mace-mp0-phonondb/mp-${params.slug}-dos-pbe-vs-mace-y7uhwpje.svelte`
-    ]
+  if (!figs) return { status: 404 }
 
-  return { DosFig }
+  return { figs }
 }

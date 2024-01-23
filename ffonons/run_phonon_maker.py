@@ -18,7 +18,7 @@ from pymatviz import plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, FIGS_DIR, ROOT, DBs, Key
+from ffonons import DATA_DIR, PDF_FIGS, ROOT, DBs, Key
 from ffonons.dbs.phonondb import PhononDBDocParsed
 from ffonons.plots import plotly_title, pretty_labels
 
@@ -30,7 +30,7 @@ __date__ = "2023-11-19"
 runs_dir = f"{ROOT}/tmp/runs"  # noqa: S108
 which_db = DBs.phonon_db
 ph_docs_dir = f"{DATA_DIR}/{which_db}"
-figs_out_dir = f"{FIGS_DIR}/{which_db}"
+figs_out_dir = f"{PDF_FIGS}/{which_db}"
 shutil.rmtree(runs_dir, ignore_errors=True)  # remove old runs to save space
 for directory in (ph_docs_dir, figs_out_dir, runs_dir):
     os.makedirs(directory, exist_ok=True)

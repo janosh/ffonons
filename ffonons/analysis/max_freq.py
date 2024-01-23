@@ -8,7 +8,7 @@ from pymatviz.io import save_fig
 from pymatviz.utils import add_identity_line, annotate_metrics
 from sklearn.metrics import r2_score
 
-from ffonons import FIGS_DIR, DBs, Key
+from ffonons import PDF_FIGS, DBs, Key
 from ffonons.io import get_df_summary
 from ffonons.plots import pretty_labels
 
@@ -138,7 +138,7 @@ fig.layout.margin = dict(l=3, r=3, b=3, t=3)
 fig.show()
 file_suffix = "max-freq" if prop == Key.max_freq else "last-phdos-peak"
 img_name = f"parity-pbe-vs-ml-{file_suffix}"
-parity_fig_path = f"{FIGS_DIR}/{which_db}/{img_name}.pdf"
+parity_fig_path = f"{PDF_FIGS}/{which_db}/{img_name}.pdf"
 save_fig(fig, parity_fig_path)
 
 

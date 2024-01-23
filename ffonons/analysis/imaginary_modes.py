@@ -10,7 +10,7 @@ from pymatviz.io import save_fig
 from pymatviz.utils import add_identity_line
 from sklearn.metrics import confusion_matrix
 
-from ffonons import FIGS_DIR, PAPER_DIR, DBs, Key
+from ffonons import PAPER_DIR, PDF_FIGS, DBs, Key
 from ffonons.io import get_df_summary
 from ffonons.plots import model_labels, pretty_labels
 
@@ -80,7 +80,7 @@ for col in ("imaginary_gamma_freq", "imaginary_freq"):
 
     img_name = f"{col.replace('_', '-')}{model_key}-confusion-matrix"
     save_fig(fig, f"{PAPER_DIR}/{img_name}.pdf")
-    save_fig(fig, f"{FIGS_DIR}/{which_db}/{img_name}.pdf")
+    save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
 
 
 # %% repeat confusion matrix calculation to check for consistency

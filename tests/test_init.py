@@ -5,7 +5,7 @@ import pytest
 from monty.io import zopen
 from pymatgen.phonon import PhononDos
 
-from ffonons import DATA_DIR, FIGS_DIR, ROOT, dos_key, find_last_dos_peak
+from ffonons import DATA_DIR, PDF_FIGS, ROOT, dos_key, find_last_dos_peak
 
 
 @pytest.fixture(scope="session")
@@ -22,7 +22,7 @@ def mp_2789_pbe_dos() -> PhononDos:
 
 def test_root() -> None:
     assert os.path.isdir(ROOT)
-    assert os.path.isdir(FIGS_DIR)
+    assert os.path.isdir(PDF_FIGS)
     assert os.path.isdir(DATA_DIR)
 
 
