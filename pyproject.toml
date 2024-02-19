@@ -56,8 +56,10 @@ universal = true
 
 [tool.ruff]
 target-version = "py311"
-select = ["ALL"]
-ignore = [
+lint.select = ["ALL"]
+lint.ignore = [
+  "ANN101",  # self missing annotation
+  "ANN102",  # cls missing annotation
   "ANN401",  # Dynamically typed expressions (typing.Any) disallowed
   "BLE001",  # do not catch blind except
   "C408",    # unnecessary-collection-call
@@ -86,8 +88,8 @@ ignore = [
   "TD",
   "TRY003",  # Avoid specifying long messages outside the exception class
 ]
-pydocstyle.convention = "google"
-isort.split-on-trailing-comma = false
+lint.pydocstyle.convention = "google"
+lint.isort.split-on-trailing-comma = false
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D"]

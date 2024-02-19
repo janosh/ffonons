@@ -18,8 +18,9 @@ from monty.json import MontyDecoder
 from pymatgen.core import Structure
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, DBs, Key, find_last_dos_peak
+from ffonons import DATA_DIR, find_last_dos_peak
 from ffonons.dbs.phonondb import PhononDBDocParsed
+from ffonons.enums import DB, Key
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
@@ -67,7 +68,7 @@ def load_pymatgen_phonon_docs(which_db: Literal["mp", "phonon-db"]) -> PhDocs:
 
 
 def get_df_summary(
-    ph_docs: PhDocs | DBs = None,
+    ph_docs: PhDocs | DB = None,
     imaginary_freq_tol: float = 0.1,
     cache_path: str | Path = "",
     refresh_cache: bool = False,
@@ -94,7 +95,9 @@ def get_df_summary(
         cache_path = cache_path or f"{DATA_DIR}/{ph_docs}/df-summary.csv.gz"
 
     if not refresh_cache and os.path.isfile(cache_path or ""):
-        return pd.read_csv(cache_path, index_col=[0, 1, 2]).convert_dtypes()
+        return pd.read_csv(
+            cache_path, index_col=[Key.mat_id, Key.model]
+        ).convert_dtypes()
 
     if isinstance(ph_docs, str | type(None)):
         ph_docs = load_pymatgen_phonon_docs(which_db=ph_docs or "phonon-db")
@@ -102,29 +105,30 @@ def get_df_summary(
     summary_dict: dict[tuple[str, str], dict] = defaultdict(dict)
     for mat_id, docs in ph_docs.items():
         for model_key, ph_doc in docs.items():
-            tuple_key = mat_id, model_key
-            summary_dict[tuple_key][Key.formula] = ph_doc.structure.formula
+            id_mod_key = mat_id, model_key
+            summary_dict[id_mod_key][Key.formula] = ph_doc.structure.formula
+            summary_dict[id_mod_key][Key.n_sites] = len(ph_doc.structure)
 
             # last phonon DOS peak
             ph_dos = ph_doc.phonon_dos
             last_peak = find_last_dos_peak(ph_dos)
-            summary_dict[tuple_key][Key.last_dos_peak] = last_peak
+            summary_dict[id_mod_key][Key.last_dos_peak] = last_peak
 
             # max frequency from band structure
             ph_bs = ph_doc.phonon_bandstructure
-            summary_dict[tuple_key]["max_freq_THz"] = ph_bs.bands.max()
-            summary_dict[tuple_key]["min_freq_THz"] = ph_bs.bands.min()
+            summary_dict[id_mod_key]["max_freq_THz"] = ph_bs.bands.max()
+            summary_dict[id_mod_key]["min_freq_THz"] = ph_bs.bands.min()
 
             if model_key != Key.dft and Key.dft in docs:  # calculate DOS MAE and R2
                 pbe_dos = ph_docs[mat_id][Key.dft].phonon_dos
-                summary_dict[tuple_key][Key.dos_mae] = ph_dos.mae(pbe_dos)
-                summary_dict[tuple_key]["phdos_r2"] = ph_dos.r2_score(pbe_dos)
+                summary_dict[id_mod_key][Key.dos_mae] = ph_dos.mae(pbe_dos)
+                summary_dict[id_mod_key]["phdos_r2"] = ph_dos.r2_score(pbe_dos)
 
             # has imaginary modes
             has_imag_modes = ph_bs.has_imaginary_freq(tol=imaginary_freq_tol)
-            summary_dict[tuple_key]["imaginary_freq"] = has_imag_modes
+            summary_dict[id_mod_key]["imaginary_freq"] = has_imag_modes
             has_imag_gamma_mode = ph_bs.has_imaginary_gamma_freq(tol=imaginary_freq_tol)
-            summary_dict[tuple_key]["imaginary_gamma_freq"] = has_imag_gamma_mode
+            summary_dict[id_mod_key]["imaginary_gamma_freq"] = has_imag_gamma_mode
 
     # convert_dtypes() turns boolean cols imaginary_(gamma_)freq to bool
     df_summary = pd.DataFrame(summary_dict).T.convert_dtypes()

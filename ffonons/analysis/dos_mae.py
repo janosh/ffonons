@@ -5,7 +5,8 @@ import plotly.express as px
 from pymatviz.io import save_fig
 from pymatviz.utils import add_ecdf_line
 
-from ffonons import PAPER_DIR, phdos_mae_key
+from ffonons import PAPER_DIR
+from ffonons.enums import Key, Model
 from ffonons.io import get_df_summary
 
 __author__ = "Janosh Riebesell"
@@ -14,11 +15,11 @@ __date__ = "2023-12-17"
 
 # %%
 df_summary = get_df_summary(which_db := "phonon-db")
-model_key = "mace-y7uhwpje"
-df_model = df_summary.xs(model_key, level=1)
+df_model = df_summary.xs(Model.mace_mp, level=1)
+
 
 # %% plot histogram of all phDOS MAEs
-fig = px.histogram(df_model[phdos_mae_key], nbins=350)
+fig = px.histogram(df_model[Key.dos_mae], nbins=350)
 
 add_ecdf_line(fig)
 

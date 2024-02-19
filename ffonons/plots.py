@@ -5,29 +5,26 @@ from pymatgen.phonon import PhononDos, PhononDosPlotter
 from pymatgen.util.string import htmlify, latexify
 
 from ffonons import find_last_dos_peak
+from ffonons.enums import Model
 
-model_labels = {"mace-y7uhwpje": "MACE-MP0", "chgnet-v0.3.0": "CHGNet v0.3.0"}
 pretty_labels = {
     "mp": "MP",
-    "mace": "MACE-MP-0",
-    "chgnet": "CHGNet",
     "pbe": "PBE",
     "pbesol": "PBEsol",
     "phonon-db": "PhononDB",
-    "gnome": "GNoMe",
-    "phdos_mae_THz": "MAE<sub>ph DOS</sub>",
+    "phdos_mae_THz": "MAE<sub>ph DOS</sub> (THz)",
     "phdos_r2": "R<sup>2</sup><sub>ph DOS</sub>",
     "imaginary_gamma_freq": "Imag. Γ",
     "imaginary_freq": "Imag. Modes",
-    "last_phdos_peak_THz": "ω<sub>max</sub>",
-    "last_phdos_peak_THz_ml": "ω<sub>max</sub><sup>ML</sup>",
-    "last_phdos_peak_THz_pbe": "ω<sub>max</sub><sup>PBE</sup>",
-    "mae_last_phdos_peak_THz": "MAE<sub>ω<sub>max</sub></sub>",
-    "r2_last_phdos_peak_THz": "R<sup>2</sup><sub>ω<sub>max</sub></sub>",
-    "max_freq_THz": "Ω<sub>max</sub>",
-    "mae_max_freq_THz": "MAE<sub>Ω<sub>max</sub></sub>",
-    "r2_max_freq_THz": "R<sup>2</sup><sub>Ω<sub>max</sub></sub>",
-} | model_labels
+    "last_phdos_peak_THz": "ω<sub>max</sub> (THz)",
+    "last_phdos_peak_THz_ml": "ω<sub>max</sub><sup>ML</sup> (THz)",
+    "last_phdos_peak_THz_pbe": "ω<sub>max</sub><sup>PBE</sup> (THz)",
+    "mae_last_phdos_peak_THz": "MAE<sub>ω<sub>max</sub></sub> (THz)",
+    "r2_last_phdos_peak_THz": "R<sup>2</sup><sub>ω<sub>max</sub></sub> (THz)",
+    "max_freq_THz": "Ω<sub>max</sub> (THz)",
+    "mae_max_freq_THz": "MAE<sub>Ω<sub>max</sub></sub> (THz)",
+    "r2_max_freq_THz": "R<sup>2</sup><sub>Ω<sub>max</sub></sub> (THz)",
+} | Model.label_dict()
 
 px.defaults.labels |= pretty_labels
 

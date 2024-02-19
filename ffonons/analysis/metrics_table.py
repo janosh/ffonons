@@ -9,7 +9,8 @@ import pandas as pd
 from pymatviz.io import df_to_html_table, df_to_pdf
 from sklearn.metrics import confusion_matrix, r2_score
 
-from ffonons import PDF_FIGS, SITE_FIGS, DBs, Key
+from ffonons import PDF_FIGS, SITE_FIGS
+from ffonons.enums import DB, Key
 from ffonons.io import get_df_summary
 from ffonons.plots import pretty_labels
 
@@ -20,7 +21,7 @@ __date__ = "2023-12-15"
 # %% compute last phonon DOS peak for each model and MP
 imaginary_freq_tol = 0.05
 df_summary = get_df_summary(
-    which_db := DBs.phonon_db, imaginary_freq_tol=imaginary_freq_tol
+    which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
 )
 
 
@@ -68,7 +69,7 @@ for key, df_model in df_summary.groupby(level=1):
         df_metrics.loc[label, cols] = acc, fp, fn
 
     for metric in (
-        # Keys.last_dos_peak,
+        # Key.last_dos_peak,
         Key.max_freq,
     ):
         diff = df_dft[metric] - df_model[metric]

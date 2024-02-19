@@ -26,7 +26,8 @@ from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 from pymatgen.symmetry.bandstructure import HighSymmKpath
 from pymatgen.symmetry.kpath import KPathSeek
 
-from ffonons import DATA_DIR, Key
+from ffonons import DATA_DIR
+from ffonons.enums import Key
 
 __author__ = "Janine George, Aakash Naik, Janosh Riebesell"
 __date__ = "2023-12-07"

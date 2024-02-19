@@ -19,7 +19,8 @@ from pymatgen.io.vasp import Incar, Kpoints
 from pymatgen.io.vasp.sets import MPRelaxSet, MPStaticSet
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, Key
+from ffonons import DATA_DIR
+from ffonons.enums import Key
 
 # %%
 warnings.filterwarnings("ignore")

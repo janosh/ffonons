@@ -11,19 +11,20 @@ from pymatviz import plot_phonon_bands, plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import PDF_FIGS, SITE_FIGS, DBs, Key
+from ffonons import PDF_FIGS, SITE_FIGS
+from ffonons.enums import DB, Key, Model
 from ffonons.io import load_pymatgen_phonon_docs
 from ffonons.plots import plot_phonon_dos_mpl, plotly_title, pretty_labels
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
 
-model1_key = "mace-y7uhwpje"
-model2_key = "chgnet-v0.3.0"
+model1_key = Model.mace_mp
+model2_key = Model.chgnet_030
 
 
 # %% load docs
-ph_docs = load_pymatgen_phonon_docs(which_db := DBs.phonon_db)
+ph_docs = load_pymatgen_phonon_docs(which_db := DB.phonon_db)
 os.makedirs(figs_out_dir := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 
 materials_with_2 = [key for key, val in ph_docs.items() if len(val) >= 2]
@@ -33,8 +34,8 @@ print(f"{len(materials_with_3)=}")
 
 
 # %% matplotlib DOS
-model1_key = "mace-y7uhwpje"
-model2_key = "chgnet-v0.3.0"
+model1_key = Model.mace_mp
+model2_key = Model.chgnet_030
 
 # for mp_id in materials_with_3:
 for mp_id in materials_with_2:
@@ -46,7 +47,7 @@ for mp_id in materials_with_2:
     # now the same for DOS
     doses = {
         pretty_labels[model1_key]: model1[Key.dos],
-        # pretty_label_map[model2_key]: model2[Keys.dos],
+        # pretty_label_map[model2_key]: model2[Key.dos],
         pretty_labels[Key.dft]: ph_docs[mp_id][Key.dft][Key.dos],
     }
     ax_dos = plot_phonon_dos_mpl(doses, last_peak_anno=r"${key}={last_peak:.1f}$")
@@ -60,7 +61,7 @@ for mp_id in materials_with_2:
 for mp_id in tqdm(materials_with_2):
     pbe_bands = ph_docs[mp_id][Key.dft][Key.bs]
     ml1_bands = ph_docs[mp_id][model1_key][Key.bs]
-    # ml2_bands = ph_docs[mp_id][model2_key][Keys.bs]
+    # ml2_bands = ph_docs[mp_id][model2_key][Key.bs]
 
     bands_fig_path = f"{figs_out_dir}/{mp_id}-bands-pbe-vs-{model1_key}.pdf"
 

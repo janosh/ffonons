@@ -3,10 +3,11 @@
 """
 import os
 from datetime import UTC, datetime
-from enum import StrEnum
 
 import numpy as np
 import plotly.express as px
+import plotly.io as pio
+import pymatviz  # noqa: F401, import registers pymatviz_white template
 from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos, Dos
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
@@ -14,43 +15,17 @@ from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-15"
 
-px.defaults.template = "plotly_dark"
+px.defaults.template = "pymatviz_white"
+pio.templates.default = "pymatviz_white"
 
 PKG_DIR = os.path.dirname(__file__)
 ROOT = os.path.dirname(PKG_DIR)
 DATA_DIR = f"{ROOT}/data"
 PDF_FIGS = f"{ROOT}/figs"
-PAPER_DIR = f"{ROOT}/../mace-mp/figures_phonons"
+PAPER_DIR = f"{ROOT}/../thesis/figs/phonons"
 SITE_FIGS = f"{ROOT}/site/src/figs"
 
 today = f"{datetime.now(tz=UTC):%Y-%m-%d}"
-
-
-class Key(StrEnum):
-    """Keys for accessing the data in phonon docs and dataframes."""
-
-    bs = "phonon_bandstructure"
-    composition = "composition"
-    dft = "pbe"
-    dos = "phonon_dos"
-    dos_mae = "phdos_mae_THz"
-    formula = "formula"
-    last_dos_peak = "last_phdos_peak_THz"
-    mat_id = "material_id"
-    max_freq = "max_freq_THz"
-    min_freq = "min_freq_THz"
-    reduced_formula = "reduced_formula"
-    struct = "structure"
-    togo_id = "togo_id"
-
-
-class DBs(StrEnum):
-    """Database names."""
-
-    mp = "mp"
-    phonon_db = "phonon-db"
-    gnome = "gnome"
-    one_off = "one-off"
 
 
 speed_of_light = 299792458  # [m/s]

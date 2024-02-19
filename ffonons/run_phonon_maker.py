@@ -18,8 +18,9 @@ from pymatviz import plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, PDF_FIGS, ROOT, DBs, Key
+from ffonons import DATA_DIR, PDF_FIGS, ROOT
 from ffonons.dbs.phonondb import PhononDBDocParsed
+from ffonons.enums import DB, Key, Model
 from ffonons.plots import plotly_title, pretty_labels
 
 __author__ = "Janosh Riebesell"
@@ -28,7 +29,7 @@ __date__ = "2023-11-19"
 
 # %%
 runs_dir = f"{ROOT}/tmp/runs"  # noqa: S108
-which_db = DBs.phonon_db
+which_db = DB.phonon_db
 ph_docs_dir = f"{DATA_DIR}/{which_db}"
 figs_out_dir = f"{PDF_FIGS}/{which_db}"
 shutil.rmtree(runs_dir, ignore_errors=True)  # remove old runs to save space
@@ -42,26 +43,37 @@ mace_kwds = dict(
 )
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
 
+do_mlff_relax = True  # whether to MLFF-relax the PBE structure
 models = {
-    "mace-y7uhwpje": dict(
-        bulk_relax_maker=ff_jobs.MACERelaxMaker(
-            relax_kwargs=common_relax_kwds,
-            **mace_kwds,
-        ),
-        phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-        static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-    ),
-    # "m3gnet":dict(
-    #     bulk_relax_maker=ff_jobs.M3GNetRelaxMaker(relax_kwargs=common_relax_kwds),
+    # Model.mace_mp: dict(
+    #     bulk_relax_maker=ff_jobs.MACERelaxMaker(
+    #         relax_kwargs=common_relax_kwds,
+    #         **mace_kwds,
+    #     )
+    #     if do_mlff_relax
+    #     else None,
+    #     phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+    #     static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+    # ),
+    # Model.m3gnet_ms: dict(
+    #     bulk_relax_maker=ff_jobs.M3GNetRelaxMaker(relax_kwargs=common_relax_kwds)
+    #     if do_mlff_relax
+    #     else None,
     #     phonon_displacement_maker=ff_jobs.M3GNetStaticMaker(),
     #     static_energy_maker=ff_jobs.M3GNetStaticMaker(),
     # ),
-    "chgnet-v0.3.0": dict(
+    Model.chgnet_030: dict(
         bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
-            relax_kwargs=common_relax_kwds, **chgnet_kwds
+            relax_kwargs=common_relax_kwds | {"assign_magmoms": False}, **chgnet_kwds
+        )
+        if do_mlff_relax
+        else None,
+        phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(
+            **chgnet_kwds, model_kwargs={"assign_magmoms": False}
         ),
-        phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
-        static_energy_maker=ff_jobs.CHGNetStaticMaker(**chgnet_kwds),
+        static_energy_maker=ff_jobs.CHGNetStaticMaker(
+            **chgnet_kwds, model_kwargs={"assign_magmoms": False}
+        ),
     ),
 }
 
@@ -80,7 +92,7 @@ mpr = MPRester(mute_progress_bars=True)
 # for mat_id in mp_ids: # MP
 # for mat_id, struct in get_gnome_pmg_structures().items():  # GNOME
 errors: dict[str, Exception] = {}
-
+skip_existing = True
 for dft_doc_path in (
     pbar := tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.json.lzma"))
 ):  # PhononDB
@@ -103,11 +115,11 @@ for dft_doc_path in (
         model_key = model.lower().replace(" ", "-")
         os.makedirs(root_dir := f"{runs_dir}/{model_key}", exist_ok=True)
 
-        bs_dos_fig_path = f"{figs_out_dir}/{mat_id}-bs-dos-{Key.dft}-vs-{model_key}.pdf"
         ml_doc_path = f"{ph_docs_dir}/{id_formula}-{model_key}.json.lzma"
 
-        if os.path.isfile(ml_doc_path):  # skip if ML doc exists, can easily generate
-            # bs_dos_fig_path from that without rerunning workflow
+        if os.path.isfile(ml_doc_path) and skip_existing:
+            # skip if ML doc exists, can easily generate bs_dos_fig from that without
+            # rerunning workflow
             print(f"Skipping {model!r} for {id_formula}: phonon doc file exists")
             continue
         try:
@@ -149,7 +161,9 @@ for dft_doc_path in (
             fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
             fig_bs_dos.layout.legend.update(x=1, y=1.07, xanchor="right")
             fig_bs_dos.show()
-            save_fig(fig_bs_dos, bs_dos_fig_path)
+
+            img_name = f"{mat_id}-bs-dos-{Key.dft}-vs-{model_key}"
+            save_fig(fig_bs_dos, f"{figs_out_dir}/{img_name}.pdf")
         except (ValueError, RuntimeError, BadZipFile, Exception) as exc:
             # known possible errors:
             # - the 2 band structures are not compatible, due to symmetry change during

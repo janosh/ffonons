@@ -10,7 +10,8 @@ from pymatviz.io import save_fig
 from pymatviz.utils import add_identity_line
 from sklearn.metrics import confusion_matrix
 
-from ffonons import PAPER_DIR, PDF_FIGS, DBs, Key
+from ffonons import PAPER_DIR, PDF_FIGS
+from ffonons.enums import DB, Key, Model
 from ffonons.io import get_df_summary
 from ffonons.plots import model_labels, pretty_labels
 
@@ -21,13 +22,12 @@ __date__ = "2023-12-15"
 # %% compute last phonon DOS peak for each model and MP
 imaginary_freq_tol = 0.05
 df_summary = get_df_summary(
-    which_db := DBs.phonon_db, imaginary_freq_tol=imaginary_freq_tol
+    which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
 )
 
 
 # %% plot confusion matrix
-model_key = "mace-y7uhwpje"
-model_key = "chgnet-v0.3.0"
+model_key = Model.mace_mp
 
 for col in ("imaginary_gamma_freq", "imaginary_freq"):
     df_dft, df_ml = (df_summary.xs(key, level=1) for key in (Key.dft, model_key))
