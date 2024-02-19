@@ -4,7 +4,6 @@ from pymatgen.core import Structure
 from pymatgen.phonon import PhononDos, PhononDosPlotter
 from pymatgen.util.string import htmlify, latexify
 
-from ffonons import find_last_dos_peak
 from ffonons.enums import Model
 
 pretty_labels = {
@@ -72,7 +71,7 @@ def plot_phonon_dos_mpl(
         _, dos_x_max, _, dos_y_max = ax.axis()
 
         for idx, (key, dos) in enumerate(phonon_dos.items()):
-            last_peak = find_last_dos_peak(dos)
+            last_peak = dos.get_last_peak()
             line_dict = {line.get_label(): line for line in ax.lines}
             # use line with same index if no label matches
             line = line_dict.get(key, ax.lines[idx])

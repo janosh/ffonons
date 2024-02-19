@@ -18,7 +18,7 @@ from monty.json import MontyDecoder
 from pymatgen.core import Structure
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, find_last_dos_peak
+from ffonons import DATA_DIR
 from ffonons.dbs.phonondb import PhononDBDocParsed
 from ffonons.enums import DB, Key
 
@@ -111,7 +111,7 @@ def get_df_summary(
 
             # last phonon DOS peak
             ph_dos = ph_doc.phonon_dos
-            last_peak = find_last_dos_peak(ph_dos)
+            last_peak = ph_dos.get_last_peak()
             summary_dict[id_mod_key][Key.last_dos_peak] = last_peak
 
             # max frequency from band structure
