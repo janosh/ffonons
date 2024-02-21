@@ -1,9 +1,13 @@
 <script lang="ts">
   import { browser } from '$app/environment'
-  import MetricsTable from '$figs/metrics-table.svelte'
+  import MetricsTable from '$figs/ffonon-metrics-table-tol=0.01.svelte'
   import Readme from '$root/readme.md'
 
-  const figs = import.meta.glob(`$figs/mp-*-bs-dos-*.svelte`, { as: `url`, eager: true })
+  const figs = import.meta.glob(`$figs/mp-*-bs-dos-*.svelte`, {
+    query: `?url`,
+    import: `default`,
+    eager: true,
+  })
 </script>
 
 <main>

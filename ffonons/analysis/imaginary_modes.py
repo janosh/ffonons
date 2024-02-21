@@ -13,7 +13,7 @@ from sklearn.metrics import confusion_matrix
 from ffonons import PAPER_DIR, PDF_FIGS
 from ffonons.enums import DB, Key, Model
 from ffonons.io import get_df_summary
-from ffonons.plots import model_labels, pretty_labels
+from ffonons.plots import pretty_labels
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-12-15"
@@ -27,12 +27,11 @@ df_summary = get_df_summary(
 
 
 # %% plot confusion matrix
-model_key = Model.mace_mp
+model_key = Model.chgnet_030
 
 for col in ("imaginary_gamma_freq", "imaginary_freq"):
-    df_dft, df_ml = (df_summary.xs(key, level=1) for key in (Key.dft, model_key))
-    y_true, y_pred = df_dft[col], df_ml[col]
-    y_true = y_true.loc[y_pred.index.droplevel(1)]
+    df_clean = df_summary[col].unstack(level=1)[[Key.dft, model_key]].dropna()
+    y_true, y_pred = (df_clean[key] for key in (Key.dft, model_key))
     conf_mat = confusion_matrix(y_true=y_true, y_pred=y_pred, normalize="all")
 
     label1, label2 = (
@@ -78,9 +77,10 @@ for col in ("imaginary_gamma_freq", "imaginary_freq"):
 
     fig.show()
 
-    img_name = f"{col.replace('_', '-')}{model_key}-confusion-matrix"
+    img_name = f"{col.replace('_', '-')}-{model_key}-confusion-matrix"
     save_fig(fig, f"{PAPER_DIR}/{img_name}.pdf")
     save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
+    save_fig(fig, f"{PAPER_DIR}/{img_name}.svg")
 
 
 # %% repeat confusion matrix calculation to check for consistency
@@ -106,7 +106,7 @@ df_melt = (
     .reset_index(names=[Key.mat_id, Key.formula])
     .melt(
         id_vars=[Key.mat_id, Key.formula, Key.dft],
-        value_vars=list(model_labels),
+        value_vars=list(Model.val_dict()),
         var_name=color_col,
         value_name=y_col,
     )

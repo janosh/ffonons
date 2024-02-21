@@ -27,10 +27,12 @@ model2_key = Model.chgnet_030
 ph_docs = load_pymatgen_phonon_docs(which_db := DB.phonon_db)
 os.makedirs(figs_out_dir := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 
-materials_with_2 = [key for key, val in ph_docs.items() if len(val) >= 2]
-print(f"{len(materials_with_2)=}")
-materials_with_3 = [key for key, val in ph_docs.items() if len(val) >= 3]
-print(f"{len(materials_with_3)=}")
+materials_with_2_preds = [key for key, val in ph_docs.items() if len(val) >= 2]
+print(f"{len(materials_with_2_preds)=}")
+materials_with_3_preds = [key for key, val in ph_docs.items() if len(val) >= 3]
+print(f"{len(materials_with_3_preds)=}")
+materials_with_4_preds = [key for key, val in ph_docs.items() if len(val) >= 4]
+print(f"{len(materials_with_4_preds)=}")
 
 
 # %% matplotlib DOS
@@ -38,7 +40,7 @@ model1_key = Model.mace_mp
 model2_key = Model.chgnet_030
 
 # for mp_id in materials_with_3:
-for mp_id in materials_with_2:
+for mp_id in materials_with_2_preds:
     mp_id = "mp-21836"
     model1 = ph_docs[mp_id][model1_key]
     # model2 = ph_docs[mp_id][model2_key]
@@ -58,7 +60,7 @@ for mp_id in materials_with_2:
 
 
 # %% matplotlib bands
-for mp_id in tqdm(materials_with_2):
+for mp_id in tqdm(materials_with_2_preds):
     pbe_bands = ph_docs[mp_id][Key.dft][Key.bs]
     ml1_bands = ph_docs[mp_id][model1_key][Key.bs]
     # ml2_bands = ph_docs[mp_id][model2_key][Key.bs]
@@ -83,7 +85,7 @@ for mp_id in tqdm(materials_with_2):
 
 
 # %% plotly bands
-for mp_id in tqdm(materials_with_2):
+for mp_id in tqdm(materials_with_2_preds):
     bs_pbe = ph_docs[mp_id][Key.dft][Key.bs]
     dft_label = pretty_labels[Key.dft]
 
@@ -111,13 +113,15 @@ for mp_id in tqdm(materials_with_2):
 
 
 # %% plotly bands+DOS
-for mp_id in tqdm(materials_with_3):
+for mp_id in tqdm(materials_with_4_preds):
     keys = sorted(ph_docs[mp_id], reverse=True)
     bands_dict = {
-        pretty_labels.get(key, key): getattr(ph_docs[mp_id], Key.bs) for key in keys
+        pretty_labels.get(key, key): getattr(ph_docs[mp_id][key], Key.bs)
+        for key in keys
     }
     dos_dict = {
-        pretty_labels.get(key, key): getattr(ph_docs[mp_id], Key.dos) for key in keys
+        pretty_labels.get(key, key): getattr(ph_docs[mp_id][key], Key.dos)
+        for key in keys
     }
     img_name = f"{mp_id}-bs-dos-{'-vs-'.join(keys)}"
     out_path = f"{figs_out_dir}/{img_name}.pdf"

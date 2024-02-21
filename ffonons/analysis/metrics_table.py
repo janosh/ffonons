@@ -19,15 +19,15 @@ __date__ = "2023-12-15"
 
 
 # %% compute last phonon DOS peak for each model and MP
-imaginary_freq_tol = 0.05
+imaginary_freq_tol = 0.01
 df_summary = get_df_summary(
-    which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
+    which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol, refresh_cache=False
 )
 
 
 # %% make dataframe of metrics
 df_metrics = pd.DataFrame()
-df_metrics.index.name = "model"
+df_metrics.index.name = "Model"
 
 
 for key, df_model in df_summary.groupby(level=1):
@@ -39,8 +39,8 @@ for key, df_model in df_summary.groupby(level=1):
     df_model = df_model.droplevel(1)  # remove model key from index
 
     for metric in ("phdos_mae_THz", "phdos_r2"):
-        pretty_metric = pretty_labels.get(metric, metric)
-        df_metrics.loc[label, pretty_metric] = df_model[metric].mean()
+        col_name = pretty_labels.get(metric, metric)
+        df_metrics.loc[label, col_name] = df_model[metric].mean()
 
     df_dft = df_summary.xs(Key.dft, level=1)
     for metric in (
@@ -63,9 +63,9 @@ for key, df_model in df_summary.groupby(level=1):
         elif normalize == "all":
             assert tn + fp + fn + tp == 1
         acc = (tn + tp) / 2
-        pretty_metric = pretty_labels.get(metric, metric)
+        col_name = pretty_labels.get(metric, metric)
 
-        cols = [f"Acc. {pretty_metric}", f"FPR {pretty_metric}", f"FNR {pretty_metric}"]
+        cols = [f"Acc. {col_name}", f"FPR {col_name}", f"FNR {col_name}"]
         df_metrics.loc[label, cols] = acc, fp, fn
 
     for metric in (
@@ -79,22 +79,72 @@ for key, df_model in df_summary.groupby(level=1):
         df_metrics.loc[label, pretty_labels[f"mae_{metric}"]] = MAE
         df_metrics.loc[label, pretty_labels[f"r2_{metric}"]] = R2
 
-df_metrics = df_metrics.convert_dtypes().round(2)
+# sort by ph DOS MAE
+df_metrics = (
+    df_metrics.convert_dtypes().sort_values(by=pretty_labels["phdos_mae_THz"]).round(2)
+)
 
 
-# %% make df_metrics a styler with gradient heatmap
-cmap = "RdGy"
+# %% --- vertical metrics table ---
+cmap = "Blues"
 lower_better = [
     col for col in df_metrics if any(pat in col for pat in ("MAE", "FNR", "FPR"))
 ]
-styler = (
-    df_metrics.reset_index()
-    .style.background_gradient(cmap=cmap)
-    .background_gradient(cmap=f"{cmap}_r", subset=lower_better)
-    .format(precision=2, na_rep="-")
+higher_better = {*df_metrics} - set(lower_better) - {"N"}
+styler = df_metrics.T.convert_dtypes().style.format(
+    # render integers without decimal places
+    lambda val: (f"{val:.0f}" if val == int(val) else f"{val:.2f}")
+    if isinstance(val, float)
+    else val,
+    precision=2,
+    na_rep="-",
+)
+styler = styler.background_gradient(
+    cmap=f"{cmap}_r", subset=pd.IndexSlice[[*lower_better], :], axis="columns"
+)
+styler.background_gradient(
+    cmap=cmap, subset=pd.IndexSlice[[*higher_better], :], axis="columns"
 )
 
+# add up/down arrows to indicate which metrics are better when higher/lower
+arrow_suffix = dict.fromkeys(higher_better, " ↑") | dict.fromkeys(lower_better, " ↓")
+styler.relabel_index(
+    [f"{col}{arrow_suffix.get(col, '')}" for col in styler.data.index], axis="index"
+).set_uuid("")
+
+border = "1px solid black"
+styler.set_table_styles(
+    [{"selector": "tr", "props": f"border-top: {border}; border-bottom: {border};"}]
+)
+
+
+table_name = f"ffonon-metrics-table-tol={imaginary_freq_tol}"
+
+df_to_pdf(styler, f"{PDF_FIGS}/{table_name}.pdf", size="landscape")
+df_to_html_table(styler, f"{SITE_FIGS}/{table_name}.svelte")
+styler.set_caption(
+    f"Harmonic phonons from ML force fields vs Togo DB PBE<br>"
+    f"(imag. mode tol.={imaginary_freq_tol:.2f} THz)"
+)
+
+
+# %% --- horizontal metrics table ---
 if False:
-    df_to_pdf(styler, f"{PDF_FIGS}/metrics-table.pdf")
-df_to_html_table(styler, f"{SITE_FIGS}/metrics-table.svelte")
-styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")
+    lower_better = [
+        col for col in df_metrics if any(pat in col for pat in ("MAE", "FNR", "FPR"))
+    ]
+    styler = df_metrics.reset_index().style.format(precision=2, na_rep="-")
+    styler = styler.background_gradient(cmap=cmap).background_gradient(
+        cmap=f"{cmap}_r", subset=lower_better
+    )
+
+    arrow_suffix = dict.fromkeys(higher_better, " ↑") | dict.fromkeys(
+        lower_better, " ↓"
+    )
+    styler.relabel_index(
+        [f"{col}{arrow_suffix.get(col, '')}" for col in styler.data], axis="columns"
+    ).set_uuid("").hide(axis="index")
+
+    df_to_pdf(styler, f"{PDF_FIGS}/{table_name}.pdf")
+    df_to_html_table(styler, f"{SITE_FIGS}/{table_name}.svelte")
+    styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")

@@ -39,7 +39,9 @@ annotate_metrics(
     fig=fig, xs=df_plot[x_col], ys=df_plot[y_col], suffix=f"n = {len(df_plot):,}"
 )
 add_identity_line(fig)
-fig.layout.margin = dict(l=5, r=5, b=5, t=5)
+title = f"{model_key.label} {pretty_labels[x_col]} vs {pretty_labels[y_col]}"
+fig.layout.title.update(text=title, x=0.5, y=0.97)
+fig.layout.margin = dict(l=5, r=5, b=5, t=35)
 fig.show()
 
 
@@ -63,7 +65,7 @@ fig.show()
 # %% plot MP vs model last phonon DOS peaks as scatter
 prop = Key.last_dos_peak
 # prop = Key.max_freq
-df_plot = df_summary.copy().unstack(level=1)[prop].dropna().round(2)
+df_plot = df_summary.unstack(level=1)[prop].dropna().round(2).copy()
 hover_cols = [Key.formula, Key.n_sites]
 df_plot[hover_cols] = df_summary.xs(Key.dft, level=1)[hover_cols]
 x_col = Key.dft
@@ -71,7 +73,6 @@ y_cols = list({*Model.val_dict().values()} & {*df_plot})
 # post-hoc PES hardening shift in THz (ML-predictions will be boosted by this value)
 pes_shift = 0  # 0.6
 df_plot[y_cols] += pes_shift
-
 
 # std dev of MP last phonon DOS peak
 print(f"PBE last phonon DOS peak std dev: {df_plot[x_col].std():.2f} THz")
@@ -83,14 +84,13 @@ fig = px.scatter(
     y=y_cols,
     hover_name=Key.mat_id,
     hover_data=hover_cols,
-    opacity=0.6,
     size=Key.n_sites,
 )
 
 
 for trace in fig.data:
-    # trace.marker.size = 6  # clashes with size=Key.n_sites
-    trace.marker.opacity = 0.8
+    trace.marker.size = 4  # clashes with size=Key.n_sites
+    trace.marker.opacity = 0.6
 
     targets, preds = df_plot[[x_col, trace.name]].dropna().to_numpy().T
     MAE = np.abs(targets - (preds + pes_shift)).mean()

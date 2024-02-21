@@ -49,10 +49,14 @@ def load_pymatgen_phonon_docs(which_db: Literal["mp", "phonon-db"]) -> PhDocs:
     ph_docs = defaultdict(dict)
 
     for path in tqdm(paths, desc=f"Loading {which_db} docs"):
-        with zopen(path, "rt") as file:
-            ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(
-                file, cls=MontyDecoder
-            )
+        try:
+            with zopen(path, "rt") as file:
+                ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(
+                    file, cls=MontyDecoder
+                )
+        except Exception as exc:
+            print(f"error loading {path=}: {exc}")
+            continue
 
         mp_id, formula, model = re.search(
             rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.*", path
@@ -69,7 +73,7 @@ def load_pymatgen_phonon_docs(which_db: Literal["mp", "phonon-db"]) -> PhDocs:
 
 def get_df_summary(
     ph_docs: PhDocs | DB = None,
-    imaginary_freq_tol: float = 0.1,
+    imaginary_freq_tol: float = 0.01,
     cache_path: str | Path = "",
     refresh_cache: bool = False,
 ) -> pd.DataFrame:
@@ -92,7 +96,10 @@ def get_df_summary(
         pd.DataFrame: Summary metrics for each material and model in ph_docs.
     """
     if isinstance(ph_docs, str):
-        cache_path = cache_path or f"{DATA_DIR}/{ph_docs}/df-summary.csv.gz"
+        cache_path = (
+            cache_path
+            or f"{DATA_DIR}/{ph_docs}/df-summary-tol={imaginary_freq_tol}.csv.gz"
+        )
 
     if not refresh_cache and os.path.isfile(cache_path or ""):
         return pd.read_csv(
