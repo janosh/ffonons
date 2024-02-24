@@ -23,8 +23,8 @@ def get_mp_ph_docs(mp_id: str, docs_dir: str = DATA_DIR) -> tuple[PhononBSDOSDoc
 
     Args:
         mp_id (str): Material ID.
-        docs_dir (str = DATA_DIR): Directory to save the MP phonon doc. Set to None or
-            "" to not save.
+        docs_dir (str): Directory to save the MP phonon doc. Set to "" to not save.
+            Defaults to ffonons.DATA_DIR.
 
     Returns:
         tuple[PhononBSDOSDoc, str]: Phonon doc and path to saved doc.
@@ -39,5 +39,10 @@ def get_mp_ph_docs(mp_id: str, docs_dir: str = DATA_DIR) -> tuple[PhononBSDOSDoc
 
         with zopen(mp_ph_doc_path, "wt") as file:
             json.dump(mp_phonon_doc, file, cls=MontyEncoder)
+    elif os.path.isfile(mp_ph_doc_path):
+        with zopen(mp_ph_doc_path, "rt") as file:
+            mp_phonon_doc = json.load(file)
+    else:
+        mp_phonon_doc = mpr.materials.phonon.get_data_by_id(mp_id)
 
     return mp_phonon_doc, mp_ph_doc_path

@@ -7,7 +7,7 @@ import re
 import sys
 from dataclasses import dataclass
 from glob import glob
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 from zipfile import ZipFile
 
 import numpy as np
@@ -176,8 +176,11 @@ def phonondb_doc_to_pmg_lzma(
     return pmg_doc_path
 
 
+KpathScheme = Literal["setyawan_curtarolo", "latimer_munro", "hinuma", "seekpath"]
+
+
 def get_phonopy_kpath(
-    structure: Structure, kpath_scheme: str, symprec: float, **kwargs: Any
+    structure: Structure, kpath_scheme: KpathScheme, symprec: float, **kwargs: Any
 ) -> tuple:
     """Get high-symmetry points in k-space in phonopy format.
 
@@ -198,6 +201,10 @@ def get_phonopy_kpath(
     elif kpath_scheme == "seekpath":
         high_symm_kpath = KPathSeek(structure, symprec=symprec, **kwargs)
         kpath = high_symm_kpath._kpath  # noqa: SLF001
+    else:
+        raise ValueError(
+            f"Invalid {kpath_scheme=}, must be one of {get_args(KpathScheme)}"
+        )
 
     path = copy.deepcopy(kpath["path"])
 
@@ -260,7 +267,8 @@ def parse_phonondb_docs(
         poscar (str, optional): path to POSCAR file. Defaults to "POSCAR".
         force_sets (str, optional): path to FORCE_SETS file. Defaults to "FORCE_SETS".
         born (str, optional): path to BORN file. Defaults to "BORN".
-        code (str, optional): code used for phonon calculations. Defaults to "vasp".
+        code (str, optional): code used for phonon calculations. Defaults to "vasp"
+            (no other codes supported yet).
         kpath_scheme (str, optional): kpath scheme. Defaults to "seekpath".
             Important to use "seekpath" if not using primitive cell as input!
         symprec (float, optional): precision for symmetry determination.
@@ -275,6 +283,8 @@ def parse_phonondb_docs(
     """
     if code == "vasp":
         factor = VaspToTHz
+    else:
+        raise ValueError(f"Invalid {code=}, only 'vasp' is supported.")
 
     if phonopy_doc_path:
         # open zip archive and only read the phonopy_params.yaml.xz file from it
@@ -400,6 +410,14 @@ def parse_phonondb_docs(
         therm_disp_mat = td_matrices.thermal_displacement_matrices.tolist()
 
         therm_disp_mat_cif = td_matrices.thermal_displacement_matrices_cif.tolist()
+        thermal_displacements = {
+            "temps_thermal_displacements": temp_range_thermal_displacements.tolist(),
+            "thermal_displacement_matrix_cif": therm_disp_mat_cif,
+            "thermal_displacement_matrix": therm_disp_mat,
+            "freq_min_thermal_displacements": freq_min_thermal_displacements,
+        }
+    else:
+        thermal_displacements = None
 
     return PhononDBDocParsed(
         structure=get_pmg_structure(phonon.unitcell),
@@ -414,12 +432,5 @@ def parse_phonondb_docs(
         entropies=entropies,
         temps=temp_range.tolist(),
         has_imaginary_modes=has_imag_modes,
-        thermal_displacement_data={
-            "temps_thermal_displacements": temp_range_thermal_displacements.tolist(),
-            "thermal_displacement_matrix_cif": therm_disp_mat_cif,
-            "thermal_displacement_matrix": therm_disp_mat,
-            "freq_min_thermal_displacements": freq_min_thermal_displacements,
-        }
-        if kwargs.get("create_thermal_displacements")
-        else None,
+        thermal_displacement_data=thermal_displacements,
     )

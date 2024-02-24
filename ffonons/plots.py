@@ -89,11 +89,13 @@ def plotly_title(formula: str, mat_id: str = "") -> str:
     """Make plotly figure title from HTML-ified formula and and link to MP details page
     (legacy since only legacy has phonons) or other URL.
     """
-    if mat_id.startswith(("mp-", "mvc-")):
+    if mat_id.lower().strip().startswith(("mp-", "mvc-")):
         href = f"https://legacy.materialsproject.org/materials/{mat_id}"
-    if mat_id.startswith("https://"):
+    elif mat_id.startswith("https://"):
         href = mat_id
         mat_id = mat_id.split("/")[-1]
+    else:
+        raise ValueError(f"unrecognized {mat_id=}")
     title = f"{htmlify(formula)}"
     if mat_id:
         title += f'  <a href="{href}">{mat_id}</a>'

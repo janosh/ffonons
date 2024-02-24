@@ -89,6 +89,3 @@ for mp_id in tqdm(idx_n_avail[1]):
     # save_fig(ax_bands, bands_fig_path)
     # show
     ax_bands.figure.show()
-
-
-ml_bs_plotter.get_plot(branches=[0, 1])
