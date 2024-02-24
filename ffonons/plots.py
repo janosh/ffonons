@@ -4,26 +4,9 @@ from pymatgen.core import Structure
 from pymatgen.phonon import PhononDos, PhononDosPlotter
 from pymatgen.util.string import htmlify, latexify
 
-from ffonons.enums import Model
+from ffonons.enums import DB, Key, Model
 
-pretty_labels = {
-    "mp": "MP",
-    "pbe": "PBE",
-    "pbesol": "PBEsol",
-    "phonon-db": "PhononDB",
-    "phdos_mae_THz": "MAE<sub>ph DOS</sub> (THz)",
-    "phdos_r2": "R<sup>2</sup><sub>ph DOS</sub>",
-    "imaginary_gamma_freq": "Imag. Γ",
-    "imaginary_freq": "Imag. Modes",
-    "last_phdos_peak_THz": "ω<sub>max</sub> (THz)",
-    "last_phdos_peak_THz_ml": "ω<sub>max</sub><sup>ML</sup> (THz)",
-    "last_phdos_peak_THz_pbe": "ω<sub>max</sub><sup>PBE</sup> (THz)",
-    "mae_last_phdos_peak_THz": "MAE<sub>ω<sub>max</sub></sub> (THz)",
-    "r2_last_phdos_peak_THz": "R<sup>2</sup><sub>ω<sub>max</sub></sub> (THz)",
-    "max_freq_THz": "Ω<sub>max</sub> (THz)",
-    "mae_max_freq_THz": "MAE<sub>Ω<sub>max</sub></sub> (THz)",
-    "r2_max_freq_THz": "R<sup>2</sup><sub>Ω<sub>max</sub></sub> (THz)",
-} | Model.label_dict()
+pretty_labels = Key.val_label_dict() | Model.val_label_dict() | DB.val_label_dict()
 
 px.defaults.labels |= pretty_labels
 

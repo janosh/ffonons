@@ -47,7 +47,12 @@ def fetch_togo_doc_by_id(doc_id: str, out_path: str = "") -> str:
     If the file already exists, it is skipped but its path is still returned.
     """
     if doc_id.startswith("mp-"):
-        togo_id = mp_to_togo_id[doc_id]
+        togo_id = mp_to_togo_id.get(doc_id)
+        if togo_id is None:
+            raise ValueError(
+                f"No {Key.togo_id} found for {doc_id=}, it likely doesn't exist in "
+                f"PhononDB. See {id_map_path!r}."
+            )
         mp_id = doc_id
     else:
         togo_id = doc_id
@@ -162,8 +167,7 @@ def phonondb_doc_to_pmg_lzma(
 
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
 
-    struct = phonondb_doc.unit_cell
-    formula = struct.formula.replace(" ", "")
+    formula = phonondb_doc.structure.formula.replace(" ", "")
     pmg_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-pbe.json.lzma"
 
     with lzma.open(pmg_doc_path, "wt") as file:
@@ -209,7 +213,7 @@ class PhononDBDocParsed:
 
     structure: Structure
     primitive: Structure
-    supercell_matrix: list[list[int]]  # 3x3 matrix
+    supercell: list[list[int]]  # 3x3 matrix
     nac_params: dict[str, Any]  # non-analytical corrections based on Born charges
     phonon_bandstructure: PhononBandStructureSymmLine
     phonon_dos: PhononDos
@@ -398,9 +402,9 @@ def parse_phonondb_docs(
         therm_disp_mat_cif = td_matrices.thermal_displacement_matrices_cif.tolist()
 
     return PhononDBDocParsed(
-        unit_cell=get_pmg_structure(phonon.unitcell),
+        structure=get_pmg_structure(phonon.unitcell),
         primitive=struct,
-        supercell_matrix=phonon.supercell_matrix,
+        supercell=phonon.supercell_matrix,
         nac_params=phonon.nac_params,
         phonon_bandstructure=bs_symm_line,
         phonon_dos=ph_dos,

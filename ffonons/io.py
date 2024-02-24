@@ -1,16 +1,19 @@
 """This model defines utility functions for loading existing DFT or ML phonon
 band structures and DOSs from disk.
 """
+
 import json
 import os
 import re
 from collections import defaultdict
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from glob import glob
 from pathlib import Path
 from typing import Literal
 from zipfile import ZipFile
 
+import numpy as np
 import pandas as pd
 from atomate2.common.schemas.phonons import PhononBSDOSDoc
 from monty.io import zopen
@@ -29,12 +32,15 @@ __date__ = "2023-11-24"
 PhDocs = dict[str, dict[str, PhononBSDOSDoc | PhononDBDocParsed]]
 
 
-def load_pymatgen_phonon_docs(which_db: Literal["mp", "phonon-db"]) -> PhDocs:
+def load_pymatgen_phonon_docs(
+    which_db: Literal["mp", "phonon-db"], materials_ids: Sequence[str] = ()
+) -> PhDocs:
     """Load existing DFT/ML phonon band structure and DOS docs from disk for a
     specified database.
 
     Args:
         which_db ("mp" | "phonon-db"): Which database to load docs from.
+        materials_ids (Sequence[str]): List of material IDs to load. Defaults to ().
 
     Returns:
         dict[str, dict[str, dict]]: Outer key is material ID, 2nd-level key is the model
@@ -44,6 +50,10 @@ def load_pymatgen_phonon_docs(which_db: Literal["mp", "phonon-db"]) -> PhDocs:
     paths = glob(f"{DATA_DIR}/{which_db}/*.json.gz") + glob(
         f"{DATA_DIR}/{which_db}/*.json.lzma"
     )
+    if materials_ids:
+        paths = [
+            path for path in paths if any(mp_id in path for mp_id in materials_ids)
+        ]
     if len(paths) == 0:
         raise FileNotFoundError(f"No files found in {DATA_DIR}/{which_db}")
     ph_docs = defaultdict(dict)
@@ -69,6 +79,35 @@ def load_pymatgen_phonon_docs(which_db: Literal["mp", "phonon-db"]) -> PhDocs:
         ph_docs[mp_id][model] = ph_doc
 
     return ph_docs
+
+
+def update_key_name(directory: str, key_map: dict[str, str]) -> None:
+    """Load all phonon docs in a directory and update the name of a key, then save
+    updated doc back to disk.
+
+    Args:
+        directory (str): Path to the directory containing the phonon docs.
+        key_map (dict[str, str]): Mapping of old key names to new key names.
+
+    Example:
+        update_key_name(f"{DATA_DIR}/{which_db}/", {"supercell_matrix": "supercell"})
+    """
+    paths = glob(f"{directory}/*.json.gz") + glob(f"{directory}/*.json.lzma")
+
+    for path in tqdm(paths, desc="Updating key name"):
+        try:
+            with zopen(path, "rt") as file:
+                ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(file)
+        except Exception as exc:
+            print(f"Error loading {path=}: {exc}")
+            continue
+
+        for old_key, new_key in key_map.items():
+            if old_key in ph_doc:
+                ph_doc[new_key] = ph_doc.pop(old_key)
+
+        with zopen(path, "wt") as file:
+            json.dump(ph_doc, file)
 
 
 def get_df_summary(
@@ -102,6 +141,12 @@ def get_df_summary(
         )
 
     if not refresh_cache and os.path.isfile(cache_path or ""):
+        # print days since file was cached
+        n_days = (
+            datetime.now(tz=UTC)
+            - datetime.fromtimestamp(os.path.getmtime(cache_path), tz=UTC)
+        ).days
+        print(f"Using cached df_summary from {cache_path!r} (days old: {n_days}). ")
         return pd.read_csv(
             cache_path, index_col=[Key.mat_id, Key.model]
         ).convert_dtypes()
@@ -111,35 +156,43 @@ def get_df_summary(
 
     summary_dict: dict[tuple[str, str], dict] = defaultdict(dict)
     for mat_id, docs in ph_docs.items():
-        for model_key, ph_doc in docs.items():
-            id_mod_key = mat_id, model_key
-            summary_dict[id_mod_key][Key.formula] = ph_doc.structure.formula
-            summary_dict[id_mod_key][Key.n_sites] = len(ph_doc.structure)
+        supercell = docs[Key.pbe].supercell
+        # assert all off-diagonal elements are zero (check assumes all positive values)
+        if not supercell.trace() == supercell.sum():
+            raise ValueError(f"Non-diagonal {supercell=}")
+
+        for model, ph_doc in docs.items():
+            id_model = mat_id, model
+            summary_dict[id_model][Key.formula] = ph_doc.structure.formula
+            summary_dict[id_model][Key.n_sites] = len(ph_doc.structure)
+            summary_dict[id_model][Key.supercell] = ", ".join(
+                map(str, np.diag(supercell))
+            )
 
             # last phonon DOS peak
             ph_dos = ph_doc.phonon_dos
             last_peak = ph_dos.get_last_peak()
-            summary_dict[id_mod_key][Key.last_dos_peak] = last_peak
+            summary_dict[id_model][Key.last_dos_peak] = last_peak
 
             # max frequency from band structure
             ph_bs = ph_doc.phonon_bandstructure
-            summary_dict[id_mod_key]["max_freq_THz"] = ph_bs.bands.max()
-            summary_dict[id_mod_key]["min_freq_THz"] = ph_bs.bands.min()
+            summary_dict[id_model][Key.max_freq] = ph_bs.bands.max()
+            summary_dict[id_model][Key.min_freq] = ph_bs.bands.min()
 
-            if model_key != Key.dft and Key.dft in docs:  # calculate DOS MAE and R2
-                pbe_dos = ph_docs[mat_id][Key.dft].phonon_dos
-                summary_dict[id_mod_key][Key.dos_mae] = ph_dos.mae(pbe_dos)
-                summary_dict[id_mod_key]["phdos_r2"] = ph_dos.r2_score(pbe_dos)
+            if model != Key.pbe and Key.pbe in docs:  # calculate DOS MAE and R2
+                pbe_dos = ph_docs[mat_id][Key.pbe].phonon_dos
+                summary_dict[id_model][Key.dos_mae] = ph_dos.mae(pbe_dos)
+                summary_dict[id_model][Key.phdos_r2] = ph_dos.r2_score(pbe_dos)
 
             # has imaginary modes
             has_imag_modes = ph_bs.has_imaginary_freq(tol=imaginary_freq_tol)
-            summary_dict[id_mod_key]["imaginary_freq"] = has_imag_modes
+            summary_dict[id_model][Key.has_imag_modes] = has_imag_modes
             has_imag_gamma_mode = ph_bs.has_imaginary_gamma_freq(tol=imaginary_freq_tol)
-            summary_dict[id_mod_key]["imaginary_gamma_freq"] = has_imag_gamma_mode
+            summary_dict[id_model][Key.imaginary_gamma_freq] = has_imag_gamma_mode
 
     # convert_dtypes() turns boolean cols imaginary_(gamma_)freq to bool
     df_summary = pd.DataFrame(summary_dict).T.convert_dtypes()
-    df_summary.index.names = [Key.mat_id, "model"]
+    df_summary.index.names = [str(Key.mat_id), "model"]
 
     if cache_path:
         df_summary.to_csv(cache_path)

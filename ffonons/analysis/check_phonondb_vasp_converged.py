@@ -1,4 +1,6 @@
-"""Extract VASP calculation parameters from phononDB and check convergence."""
+"""Extract VASP calculation parameters from phononDB and check convergence to ensure
+phononDB serves as sufficiently accurate reference data for a reliable benchmark.
+"""
 
 
 # %%
@@ -99,8 +101,8 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
     # Open the zip file
     # Read the contents of the tar.lzma file
     # Open the xz archive from the lzma file
-    with zipfile.ZipFile(zip_file_path, "r") as zip_ref, zip_ref.open(
-        "phonopy_params.yaml.xz", "r"
+    with zipfile.ZipFile(zip_file_path, mode="r") as zip_ref, zip_ref.open(
+        "phonopy_params.yaml.xz", mode="r"
     ) as lzma_file, lzma.open(lzma_file, "rb") as lzma_file_content:
         content = lzma_file_content.read()
         phonopy_yaml = yaml.safe_load(content.decode("utf-8"))

@@ -23,6 +23,7 @@ DATA_DIR = f"{ROOT}/data"
 PDF_FIGS = f"{ROOT}/figs"
 PAPER_DIR = f"{ROOT}/../thesis/figs/phonons"
 SITE_FIGS = f"{ROOT}/site/src/figs"
+SOFT_PES_DIR = f"{PDF_FIGS}/soft-pes"
 
 today = f"{datetime.now(tz=UTC):%Y-%m-%d}"
 

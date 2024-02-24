@@ -7,10 +7,9 @@ from pymatviz.io import save_fig
 from pymatviz.utils import add_identity_line, annotate_metrics
 from sklearn.metrics import r2_score
 
-from ffonons import PDF_FIGS
+from ffonons import PAPER_DIR, PDF_FIGS
 from ffonons.enums import DB, Key, Model
 from ffonons.io import get_df_summary
-from ffonons.plots import pretty_labels
 
 # from pymatgen.util.string import htmlify
 
@@ -19,14 +18,17 @@ __date__ = "2023-11-24"
 
 
 # %%
-df_summary = get_df_summary(which_db := DB.phonon_db)
+imaginary_freq_tol = 0.01
+df_summary = get_df_summary(
+    which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
+)
 
 
 # %% parity plot of max_freq of bands vs last_phdos_peak
-x_col, y_col = "max_freq_THz", Key.last_dos_peak
-model_key = Model.mace_mp  #  Key.dft
+x_col, y_col = Key.max_freq, Key.last_dos_peak
+model = Model.mace_mp  #  Key.pbe
 
-df_plot = df_summary.xs(model_key, level=1)
+df_plot = df_summary.xs(model, level=1)
 fig = px.scatter(
     df_plot.reset_index(),
     x=x_col,
@@ -36,10 +38,10 @@ fig = px.scatter(
 )
 
 annotate_metrics(
-    fig=fig, xs=df_plot[x_col], ys=df_plot[y_col], suffix=f"n = {len(df_plot):,}"
+    fig=fig, xs=df_plot[x_col], ys=df_plot[y_col], suffix=f"N={len(df_plot):,}"
 )
 add_identity_line(fig)
-title = f"{model_key.label} {pretty_labels[x_col]} vs {pretty_labels[y_col]}"
+title = f"{model.label} {x_col.label} vs {y_col.label}"
 fig.layout.title.update(text=title, x=0.5, y=0.97)
 fig.layout.margin = dict(l=5, r=5, b=5, t=35)
 fig.show()
@@ -63,13 +65,13 @@ fig.show()
 
 
 # %% plot MP vs model last phonon DOS peaks as scatter
-prop = Key.last_dos_peak
-# prop = Key.max_freq
+# prop = Key.last_dos_peak
+prop = Key.max_freq
 df_plot = df_summary.unstack(level=1)[prop].dropna().round(2).copy()
 hover_cols = [Key.formula, Key.n_sites]
-df_plot[hover_cols] = df_summary.xs(Key.dft, level=1)[hover_cols]
-x_col = Key.dft
-y_cols = list({*Model.val_dict().values()} & {*df_plot})
+df_plot[hover_cols] = df_summary.xs(Key.pbe, level=1)[hover_cols]
+x_col = Key.pbe
+y_cols = list({*Model.key_val_dict().values()} & {*df_plot})
 # post-hoc PES hardening shift in THz (ML-predictions will be boosted by this value)
 pes_shift = 0  # 0.6
 df_plot[y_cols] += pes_shift
@@ -87,22 +89,15 @@ fig = px.scatter(
     size=Key.n_sites,
 )
 
-
 for trace in fig.data:
-    trace.marker.size = 4  # clashes with size=Key.n_sites
+    trace.marker.size = 6  # clashes with size=Key.n_sites
     trace.marker.opacity = 0.6
 
     targets, preds = df_plot[[x_col, trace.name]].dropna().to_numpy().T
     MAE = np.abs(targets - (preds + pes_shift)).mean()
     R2 = r2_score(targets, (preds + pes_shift))
-    pretty_label = pretty_labels.get(trace.name, trace.name)
-    trace.name = (
-        f"<b>{pretty_label}</b><br>{MAE=:.2f}, R<sup>2</sup>={R2:.2f}, n={len(targets)}"
-    )
-
-fig.layout.legend.update(
-    x=0.01, y=0.98, borderwidth=1, bordercolor="lightgray", font_size=14
-)
+    trace_label = Model.val_label_dict()[trace.name]
+    trace.name = f"<b>{trace_label}</b><br>{MAE=:.2f}, R<sup>2</sup>={R2:.2f}"
 
 # # annotate outliers from parity line
 # for y_col in y_cols:
@@ -133,42 +128,52 @@ fig.layout.legend.update(
 #     fig.update_xaxes(range=[0, xy_max])
 #     fig.update_yaxes(range=[0, xy_max])
 
-fig.layout.xaxis.title = pretty_labels[f"{prop}_pbe"]
-fig.layout.yaxis.title = pretty_labels[f"{prop}_ml"]
+fig.layout.xaxis.title = Key.val_label_dict()[f"{prop}_pbe"]
+fig.layout.yaxis.title = Key.val_label_dict()[f"{prop}_ml"]
 fig.layout.legend.update(
-    x=0.01, y=0.98, yanchor="top", title=None, itemsizing="constant"
+    x=0.01,
+    y=0.98,
+    yanchor="top",
+    borderwidth=1,
+    bordercolor="lightgray",
+    font_size=14,
+    title=dict(
+        text=f"  N={len(df_plot)}, imag. tol={imaginary_freq_tol}", font_size=14
+    ),
+    itemsizing="constant",
 )
 add_identity_line(fig)  # annotations change plot range so add parity line after
 
 fig.layout.margin = dict(l=3, r=3, b=3, t=3)
 fig.show()
-file_suffix = prop.replace("_", "-").replace("-THz", "")
+file_suffix = prop.replace("_", "-").replace("-thz", "")
 img_name = f"parity-pbe-vs-ml-{file_suffix}"
 
 
 # %%
-parity_fig_path = f"{PDF_FIGS}/{which_db}/{img_name}.pdf"
-save_fig(fig, parity_fig_path)
+save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
+save_fig(fig, f"{PAPER_DIR}/{img_name}.svg", width=600, height=400)
 
 
 # %%
-srs_dft = df_summary.xs(Key.dft, level=1)[Key.last_dos_peak]
+srs_dft = df_summary.xs(Key.pbe, level=1)[Key.last_dos_peak]
 for key, df_model in df_summary.groupby(level=1):
-    if key == Key.dft:
+    if key == Key.pbe:
         continue
-    print(f"{pretty_labels[key]} {Key.last_dos_peak} (n={len(df_model)})")
-    for err_dir in ("over", "under"):
-        print(f"  most {err_dir}estimated")
-        df_model = df_model.droplevel(1)
-        diff = (srs_dft - df_model[Key.last_dos_peak]).dropna()
-        for (mp_id, formula), diff_val in getattr(
-            diff, "head" if err_dir == "under" else "tail"
-        )(3).items():
-            print(f"  - {diff_val:.2f} THz: {mp_id} ({formula})")
-            # print("  " + glob(f"{FIGS_DIR}/{which_db}/{mp_id}-bands*.pdf")[0])
 
     print("  most accurate")
+    diff = (srs_dft - df_model[Key.last_dos_peak]).dropna()
     most_accurate = diff.abs().sort_values().head(5)
     for (mp_id, formula), diff in most_accurate[:5].items():
         print(f"  - {diff:.2f} THz: {mp_id} {formula}")
         # print(glob(f"{FIGS_DIR}/{which_db}/{mp_id}-bands*.pdf")[0])
+
+    print(f"{Model.val_label_dict()[key]} {Key.last_dos_peak} (N={len(df_model)})")
+    for err_dir in ("over", "under"):
+        print(f"  most {err_dir}estimated")
+        diff = (srs_dft - df_model[Key.last_dos_peak]).dropna()
+        for mp_id, diff_val in getattr(diff, "head" if err_dir == "under" else "tail")(
+            3
+        ).items():
+            print(f"  - {diff_val:.2f} THz: {mp_id}")
+            # print("  " + glob(f"{FIGS_DIR}/{which_db}/{mp_id}-bands*.pdf")[0])

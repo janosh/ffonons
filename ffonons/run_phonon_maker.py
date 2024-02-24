@@ -8,12 +8,14 @@ from time import perf_counter
 from zipfile import BadZipFile
 
 import atomate2.forcefields.jobs as ff_jobs
+import pandas as pd
+import torch
 from atomate2.common.schemas.phonons import PhononBSDOSDoc as Atomate2PhononBSDOSDoc
 from atomate2.forcefields.flows.phonons import PhononMaker
+from IPython.display import display
 from jobflow import run_locally
 from monty.io import zopen
 from monty.json import MontyDecoder, MontyEncoder
-from mp_api.client import MPRester
 from pymatviz import plot_phonon_bands_and_dos
 from pymatviz.io import save_fig
 from tqdm import tqdm
@@ -21,7 +23,7 @@ from tqdm import tqdm
 from ffonons import DATA_DIR, PDF_FIGS, ROOT
 from ffonons.dbs.phonondb import PhononDBDocParsed
 from ffonons.enums import DB, Key, Model
-from ffonons.plots import plotly_title, pretty_labels
+from ffonons.plots import plotly_title
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-19"
@@ -37,31 +39,29 @@ for directory in (ph_docs_dir, figs_out_dir, runs_dir):
     os.makedirs(directory, exist_ok=True)
 
 common_relax_kwds = dict(fmax=0.00001)
-mace_kwds = dict(
-    model="https://tinyurl.com/y7uhwpje",
-    model_kwargs={"device": "cpu", "default_dtype": "float64"},
-)
+mace_kwds = dict(model="https://tinyurl.com/y7uhwpje")
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
 
 do_mlff_relax = True  # whether to MLFF-relax the PBE structure
 models = {
-    # Model.mace_mp: dict(
-    #     bulk_relax_maker=ff_jobs.MACERelaxMaker(
-    #         relax_kwargs=common_relax_kwds,
-    #         **mace_kwds,
-    #     )
-    #     if do_mlff_relax
-    #     else None,
-    #     phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-    #     static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-    # ),
-    # Model.m3gnet_ms: dict(
-    #     bulk_relax_maker=ff_jobs.M3GNetRelaxMaker(relax_kwargs=common_relax_kwds)
-    #     if do_mlff_relax
-    #     else None,
-    #     phonon_displacement_maker=ff_jobs.M3GNetStaticMaker(),
-    #     static_energy_maker=ff_jobs.M3GNetStaticMaker(),
-    # ),
+    Model.mace_mp: dict(
+        bulk_relax_maker=ff_jobs.MACERelaxMaker(
+            relax_kwargs=common_relax_kwds,
+            model_kwargs={"default_dtype": "float64"},
+            **mace_kwds,
+        )
+        if do_mlff_relax
+        else None,
+        phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+        static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+    ),
+    Model.m3gnet_ms: dict(
+        bulk_relax_maker=ff_jobs.M3GNetRelaxMaker(relax_kwargs=common_relax_kwds)
+        if do_mlff_relax
+        else None,
+        phonon_displacement_maker=ff_jobs.M3GNetStaticMaker(),
+        static_energy_maker=ff_jobs.M3GNetStaticMaker(),
+    ),
     Model.chgnet_030: dict(
         bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
             relax_kwargs=common_relax_kwds | {"assign_magmoms": False}, **chgnet_kwds
@@ -84,18 +84,34 @@ bad_ids = [mp_id for mp_id in mp_ids if not mp_id.startswith("mp-")]
 assert len(bad_ids) == 0, f"{bad_ids=}"
 
 
-# %%
-mpr = MPRester(mute_progress_bars=True)
+# %% check existing and missing DFT/ML phonon docs
+dft_docs = glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.json.lzma")
+pbe_ids = [re.search(r"mp-\d+", path).group() for path in dft_docs]
+print(f"found {len(dft_docs)} DFT phonon docs")
+
+total_missing, df_missing = set(), pd.DataFrame()
+for model in models:
+    model_docs = glob(f"{DATA_DIR}/{which_db}/*-{model}.json.lzma")
+    model_ids = [re.search(r"mp-\d+", path).group() for path in model_docs]
+    missing_ids = {*pbe_ids} - {*model_ids}
+    total_missing |= missing_ids
+    df_missing[model.label] = {"missing": len(missing_ids), "have": len(model_ids)}
+
+missing_paths = [
+    path for path in dft_docs if any(mp_id in path for mp_id in total_missing)
+]
+
+caption = (
+    f"matching DFT docs: {len(dft_docs)}<br>total missing: {len(total_missing)}<br><br>"
+)
+display(df_missing.T.style.set_caption(caption))
 
 
 # %% Main loop over materials and models
-# for mat_id in mp_ids: # MP
-# for mat_id, struct in get_gnome_pmg_structures().items():  # GNOME
-errors: dict[str, Exception] = {}
+errors: list[tuple[str, str, str]] = []
 skip_existing = True
-for dft_doc_path in (
-    pbar := tqdm(glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.json.lzma"))
-):  # PhononDB
+
+for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
     mat_id = "-".join(dft_doc_path.split("/")[-1].split("-")[:2])
     pbar.set_description(f"{mat_id=}")
     assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
@@ -104,28 +120,30 @@ for dft_doc_path in (
         phonondb_doc: PhononDBDocParsed = json.load(file, cls=MontyDecoder)
 
     struct = phonondb_doc.structure
-    supercell = phonondb_doc.supercell_matrix
+    supercell = phonondb_doc.supercell
     pbe_dos = phonondb_doc.phonon_dos
     pbe_bands = phonondb_doc.phonon_bandstructure
     struct.properties[Key.mat_id] = mat_id
     formula = struct.formula.replace(" ", "")
-    id_formula = f"{mat_id}-{formula}"
 
-    for model, makers in models.items():
+    for model, mlff_makers in models.items():
+        if model == Model.mace_mp:
+            torch.set_default_dtype(torch.float64)
+
         model_key = model.lower().replace(" ", "-")
         os.makedirs(root_dir := f"{runs_dir}/{model_key}", exist_ok=True)
 
-        ml_doc_path = f"{ph_docs_dir}/{id_formula}-{model_key}.json.lzma"
+        ml_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-{model_key}.json.lzma"
 
         if os.path.isfile(ml_doc_path) and skip_existing:
             # skip if ML doc exists, can easily generate bs_dos_fig from that without
             # rerunning workflow
-            print(f"Skipping {model!r} for {id_formula}: phonon doc file exists")
+            print(f"\nSkipping {model!s} for {mat_id}: phonon doc file exists")
             continue
         try:
             start = perf_counter()
             phonon_flow = PhononMaker(
-                **makers,
+                **mlff_makers,
                 store_force_constants=False,
                 # use "setyawan_curtarolo" when comparing to MP and "seekpath" else
                 # since setyawan_curtarolo only compatible with primitive cell
@@ -137,9 +155,9 @@ for dft_doc_path in (
             # phonon_flow.draw_graph().show()
 
             result = run_locally(
-                phonon_flow, root_dir=root_dir, log=False, ensure_success=True
+                phonon_flow, root_dir=root_dir, log=True, ensure_success=True
             )
-            print(f"{model} took: {perf_counter() - start:.2f} s")
+            print(f"\n{model} took: {perf_counter() - start:.2f} s")
 
             last_job_id = phonon_flow[-1].uuid
             ml_phonon_doc: Atomate2PhononBSDOSDoc = result[last_job_id][1].output
@@ -147,12 +165,14 @@ for dft_doc_path in (
             with zopen(ml_doc_path, "wt") as file:
                 json.dump(ml_phonon_doc, file, cls=MontyEncoder)
 
-            pbe_label, ml_label = pretty_labels[Key.dft], pretty_labels[model]
-            dos_dict = {ml_label: ml_phonon_doc.phonon_dos}
-            bands_dict = {ml_label: ml_phonon_doc.phonon_bandstructure}
+            ml_bs, ml_dos = ml_phonon_doc.phonon_bandstructure, ml_phonon_doc.phonon_dos
             if "pbe_dos" in locals() and "pbe_bands" in locals():
-                dos_dict[pbe_label] = pbe_dos
-                bands_dict[pbe_label] = pbe_bands
+                dos_dict = {Key.pbe.label: pbe_dos, model.label: ml_dos}
+                bands_dict = {Key.pbe.label: pbe_bands, model.label: ml_bs}
+            else:
+                bands_dict = {model.label: ml_bs}
+                dos_dict = {model.label: ml_dos}
+
             fig_bs_dos = plot_phonon_bands_and_dos(bands_dict, dos_dict)
 
             fig_bs_dos.layout.title = dict(
@@ -162,7 +182,7 @@ for dft_doc_path in (
             fig_bs_dos.layout.legend.update(x=1, y=1.07, xanchor="right")
             fig_bs_dos.show()
 
-            img_name = f"{mat_id}-bs-dos-{Key.dft}-vs-{model_key}"
+            img_name = f"{mat_id}-bs-dos-{Key.pbe}-vs-{model_key}"
             save_fig(fig_bs_dos, f"{figs_out_dir}/{img_name}.pdf")
         except (ValueError, RuntimeError, BadZipFile, Exception) as exc:
             # known possible errors:
@@ -179,7 +199,11 @@ for dft_doc_path in (
             # leaked semaphore objects to clean up at shutdown
             if "supercell" in locals():
                 exc.add_note(f"{supercell=}")
-            errors[id_formula] = f"{mat_id=} {model=}: {exc}"
+            errors += [(mat_id, model, formula)]
+
+        # MACE annoyingly changes the torch default dtype which breaks CHGNet
+        # and M3GNet, so we reset it here
+        torch.set_default_dtype(torch.float32)
 
 if errors:
-    print(f"{errors=}")
+    print(f"\n{errors=}")

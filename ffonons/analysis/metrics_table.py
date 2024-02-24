@@ -9,7 +9,7 @@ import pandas as pd
 from pymatviz.io import df_to_html_table, df_to_pdf
 from sklearn.metrics import confusion_matrix, r2_score
 
-from ffonons import PDF_FIGS, SITE_FIGS
+from ffonons import DATA_DIR, PAPER_DIR, PDF_FIGS, SITE_FIGS
 from ffonons.enums import DB, Key
 from ffonons.io import get_df_summary
 from ffonons.plots import pretty_labels
@@ -25,27 +25,38 @@ df_summary = get_df_summary(
 )
 
 
-# %% make dataframe of metrics
+# %% save analyzed MP IDs to CSV for rendering with Typst
+# material IDs where all models have results
+idx_n_avail = df_summary[Key.max_freq].unstack().dropna(thresh=4).index
+
+for folder in (PAPER_DIR, f"{DATA_DIR}/{which_db}"):
+    df_summary.xs(Key.pbe, level=1).loc[idx_n_avail][
+        [Key.formula, Key.supercell]
+    ].sort_index(key=lambda idx: idx.str.split("-").str[1].astype(int)).to_csv(
+        f"{folder}/analyzed-mp-ids.csv"
+    )
+
+
+# %% make dataframe with model metrics for phonon DOS and BS predictions
 df_metrics = pd.DataFrame()
 df_metrics.index.name = "Model"
 
-
-for key, df_model in df_summary.groupby(level=1):
-    if key == Key.dft:
+for key, df_model in df_summary.loc[idx_n_avail].groupby(level=1):
+    if key == Key.pbe:
         continue
 
     label = pretty_labels.get(key, key)
-    df_metrics.loc[label, "N"] = len(df_model)
+    # df_metrics.loc[label, "N"] = len(df_model)
     df_model = df_model.droplevel(1)  # remove model key from index
 
     for metric in ("phdos_mae_THz", "phdos_r2"):
         col_name = pretty_labels.get(metric, metric)
         df_metrics.loc[label, col_name] = df_model[metric].mean()
 
-    df_dft = df_summary.xs(Key.dft, level=1)
+    df_dft = df_summary.xs(Key.pbe, level=1)
     for metric in (
-        "imaginary_freq",
-        # "imaginary_gamma_freq",
+        Key.has_imag_modes,
+        # Key.imaginary_gamma_freq,
     ):
         imag_modes_pred = df_model[metric]
         imag_modes_true = df_dft[metric].loc[imag_modes_pred.index]
@@ -76,13 +87,11 @@ for key, df_model in df_summary.groupby(level=1):
         MAE = diff.abs().mean()
         not_nan = diff.dropna().index
         R2 = r2_score(df_dft[metric].loc[not_nan], df_model[metric].loc[not_nan])
-        df_metrics.loc[label, pretty_labels[f"mae_{metric}"]] = MAE
-        df_metrics.loc[label, pretty_labels[f"r2_{metric}"]] = R2
+        df_metrics.loc[label, getattr(Key, f"mae_{metric}").label] = MAE
+        df_metrics.loc[label, getattr(Key, f"r2_{metric}").label] = R2
 
 # sort by ph DOS MAE
-df_metrics = (
-    df_metrics.convert_dtypes().sort_values(by=pretty_labels["phdos_mae_THz"]).round(2)
-)
+df_metrics = df_metrics.convert_dtypes().sort_values(by=Key.dos_mae.label).round(2)
 
 
 # %% --- vertical metrics table ---
@@ -90,7 +99,7 @@ cmap = "Blues"
 lower_better = [
     col for col in df_metrics if any(pat in col for pat in ("MAE", "FNR", "FPR"))
 ]
-higher_better = {*df_metrics} - set(lower_better) - {"N"}
+higher_better = {*df_metrics} - set(lower_better)
 styler = df_metrics.T.convert_dtypes().style.format(
     # render integers without decimal places
     lambda val: (f"{val:.0f}" if val == int(val) else f"{val:.2f}")
@@ -124,7 +133,7 @@ df_to_pdf(styler, f"{PDF_FIGS}/{table_name}.pdf", size="landscape")
 df_to_html_table(styler, f"{SITE_FIGS}/{table_name}.svelte")
 styler.set_caption(
     f"Harmonic phonons from ML force fields vs Togo DB PBE<br>"
-    f"(imag. mode tol.={imaginary_freq_tol:.2f} THz)"
+    f"(N={len(idx_n_avail)}, imaginary mode tol={imaginary_freq_tol:.2f} THz)<br><br>"
 )
 
 
