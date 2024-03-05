@@ -2,7 +2,6 @@
 phononDB serves as sufficiently accurate reference data for a reliable benchmark.
 """
 
-
 # %%
 import lzma
 import os
@@ -101,9 +100,11 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
     # Open the zip file
     # Read the contents of the tar.lzma file
     # Open the xz archive from the lzma file
-    with zipfile.ZipFile(zip_file_path, mode="r") as zip_ref, zip_ref.open(
-        "phonopy_params.yaml.xz", mode="r"
-    ) as lzma_file, lzma.open(lzma_file, "rb") as lzma_file_content:
+    with (
+        zipfile.ZipFile(zip_file_path, mode="r") as zip_ref,
+        zip_ref.open("phonopy_params.yaml.xz", mode="r") as lzma_file,
+        lzma.open(lzma_file, "rb") as lzma_file_content,
+    ):
         content = lzma_file_content.read()
         phonopy_yaml = yaml.safe_load(content.decode("utf-8"))
 
@@ -112,11 +113,12 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
 
     # Open zip and tar.lzma files
     # Open the tar archive from the lzma file
-    with zipfile.ZipFile(zip_file_path) as zip_ref, zip_ref.open(
-        "vasp-settings.tar.lzma"
-    ) as lzma_file, lzma.open(lzma_file, "rb") as lzma_file_content, tarfile.open(
-        fileobj=lzma_file_content, mode="r"
-    ) as tar:
+    with (
+        zipfile.ZipFile(zip_file_path) as zip_ref,
+        zip_ref.open("vasp-settings.tar.lzma") as lzma_file,
+        lzma.open(lzma_file, "rb") as lzma_file_content,
+        tarfile.open(fileobj=lzma_file_content, mode="r") as tar,
+    ):
         file_list = tar.getnames()  # list contents of the tar archive
         user_potcar_settings: dict[str, str] = {}  # extract POTCAR settings
         potcar_title = []
@@ -145,9 +147,9 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
         poscar_file = tar.extractfile(poscar_file_name)
         content = poscar_file.read().decode("utf-8")
         poscar = Structure.from_str(content, fmt="poscar")
-        df.loc[
-            mp_id, Key.reduced_formula
-        ] = poscar.composition.get_reduced_formula_and_factor()[0]
+        df.loc[mp_id, Key.reduced_formula] = (
+            poscar.composition.get_reduced_formula_and_factor()[0]
+        )
         df.loc[mp_id, Key.composition] = poscar.composition
 
         for el in poscar.composition.chemical_system.split("-"):
@@ -293,9 +295,10 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
 
 # %%
 rows = []
-with Pool(processes=4, maxtasksperchild=1) as pool, tqdm(
-    total=len(dbs_files), desc="Extracting Calc data"
-) as pbar:
+with (
+    Pool(processes=4, maxtasksperchild=1) as pool,
+    tqdm(total=len(dbs_files), desc="Extracting Calc data") as pbar,
+):
     for result in pool.imap_unordered(get_comp_calc_params, dbs_files, chunksize=1):
         pbar.update()
         rows.append(result)

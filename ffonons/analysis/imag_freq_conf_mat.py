@@ -25,6 +25,14 @@ df_summary = get_df_summary(
 )
 
 
+# %%
+unstable_rate = (df_summary[Key.has_imag_freq]).mean()
+print(f"PBE unstable rate: {unstable_rate:.0%}")
+
+unstable_rate = (df_summary[Key.has_imag_gamma_freq]).mean()
+print(f"PBE Γ-unstable rate: {unstable_rate:.0%}")
+
+
 # %% plot confusion matrix
 model = Model.chgnet_030
 
@@ -32,7 +40,7 @@ model = Model.chgnet_030
 idx_n_avail = df_summary[Key.max_freq].unstack().dropna(thresh=4).index
 
 for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
-    for col in (Key.imaginary_gamma_freq, Key.has_imag_modes):
+    for col in (Key.has_imag_gamma_freq, Key.has_imag_freq):
         df_clean = df_summary.loc[idx_n_avail][col].unstack(level=1)[[Key.pbe, model]]
         y_true, y_pred = (df_clean[key] for key in (Key.pbe, model))
         conf_mat = confusion_matrix(y_true=y_true, y_pred=y_pred, normalize="all")
@@ -94,20 +102,6 @@ for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
         save_fig(fig, f"{PAPER_DIR}/{img_name}.pdf")
         save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
         save_fig(fig, f"{PAPER_DIR}/{img_name}.svg")
-
-
-# %% repeat confusion matrix calculation to check for consistency
-dft_imag_col = Key.imaginary_gamma_freq
-ml_imag_col = Key.imaginary_gamma_freq
-for pbe, mace in ((True, True), (True, False), (False, True), (False, False)):
-    both = df_summary.query(f"{dft_imag_col}=={pbe} and {ml_imag_col}=={mace}")
-    print(f"{pbe=} {mace=} : {len(both)/len(df_summary):.1%}")
-
-# kinetically unstable materials
-n_unstable = df_summary[dft_imag_col].mean()
-print(f"DFT unstable rate {n_unstable:.0%}")
-n_unstable = df_summary[ml_imag_col].mean()
-print(f"ML unstable rate {n_unstable:.0%}")
 
 
 # %% plot imaginary modes confusion matrix as parity plot using min. freq. across all

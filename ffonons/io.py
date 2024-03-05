@@ -119,6 +119,10 @@ def get_df_summary(
     """Get a pandas DataFrame with last phonon DOS peak frequencies, band widths, DOS
     MAE, DOS R^2, presence of imaginary modes (at Gamma or anywhere) and other metrics.
 
+    Inspect for correlations with
+        import seaborn as sns
+        sns.PairGrid(data=df_summary).map(sns.histplot)
+
     Args:
         ph_docs (PhDocs | WhichDB): Nested dicts (1st level: material IDs,
             2nd level: model name) of PhononBSDOSDoc or PhononDBDocParsed objects.
@@ -182,13 +186,13 @@ def get_df_summary(
             if model != Key.pbe and Key.pbe in docs:  # calculate DOS MAE and R2
                 pbe_dos = ph_docs[mat_id][Key.pbe].phonon_dos
                 summary_dict[id_model][Key.dos_mae] = ph_dos.mae(pbe_dos)
-                summary_dict[id_model][Key.phdos_r2] = ph_dos.r2_score(pbe_dos)
+                summary_dict[id_model][Key.ph_dos_r2] = ph_dos.r2_score(pbe_dos)
 
             # has imaginary modes
             has_imag_modes = ph_bs.has_imaginary_freq(tol=imaginary_freq_tol)
-            summary_dict[id_model][Key.has_imag_modes] = has_imag_modes
+            summary_dict[id_model][Key.has_imag_freq] = has_imag_modes
             has_imag_gamma_mode = ph_bs.has_imaginary_gamma_freq(tol=imaginary_freq_tol)
-            summary_dict[id_model][Key.imaginary_gamma_freq] = has_imag_gamma_mode
+            summary_dict[id_model][Key.has_imag_gamma_freq] = has_imag_gamma_mode
 
     # convert_dtypes() turns boolean cols imaginary_(gamma_)freq to bool
     df_summary = pd.DataFrame(summary_dict).T.convert_dtypes()

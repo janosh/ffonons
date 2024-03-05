@@ -55,9 +55,8 @@ class Key(LabelEnum):
     composition = "composition", "Chemical composition"
     dft = "dft", "DFT"
     dos = "phonon_dos", "Phonon density of states"
-    dos_mae = "phdos_mae_thz", "phonon DOS MAE"
     formula = "formula", "Chemical formula"
-    last_dos_peak = "last_phdos_peak_thz", "Last phonon DOS peak"
+    last_dos_peak = "last_ph_dos_peak_thz", "Last phonon DOS peak"
     mat_id = "material_id", "Material ID"
     model = "model", "Model"
     n_sites = "n_sites", "Number of sites"
@@ -70,44 +69,59 @@ class Key(LabelEnum):
     volume = "volume", "Volume"
 
     # model metrics
-    phdos_mae_thz = "phdos_mae_thz", "MAE<sub>ph DOS</sub> (THz)"
-    phdos_r2 = "phdos_r2", "R<sup>2</sup><sub>ph DOS</sub>"
-    imaginary_gamma_freq = "imaginary_gamma_freq", "Imag. Γ"
-    has_imag_modes = "imaginary_freq", "Has imaginary modes"
-    last_phdos_peak_thz = "last_phdos_peak_thz", "ω<sub>max</sub> (THz)"
-    last_phdos_peak_thz_ml = (
-        "last_phdos_peak_thz_ml",
+    dos_mae = "ph_dos_mae_thz", "MAE<sub>ph DOS</sub> (THz)"
+    ph_dos_r2 = "ph_dos_r2", "R<sup>2</sup><sub>ph DOS</sub>"
+    has_imag_gamma_freq = "has_imag_gamma_freq", "Has imaginary Γ modes"
+    has_imag_freq = "has_imag_freq", "Has imaginary modes"
+    last_ph_dos_peak_thz = "last_ph_dos_peak_thz", "ω<sub>max</sub> (THz)"
+    last_ph_dos_peak_thz_ml = (
+        "last_ph_dos_peak_thz_ml",
         "ω<sub>max</sub><sup>ML</sup> (THz)",
     )
-    last_phdos_peak_thz_pbe = (
-        "last_phdos_peak_thz_dft",
+    last_ph_dos_peak_thz_pbe = (
+        "last_ph_dos_peak_thz_dft",
         "ω<sub>max</sub><sup>DFT</sup> (THz)",
     )
-    mae_last_phdos_peak_thz = (
-        "mae_last_phdos_peak_thz",
+    mae_last_ph_dos_peak_thz = (
+        "mae_last_ph_dos_peak_thz",
         "MAE<sub>ω<sub>max</sub></sub> (THz)",
     )
-    r2_last_phdos_peak_thz = (
-        "r2_last_phdos_peak_thz",
+    r2_last_ph_dos_peak_thz = (
+        "r2_last_ph_dos_peak_thz",
         "R<sup>2</sup><sub>ω<sub>max</sub></sub> (THz)",
     )
     max_freq = "max_freq_thz", "Ω<sub>max</sub> (THz)"
     min_freq = "min_freq_thz", "Ω<sub>min</sub> (THz)"
+    min_freq_pbe = "min_freq_thz_pbe", "Ω<sub>min</sub><sup>PBE</sup> (THz)"
+    min_freq_ml = "min_freq_thz_ml", "Ω<sub>min</sub><sup>ML</sup> (THz)"
+    min_freq_rel = (
+        "min_freq_rel",
+        "Ω<sub>min</sub><sup>ML</sup> / Ω<sub>min</sub><sup>DFT</sup>",
+    )
     max_freq_pbe = "max_freq_thz_pbe", "Ω<sub>max</sub><sup>PBE</sup> (THz)"
     max_freq_ml = "max_freq_thz_ml", "Ω<sub>max</sub><sup>ML</sup> (THz)"
     max_freq_rel = (
         "max_freq_rel",
         "Ω<sub>max</sub><sup>ML</sup> / Ω<sub>max</sub><sup>DFT</sup>",
     )
-    mae_max_freq_thz = "mae_max_freq_thz", "MAE<sub>Ω<sub>max</sub></sub> (THz)"
-    r2_max_freq_thz = "r2_max_freq_thz", "R<sup>2</sup><sub>Ω<sub>max</sub></sub> (THz)"
+    mae_max_freq_thz = "mae_max_freq_thz", "MAE<sub>Ω<sup>max</sup></sub> (THz)"
+    r2_max_freq_thz = "r2_max_freq_thz", "R<sup>2</sup><sub>Ω<sup>max</sup></sub> (THz)"
+
+    # classification metrics for presence of imaginary modes
+    roc_auc_imag_freq = "roc_auc_imag_freq", "ROC AUC"
+    prec_imag_freq = "prec_imag_freq", "Prec."
+    recall_imag_freq = "recall_imag_freq", "Recall"
+    f1_imag_freq = "f1_imag_freq", "F1"
+    acc_imag_freq = "acc_imag_freq", "Acc."
+    fpr_imag_freq = "fpr_imag_freq", "FPR"
+    fnr_imag_freq = "fnr_imag_freq", "FNR"
 
 
 class DB(LabelEnum):
     """Database names."""
 
     mp = "mp", "Materials Project"
-    phonon_db = "phonon-db", "Phonon Database"
+    phonon_db = "phonon-db", "Togo PhononDB"
     one_off = "one-off", "One-off materials"  # e.g. from experiment
 
 
@@ -118,3 +132,4 @@ class Model(LabelEnum):
     chgnet_030 = "chgnet-v0.3.0", "CHGNet v0.3.0", "orange"
     mace_mp = "mace-y7uhwpje", "MACE-MP", "green"
     gnome = "gnome", "GNoME", "red"
+    pbe = "pbe", "PBE", "gray"

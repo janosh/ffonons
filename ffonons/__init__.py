@@ -1,6 +1,7 @@
 """Unpublished Python package supporting the analysis and results in the
 2nd pymatgen publication.
 """
+
 import os
 from datetime import UTC, datetime
 

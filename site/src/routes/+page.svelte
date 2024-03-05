@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from '$app/environment'
-  import MetricsTable from '$figs/ffonon-metrics-table-tol=0.01.svelte'
+  import ImagClfMetrics from '$figs/ffonon-imag-clf-table-tol=0.01.svelte'
+  import RegressionMetrics from '$figs/ffonon-regr-metrics-table-tol=0.01.svelte'
   import Readme from '$root/readme.md'
 
   const figs = import.meta.glob(`$figs/mp-*-bs-dos-*.svelte`, {
@@ -13,7 +14,18 @@
 <main>
   <Readme>
     <img src="/ffonons.svg" alt="FFonons" slot="logo" width="100" />
-    <MetricsTable slot="metrics-table" />
+    <svelte:fragment slot="metrics-table">
+      <figure>
+        <ImagClfMetrics style="margin: auto;" />
+        <figcaption>
+          Binary classification metrics of imaginary phonon mode detection.
+        </figcaption>
+      </figure>
+      <RegressionMetrics style="margin: auto;" />
+      <figure>
+        <figcaption>Regression metrics for maximum phonon frequency and DOS</figcaption>
+      </figure>
+    </svelte:fragment>
   </Readme>
 </main>
 
@@ -53,5 +65,12 @@
     gap: 1em;
     padding: 2em;
     max-width: max(80vw, 800px);
+  }
+  figure {
+    text-align: center;
+    display: flex;
+    gap: 1em;
+    flex-wrap: wrap;
+    place-content: center;
   }
 </style>

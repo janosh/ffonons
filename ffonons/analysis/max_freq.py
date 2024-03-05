@@ -3,6 +3,7 @@
 # %%
 import numpy as np
 import plotly.express as px
+from IPython.display import display
 from pymatviz.io import save_fig
 from pymatviz.utils import add_identity_line, annotate_metrics
 from sklearn.metrics import r2_score
@@ -156,24 +157,23 @@ save_fig(fig, f"{PAPER_DIR}/{img_name}.svg", width=600, height=400)
 
 
 # %%
-srs_dft = df_summary.xs(Key.pbe, level=1)[Key.last_dos_peak]
-for key, df_model in df_summary.groupby(level=1):
-    if key == Key.pbe:
+df_dft = df_summary.xs(Key.pbe, level=1)
+
+# print dataframe with 5 largest absolute differences between ML and DFT max_freq
+for model in Model:
+    if model == Key.pbe or model not in df_summary.index.get_level_values(1):
         continue
 
-    print("  most accurate")
-    diff = (srs_dft - df_model[Key.last_dos_peak]).dropna()
-    most_accurate = diff.abs().sort_values().head(5)
-    for (mp_id, formula), diff in most_accurate[:5].items():
-        print(f"  - {diff:.2f} THz: {mp_id} {formula}")
-        # print(glob(f"{FIGS_DIR}/{which_db}/{mp_id}-bands*.pdf")[0])
+    df_ml = df_summary.xs(model, level=1)
+    dft_col = f"{Key.max_freq}_dft"
+    df_ml[dft_col] = df_dft[Key.max_freq]
+    df_ml["diff"] = df_ml[Key.max_freq] - df_dft[Key.max_freq]
+    df_ml["pct_diff"] = df_ml["diff"] / df_dft[Key.max_freq]
 
-    print(f"{Model.val_label_dict()[key]} {Key.last_dos_peak} (N={len(df_model)})")
-    for err_dir in ("over", "under"):
-        print(f"  most {err_dir}estimated")
-        diff = (srs_dft - df_model[Key.last_dos_peak]).dropna()
-        for mp_id, diff_val in getattr(diff, "head" if err_dir == "under" else "tail")(
-            3
-        ).items():
-            print(f"  - {diff_val:.2f} THz: {mp_id}")
-            # print("  " + glob(f"{FIGS_DIR}/{which_db}/{mp_id}-bands*.pdf")[0])
+    cols = [Key.formula, Key.supercell, Key.max_freq, dft_col, "diff", "pct_diff"]
+    col_map = Key.val_label_dict()
+    styler = df_ml[cols].sort_values("diff", key=abs).tail(10).style.set_caption(model)
+    float_cols = [*df_ml[cols].select_dtypes(include="number")]
+    styler.format("{:.2f}", subset=float_cols).background_gradient(subset=float_cols)
+
+    display(styler.format("{:.0%}", subset="pct_diff"))
