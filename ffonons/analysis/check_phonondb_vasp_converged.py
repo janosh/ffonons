@@ -1,43 +1,43 @@
-"""Extract VASP calculation parameters from phononDB and check convergence to ensure
-phononDB serves as sufficiently accurate reference data for a reliable benchmark.
+"""Extract VASP calculation parameters from Togo phononDB and check convergence to
+ensure phononDB serves as sufficiently accurate reference data for a reliable MLFF
+phonon benchmark.
 """
 
 # %%
+import json
 import lzma
 import os
 import tarfile
 import warnings
 import zipfile
 from collections.abc import Sequence
-from multiprocessing import Pool
+from glob import glob
 
 import numpy as np
 import pandas as pd
 import yaml
-from pymatgen.analysis.magnetism.analyzer import DEFAULT_MAGMOMS
+from monty.json import MontyEncoder
 from pymatgen.core import Structure
+from pymatgen.entries.compatibility import needs_u_correction
 from pymatgen.io.vasp import Incar, Kpoints
-from pymatgen.io.vasp.sets import MPRelaxSet, MPStaticSet
+from pymatgen.io.vasp.sets import BadInputSetWarning, MPRelaxSet, MPStaticSet
 from tqdm import tqdm
 
 from ffonons import DATA_DIR
-from ffonons.enums import Key
+from ffonons.enums import DB, Key
 
-# %%
-warnings.filterwarnings("ignore")
-
-__author__ = "Aakash Naik"
+__author__ = "Aakash Naik, Janosh Riebesell"
 __date__ = "2024-01-09"
 
-db_name = "phonon-db"
-ph_docs_dir = f"{DATA_DIR}/{db_name}"
+# suppress "BadInputSetWarning: POTCAR data with symbol P is not known by pymatgen..."
+# and UserWarning: No Pauling electronegativity for Ne. Setting to NaN.
+for category in (UserWarning, BadInputSetWarning):
+    warnings.filterwarnings(action="ignore", category=category, module="pymatgen")
 
-# Change the parent directory where all zip files from togoDB are downloaded
-os.chdir(ph_docs_dir)
-
-dbs_files = [file for file in os.listdir() if not file.endswith(("csv", "xlsx"))]
+csv_path = f"{DATA_DIR}/{DB.phonon_db}/togo-vasp-params.csv.bz2"
 
 
+# %%
 def get_density_from_kmesh(mesh: Sequence[int], struct: Structure) -> float:
     """Get kpoints grid density using a kpoints mesh.
 
@@ -48,10 +48,10 @@ def get_density_from_kmesh(mesh: Sequence[int], struct: Structure) -> float:
     Returns:
         float: kpoints grid density averaged over dimensions.
     """
-    rec_cell = struct.lattice.reciprocal_lattice.matrix
-    density = np.matrix([np.linalg.norm(b) / np.array(mesh) for b in rec_cell])
+    recip_cell = struct.lattice.reciprocal_lattice.matrix
+    density = np.matrix([np.linalg.norm(vec) / np.array(mesh) for vec in recip_cell])
 
-    return np.average(density)
+    return density.mean()
 
 
 def get_mp_kppa_kppvol_from_mesh(
@@ -89,32 +89,37 @@ def get_mp_kppa_kppvol_from_mesh(
     return kpts_per_atom, kpts_per_vol, kpts_per_atom_ref
 
 
-def get_comp_calc_params(file: str) -> pd.DataFrame:
-    """Extract calculation parameters for a given database file."""
-    zip_file_path = file
-    mp_id = zip_file_path.split("-")[0]
+def get_vasp_calc_params(zip_file_path: str) -> dict:
+    """Extract calculation parameters for a given database file.
 
-    df = pd.DataFrame(index=[mp_id])
-    df[Key.composition] = ""
+    Args:
+        zip_file_path (str): The database file path.
 
-    # Open the zip file
-    # Read the contents of the tar.lzma file
-    # Open the xz archive from the lzma file
+    Returns:
+        dict: DFT calculation parameters.
+    """
+    params = {}
+    try:  # bail on corrupted ZIP files
+        zip_ref = zipfile.ZipFile(zip_file_path)
+    except zipfile.BadZipFile:
+        print(f"Corrupted file: {zip_file_path!r}, deleting...")
+        os.remove(zip_file_path)
+        return None, None
+
+    # get supercell matrix from phonopy_params.yaml.xz
     with (
-        zipfile.ZipFile(zip_file_path, mode="r") as zip_ref,
         zip_ref.open("phonopy_params.yaml.xz", mode="r") as lzma_file,
         lzma.open(lzma_file, "rb") as lzma_file_content,
     ):
-        content = lzma_file_content.read()
-        phonopy_yaml = yaml.safe_load(content.decode("utf-8"))
+        phonopy_yaml = yaml.safe_load(lzma_file_content.read().decode("utf-8"))
 
-        # get sc matrix
-        sc_mat = phonopy_yaml["supercell_matrix"]
+        supercell_mat = phonopy_yaml["supercell_matrix"]
 
-    # Open zip and tar.lzma files
-    # Open the tar archive from the lzma file
+    # involved process to get at the calc params:
+    # 1. open the zip file
+    # 2. read the contents of the vasp-settings.tar.lzma file
+    # 3. open the phonopy_params.yaml.xz archive from the lzma file
     with (
-        zipfile.ZipFile(zip_file_path) as zip_ref,
         zip_ref.open("vasp-settings.tar.lzma") as lzma_file,
         lzma.open(lzma_file, "rb") as lzma_file_content,
         tarfile.open(fileobj=lzma_file_content, mode="r") as tar,
@@ -123,102 +128,99 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
         user_potcar_settings: dict[str, str] = {}  # extract POTCAR settings
         potcar_title = []
         for file_name in file_list:
-            if "PAW_dataset.txt" in file_name:
-                paw_data = tar.extractfile(file_name)
-                content = paw_data.readlines()
-                for con in content:
-                    element = con.decode("utf-8").strip().split("</c><c>")[1].strip()
-                    for data in con.decode("utf-8").strip().split("</c><c>"):
-                        if "PAW" in data:
-                            potcar_title.append(
-                                data.replace("</c>", "").replace("</rc>", "").strip()
-                            )
-                            potcar_used = (
-                                data.replace("</c>", "")
-                                .replace("</rc>", "")
-                                .strip()
-                                .split(" ")[1]
-                                .strip()
-                            )
-                            user_potcar_settings[element] = potcar_used
+            if "PAW_dataset.txt" not in file_name:
+                continue
+            paw_lines = tar.extractfile(file_name).readlines()
+            for con in paw_lines:
+                element = con.decode("utf-8").strip().split("</c><c>")[1].strip()
+                for data in con.decode("utf-8").strip().split("</c><c>"):
+                    if "PAW" not in data:
+                        continue
+                    potcar_title.append(
+                        data.replace("</c>", "").replace("</rc>", "").strip()
+                    )
+                    potcar_used = data.replace("</c>", "").replace("</rc>", "")
+                    user_potcar_settings[element] = (
+                        potcar_used.strip().split(" ")[1].strip()
+                    )
 
         # Read specific files from the tar archive without extracting them
         poscar_file_name = "vasp-settings/POSCAR-unitcell"
         poscar_file = tar.extractfile(poscar_file_name)
-        content = poscar_file.read().decode("utf-8")
-        poscar = Structure.from_str(content, fmt="poscar")
-        df.loc[mp_id, Key.reduced_formula] = (
-            poscar.composition.get_reduced_formula_and_factor()[0]
+        paw_lines = poscar_file.read().decode("utf-8")
+        struct = Structure.from_str(paw_lines, fmt="poscar")
+        params[Key.reduced_formula] = (
+            struct.composition.get_reduced_formula_and_factor()[0]
         )
-        df.loc[mp_id, Key.composition] = poscar.composition
+        params[Key.formula] = struct.formula
 
-        for el in poscar.composition.chemical_system.split("-"):
-            df.loc[mp_id, "require_u_correction"] = el in DEFAULT_MAGMOMS
+        params["requires_u_correction"] = bool(needs_u_correction(struct.composition))
 
         mp_relax = MPRelaxSet(
-            structure=poscar, user_potcar_settings=user_potcar_settings
+            structure=struct, user_potcar_settings=user_potcar_settings
         )
-        df["mp_relax_kpts"] = ""
-        df.loc[mp_id, "mp_relax_kpts"] = mp_relax.kpoints.kpts[0]
+        params["mp_relax_kpts"] = mp_relax.kpoints.kpts[0]
 
-        # get mp kpoint grid density
+        # get MP kpoint grid density
         kppa, kpt_per_vol, kppa_ref = get_mp_kppa_kppvol_from_mesh(
-            struct=poscar, mesh=mp_relax.kpoints.kpts[0], default_grid=64
+            struct=struct, mesh=mp_relax.kpoints.kpts[0], default_grid=64
         )
 
-        df.loc[mp_id, "mp_relax_grid_density"] = kppa
-        df.loc[mp_id, "mp_relax_reciprocal_density"] = kpt_per_vol
+        params["mp_relax_grid_density"] = kppa
+        params["mp_relax_reciprocal_density"] = kpt_per_vol
 
         # AiiDA k-point density
-        kpt_dens = get_density_from_kmesh(mesh=mp_relax.kpoints.kpts[0], struct=poscar)
-        df.loc[mp_id, "mp_relax_grid_density_aiida"] = kpt_dens
+        kpt_dens = get_density_from_kmesh(mesh=mp_relax.kpoints.kpts[0], struct=struct)
+        params["mp_relax_grid_density_aiida"] = kpt_dens
 
-        df.loc[mp_id, "mp_default_kpoint_grid_density"] = kppa_ref
+        params["mp_default_kpoint_grid_density"] = kppa_ref
 
         # get supercell structure
-        sc = poscar.copy().make_supercell(scaling_matrix=sc_mat)
+        supercell = struct.copy().make_supercell(scaling_matrix=supercell_mat)
 
-        # mp-static for sc
-        mp_static = MPStaticSet(structure=sc, user_potcar_settings=user_potcar_settings)
-        df["mp_static_kpts_sc"] = ""
-        df.loc[mp_id, "mp_static_kpts_sc"] = mp_static.kpoints.kpts[0]
+        # mp-static for supercell
+        mp_static = MPStaticSet(
+            structure=supercell, user_potcar_settings=user_potcar_settings
+        )
+        params["mp_static_kpts_sc"] = mp_static.kpoints.kpts[0]
 
-        # get mp kpoint grid density
+        # get MP kpoint grid density
         kppa_sc, kppvol_sc, kppa_ref_sc = get_mp_kppa_kppvol_from_mesh(
-            struct=sc, mesh=mp_static.kpoints.kpts[0], default_grid=100
+            struct=supercell, mesh=mp_static.kpoints.kpts[0], default_grid=100
         )
 
-        df.loc[mp_id, "mp_static_grid_density_sc"] = kppa_sc
-        df.loc[mp_id, "mp_static_reciprocal_density_sc"] = kppvol_sc
+        params["mp_static_grid_density_sc"] = kppa_sc
+        params["mp_static_reciprocal_density_sc"] = kppvol_sc
 
         # AiiDA k-point density
-        kpt_dens = get_density_from_kmesh(mesh=mp_static.kpoints.kpts[0], struct=sc)
-        df.loc[mp_id, "mp_static_grid_density_aiida_sc"] = kpt_dens
+        kpt_dens = get_density_from_kmesh(
+            mesh=mp_static.kpoints.kpts[0], struct=supercell
+        )
+        params["mp_static_grid_density_aiida_sc"] = kpt_dens
 
-        # kppa_ref_sc = int(100 * vol_sc * len(sc))
-        df.loc[mp_id, "mp_default_kpoint_grid_density_sc_static"] = kppa_ref_sc
+        params["mp_default_kpoint_grid_density_sc_static"] = kppa_ref_sc
 
-        # mp-relax for sc
+        # mp-relax for supercell
         mp_relax_sc = MPRelaxSet(
-            structure=sc, user_potcar_settings=user_potcar_settings
+            structure=supercell, user_potcar_settings=user_potcar_settings
         )
-        df["mp_relax_kpts_sc"] = ""
-        df.loc[mp_id, "mp_relax_kpts_sc"] = mp_relax_sc.kpoints.kpts[0]
+        params["mp_relax_kpts_sc"] = mp_relax_sc.kpoints.kpts[0]
 
-        # get mp kpoint grid density
+        # get MP kpoint grid density
         kppa_sc, kppvol_sc, kppa_ref_sc = get_mp_kppa_kppvol_from_mesh(
-            struct=sc, mesh=mp_relax_sc.kpoints.kpts[0], default_grid=64
+            struct=supercell, mesh=mp_relax_sc.kpoints.kpts[0], default_grid=64
         )
 
-        df.loc[mp_id, "mp_relax_grid_density_sc"] = kppa_sc
-        df.loc[mp_id, "mp_relax_reciprocal_density_sc"] = kppvol_sc
+        params["mp_relax_grid_density_sc"] = kppa_sc
+        params["mp_relax_reciprocal_density_sc"] = kppvol_sc
 
         # AiiDA k-point density
-        kpt_dens = get_density_from_kmesh(mesh=mp_relax_sc.kpoints.kpts[0], struct=sc)
-        df.loc[mp_id, "mp_relax_grid_density_aiida_sc"] = kpt_dens
+        kpt_dens = get_density_from_kmesh(
+            mesh=mp_relax_sc.kpoints.kpts[0], struct=supercell
+        )
+        params["mp_relax_grid_density_aiida_sc"] = kpt_dens
 
-        # kppa_ref_sc = int(64 * vol_sc * len(sc))
-        df.loc[mp_id, "mp_default_kpoint_grid_density_sc_relax"] = kppa_ref_sc
+        params["mp_default_kpoint_grid_density_sc_relax"] = kppa_ref_sc
 
         # check for potcars title match
         mp_set_potcar = [potcar.TITEL for potcar in mp_static.potcar]
@@ -227,12 +229,8 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
                 f"POTCARs do not match: {mp_set_potcar=} vs togo={potcar_title}"
             )
 
-        df["potcar_ENMAX"] = np.nan
-        df.loc[mp_id, "potcar_ENMAX"] = int(
-            max([potcar.ENMAX for potcar in mp_static.potcar])
-        )
-        df["potcar_1.3_ENMAX"] = np.nan
-        df.loc[mp_id, "potcar_1.3_ENMAX"] = int(
+        params["potcar_enmax"] = int(max([potcar.ENMAX for potcar in mp_static.potcar]))
+        params["potcar_1.3_enmax"] = int(
             1.3 * max([potcar.ENMAX for potcar in mp_static.potcar])
         )
 
@@ -240,70 +238,90 @@ def get_comp_calc_params(file: str) -> pd.DataFrame:
         for file_name in file_list:
             if "INCAR" in file_name:
                 incar_file = tar.extractfile(file_name)
-                content = incar_file.read().decode("utf-8")
-                incar = Incar.from_str(content)
+                incar = Incar.from_str(incar_file.read().decode("utf-8"))
                 name = file_name.split("/")[-1]
 
-                df.loc[mp_id, f"{name}_ENCUT"] = incar.get("ENCUT")
+                params[f"{name}_encut"] = incar.get("ENCUT")
+                params[f"{name}_magnetization"] = bool(incar.get("ISPIN"))
 
-                if incar.get("ISPIN"):
-                    df.loc[mp_id, f"{name}_Magnetization"] = True
-                else:
-                    df.loc[mp_id, f"{name}_Magnetization"] = False
             if "KPOINTS" in file_name:
                 kpoint_file = tar.extractfile(file_name)
-                content = kpoint_file.read().decode("utf-8")
-                kpoint = Kpoints.from_str(content)
+                kpoint = Kpoints.from_str(kpoint_file.read().decode("utf-8"))
                 name = file_name.split("/")[-1]
 
-                df[f"{name}_kpts"] = ""
-
-                df.loc[mp_id, f"{name}_kpts"] = kpoint.kpts[0]
+                params[f"{name}_kpts"] = kpoint.kpts[0]
 
                 if "force" in name:
-                    # get mp kpoint grid density from togo k-points for sc
+                    # get MP kpoint grid density from togo k-points for supercell
                     kppa_sc, kppvol_sc, _ = get_mp_kppa_kppvol_from_mesh(
-                        struct=sc, mesh=kpoint.kpts[0], default_grid=None
+                        struct=supercell, mesh=kpoint.kpts[0], default_grid=None
                     )
 
-                    df.loc[mp_id, f"{name}_grid_density_sc"] = kppa_sc
-                    df.loc[mp_id, f"{name}_reciprocal_density_sc"] = kppvol_sc
-
-                    # AiiDA k-point density
-                    kpt_dens = get_density_from_kmesh(mesh=kpoint.kpts[0], struct=sc)
-                    df.loc[mp_id, f"{name}_grid_density_aiida_sc"] = kpt_dens
-
-                else:
-                    # get mp kpoint grid density from togo k-points for unit cell
-                    kppa, kpt_per_vol, _ = get_mp_kppa_kppvol_from_mesh(
-                        struct=poscar,
-                        mesh=kpoint.kpts[0],
-                        default_grid=None,
-                    )
-
-                    df.loc[mp_id, f"{name}_grid_density"] = kppa
-                    df.loc[mp_id, f"{name}_reciprocal_density"] = kpt_per_vol
+                    params[f"{name}_grid_density_sc"] = kppa_sc
+                    params[f"{name}_reciprocal_density_sc"] = kppvol_sc
 
                     # AiiDA k-point density
                     kpt_dens = get_density_from_kmesh(
-                        mesh=kpoint.kpts[0], struct=poscar
+                        mesh=kpoint.kpts[0], struct=supercell
                     )
-                    df.loc[mp_id, f"{name}_grid_density_aiida"] = kpt_dens
+                    params[f"{name}_grid_density_aiida_sc"] = kpt_dens
 
-    return df
+                else:
+                    # get MP kpoint grid density from togo k-points for unit cell
+                    kppa, kpt_per_vol, _ = get_mp_kppa_kppvol_from_mesh(
+                        struct=struct, mesh=kpoint.kpts[0], default_grid=None
+                    )
+
+                    params[f"{name}_grid_density"] = kppa
+                    params[f"{name}_reciprocal_density"] = kpt_per_vol
+
+                    # AiiDA k-point density
+                    kpt_dens = get_density_from_kmesh(
+                        mesh=kpoint.kpts[0], struct=struct
+                    )
+                    params[f"{name}_grid_density_aiida"] = kpt_dens
+
+    return params, struct
 
 
 # %%
-rows = []
-with (
-    Pool(processes=4, maxtasksperchild=1) as pool,
-    tqdm(total=len(dbs_files), desc="Extracting Calc data") as pbar,
-):
-    for result in pool.imap_unordered(get_comp_calc_params, dbs_files, chunksize=1):
-        pbar.update()
-        rows.append(result)
+# directory to where Togo DB ZIP files were downloaded
+ph_docs_dir = f"{DATA_DIR}/{DB.phonon_db}"
+db_files = sorted(  # sort by MP ID
+    glob(f"{ph_docs_dir}/*.zip"), key=lambda path: int(path.split("-")[-3])
+)
+print(f"found {len(db_files)=:,}")
+mp_togo_id_map = {f'mp-{file.split("-")[-3]}': file.split("-")[-2] for file in db_files}
 
-df = pd.concat(rows)
-df = df.sort_index()
+params = locals().get("results", {})  # prevent accidental results overwrite
+structures = locals().get("structures", {})  # prevent accidental results overwrite
 
-df.to_csv("togo-vasp-params.csv")
+for file in tqdm(db_files):
+    mp_id = f'mp-{file.split("-")[-3]}'
+    if mp_id in params and mp_id in structures:
+        continue
+    params, struct = get_vasp_calc_params(file)
+    if params and struct:
+        params[mp_id], structures[mp_id] = params, struct
+
+
+# %%
+df_params = pd.DataFrame(params).T.sort_index().convert_dtypes().round(5)
+
+# Togo DB phonons were calculated without magnetism or U-corrections (check this by
+# ensuring all ISPIN values are False). any offending materials should be excluded from
+# the analysis.
+assert sum(df_params.filter(like="magnetization").sum()) == 0
+assert not any(df_params[Key.needs_u_correction])
+
+df_params.to_csv(csv_path)
+
+
+# %%
+with lzma.open(f"{DATA_DIR}/{DB.phonon_db}/structures.json.lzma", "wb") as lzma_file:
+    json_str = json.dumps(structures, cls=MontyEncoder)
+    lzma_file.write(json_str.encode("utf-8"))
+
+
+# %% load CSV file
+df_params = pd.read_csv(csv_path, index_col=Key.mat_id)

@@ -58,7 +58,7 @@ for idx, col in enumerate(models_in_asc_mean):
     n_total = len(df_ph_freq_ml_vs_pbe)
     assert n_total == n_soft + n_hard
     color = Model.label_desc_dict()[col]
-    anno = f"{n_hard/n_total:.0%}\n\n\n\n\n\n\n\n{n_soft/n_total:.0%}"
+    anno = f"{n_hard / n_total:.0%}\n\n\n\n\n\n\n\n{n_soft / n_total:.0%}"
     ax.text(idx - 0.2, 0.8, anno, ha="center", va="center", fontsize=14, color=color)
 
     # mean = df_max_freq_rel[col_name].mean()
@@ -160,7 +160,7 @@ for key, op in ((Key.max_freq, "div"), (Key.max_freq, "sub"), (Key.min_freq, "su
             fig.add_annotation(
                 x=idx - 0.01,
                 y=y_pos,
-                text=f"{val/n_total*100:.0f}",
+                text=f"{val / n_total * 100:.0f}",
                 showarrow=False,
                 font=dict(size=15, color=color),
                 yshift=yshift,

@@ -5,7 +5,7 @@ ci:
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.0
+    rev: v0.3.3
     hooks:
       - id: ruff
         args: [--fix]
@@ -55,7 +55,7 @@ repos:
           - svelte
 
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.0.0-beta.1
+    rev: v9.0.0-beta.2
     hooks:
       - id: eslint
         types: [file]
@@ -71,7 +71,7 @@ repos:
           - svelte-eslint-parser
 
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.352
+    rev: v1.1.355
     hooks:
       - id: pyright
         args: [--level, error]

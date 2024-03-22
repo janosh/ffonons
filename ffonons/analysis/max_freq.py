@@ -27,7 +27,7 @@ df_summary = get_df_summary(
 
 # %% parity plot of max_freq of bands vs last_phdos_peak
 x_col, y_col = Key.max_freq, Key.last_dos_peak
-model = Model.mace_mp  #  Key.pbe
+model = Model.mace_mp  # Key.pbe
 
 df_plot = df_summary.xs(model, level=1)
 fig = px.scatter(

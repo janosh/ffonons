@@ -68,6 +68,7 @@ lint.ignore = [
   "D100",    # undocumented-public-module
   "D205",    # blank-line-after-summary
   "E731",    # lambda-assignment
+  "EM101",
   "EM102",   #
   "ERA",     # commented-out-code
   "FBT001",

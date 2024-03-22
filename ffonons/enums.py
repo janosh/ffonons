@@ -63,6 +63,7 @@ class Key(LabelEnum):
     pbe = "pbe", "PBE"
     pbesol = "pbesol", "PBEsol"
     reduced_formula = "reduced_formula", "Reduced chemical formula"
+    needs_u_correction = "requires_u_correction", "Requires Hubbard U correction"
     struct = "structure", "Structure"
     supercell = "supercell", "Supercell"
     togo_id = "togo_id", "Togo DB ID"

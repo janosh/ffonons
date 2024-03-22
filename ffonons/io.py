@@ -68,7 +68,7 @@ def load_pymatgen_phonon_docs(
             print(f"error loading {path=}: {exc}")
             continue
 
-        mp_id, formula, model = re.search(
+        mp_id, _formula, model = re.search(
             rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.*", path
         ).groups()
         if not mp_id.startswith("mp-"):

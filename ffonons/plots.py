@@ -51,7 +51,7 @@ def plot_phonon_dos_mpl(
         title += f" {latexify(struct.formula)} {mat_id}"
 
     if last_peak_anno:
-        _, dos_x_max, _, dos_y_max = ax.axis()
+        _dos_x_min, dos_x_max, _dos_y_min, _dos_y_max = ax.axis()
 
         for idx, (key, dos) in enumerate(phonon_dos.items()):
             last_peak = dos.get_last_peak()
