@@ -37,7 +37,7 @@ for folder in (
     df_summary.xs(Key.pbe, level=1).loc[idx_n_avail][
         [Key.formula, Key.supercell, Key.n_sites]
     ].sort_index(key=lambda idx: idx.str.split("-").str[1].astype(int)).to_csv(
-        f"{folder}/analyzed-mp-ids.csv"
+        f"{folder}/phonon-analysis-mp-ids.csv"
     )
 
 
@@ -127,20 +127,24 @@ for col in (Key.has_imag_freq, Key.has_imag_gamma_freq):
 
 
 # %% --- vertical metrics table ---
+def caption_factory(key: Key) -> str:
+    """Make caption for metrics table of classifying imaginary phonon mode."""
+    return (
+        f"MLFF vs {which_db.label} {key.label} classification<br>"
+        f"(N={len(idx_n_avail):,}, imaginary mode tol={imaginary_freq_tol:.2f} THz)<br>"
+    )
+
+
 cmap = "Blues"
 regr_metrics_caption = (
-    f"Harmonic phonons from ML force fields vs Togo DB PBE (N={len(idx_n_avail):,})<br>"
+    f"Harmonic phonons from MLFF vs PhononDB PBE (N={len(idx_n_avail):,})<br>"
 )
-imag_caption_factory = lambda key: (
-    f"MLFF vs {which_db.label} {key.label} classification"
-    f"<br>(N={len(idx_n_avail):,}, imaginary mode tol={imaginary_freq_tol:.2f} THz)<br>"
-)
-imag_caption = imag_caption_factory(Key.has_imag_freq)
-imag_g_caption = imag_caption_factory(Key.has_imag_gamma_freq)
+clf_caption = caption_factory(Key.has_imag_freq)
+clf_gam_caption = caption_factory(Key.has_imag_gamma_freq)
 write_to_disk = True
 for df_loop, caption, filename in (
-    (dfs_imag[Key.has_imag_freq], imag_caption, "ffonon-imag-clf-table"),
-    (dfs_imag[Key.has_imag_gamma_freq], imag_g_caption, "ffonon-imag-gamma-clf-table"),
+    (dfs_imag[Key.has_imag_freq], clf_caption, "ffonon-imag-clf-table"),
+    (dfs_imag[Key.has_imag_gamma_freq], clf_gam_caption, "ffonon-imag-gamma-clf-table"),
     # (df_regr, regr_metrics_caption, "ffonon-regr-metrics-table"),
 ):
     lower_better = [

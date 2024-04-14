@@ -1,3 +1,5 @@
+"""Download MP phonon docs."""
+
 import json
 import os
 from typing import TYPE_CHECKING

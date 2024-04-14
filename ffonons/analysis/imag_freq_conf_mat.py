@@ -7,7 +7,7 @@ import numpy as np
 import plotly.express as px
 import plotly.figure_factory as ff
 from pymatviz.io import save_fig
-from pymatviz.utils import add_identity_line
+from pymatviz.powerups import add_identity_line
 from sklearn.metrics import confusion_matrix
 
 from ffonons import PAPER_DIR, PDF_FIGS

@@ -3,7 +3,7 @@
 # %%
 import plotly.express as px
 from pymatviz.io import save_fig
-from pymatviz.utils import add_ecdf_line
+from pymatviz.powerups import add_ecdf_line
 
 from ffonons import PAPER_DIR
 from ffonons.enums import Key, Model

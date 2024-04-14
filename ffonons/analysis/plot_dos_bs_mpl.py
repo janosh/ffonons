@@ -27,7 +27,7 @@ model2 = Model.chgnet_030
 # %% load summary data
 df_summary = get_df_summary(which_db := DB.one_off, refresh_cache=False)
 
-os.makedirs(figs_out_dir := f"{PDF_FIGS}/{which_db}", exist_ok=True)
+os.makedirs(FIGS_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 
 idx_n_avail: dict[int, pd.Index] = {}
 
@@ -46,7 +46,6 @@ model1 = Model.mace_mp
 model2 = Model.chgnet_030
 
 for mp_id in idx_n_avail[2]:
-    mp_id = "mp-21836"
     model1 = ph_docs[mp_id][model1]
     # model2 = ph_docs[mp_id][model2]
     formula = model1[Key.formula]
@@ -70,7 +69,7 @@ for mp_id in tqdm(idx_n_avail[1]):
     ml1_bands = getattr(ph_docs[mp_id][model1], Key.bs)
     # ml2_bands = ph_docs[mp_id][model2][Key.bs]
 
-    bands_fig_path = f"{figs_out_dir}/{mp_id}-bands-pbe-vs-{model1}.pdf"
+    bands_fig_path = f"{FIGS_DIR}/{mp_id}-bands-pbe-vs-{model1}.pdf"
 
     formula = ph_docs[mp_id][model1].structure.formula
     pbe_bs_plotter = PhononBSPlotter(ml1_bands, label=Key.pbe.label)

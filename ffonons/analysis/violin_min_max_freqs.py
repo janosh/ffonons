@@ -19,8 +19,8 @@ __date__ = "2024-02-22"
 # %% load summary data
 df_summary = get_df_summary(which_db := DB.phonon_db, refresh_cache=False)
 
-os.makedirs(figs_out_dir := f"{PDF_FIGS}/{which_db}", exist_ok=True)
-os.makedirs(figs_out_dir := SOFT_PES_DIR, exist_ok=True)
+os.makedirs(FIG_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
+os.makedirs(FIG_DIR := SOFT_PES_DIR, exist_ok=True)
 
 df_ph_freq = df_summary[Key.max_freq].unstack().dropna()
 
@@ -44,11 +44,11 @@ ax = sns.violinplot(
 ax.axhline(1, linestyle=":", color="gray", zorder=0)
 
 for anno, y_pos in (
-    ("hardening\n(overstiff phonons)", 0.95),
-    ("softening\n(understiff phonons)", 0.05),
+    ("hardening\n(overstiff phonons)", 0.93),
+    ("softening\n(understiff phonons)", 0.06),
 ):
     ax.text(
-        0.5, y_pos, anno, ha="center", va="center", fontsize=14, transform=ax.transAxes
+        0.5, y_pos, anno, ha="center", va="center", fontsize=16, transform=ax.transAxes
     )
 
 # annotate fraction of materials with softening and hardening for each model
@@ -56,13 +56,14 @@ for idx, col in enumerate(models_in_asc_mean):
     n_soft = (df_ph_freq_ml_vs_pbe[col] < 1).sum()
     n_hard = (df_ph_freq_ml_vs_pbe[col] > 1).sum()
     n_total = len(df_ph_freq_ml_vs_pbe)
-    assert n_total == n_soft + n_hard
+    if n_total != n_soft + n_hard:
+        raise ValueError(f"{n_total=} != {n_soft=} + {n_hard=}")
     color = Model.label_desc_dict()[col]
     anno = f"{n_hard / n_total:.0%}\n\n\n\n\n\n\n\n{n_soft / n_total:.0%}"
-    ax.text(idx - 0.2, 0.8, anno, ha="center", va="center", fontsize=14, color=color)
+    ax.text(idx - 0.2, 0.85, anno, ha="center", va="center", fontsize=18, color=color)
 
     # mean = df_max_freq_rel[col_name].mean()
-    # ax.text(idx, 1.4, f"mean\n{mean:.2f}", ha="center", va="center", fontsize=10)
+    # ax.text(idx, 1.4, f"mean\n{mean:.2f}", ha="center", va="center", fontsize=14)
 
 ax.set_xticklabels(
     [tick.get_text().split(" ")[0].split("-")[0] for tick in ax.get_xticklabels()]
@@ -72,7 +73,7 @@ y_range = 0.7
 y_label = r"$\Omega_{\text{max}}^{\text{ML}} \;/\; \Omega_{\text{max}}^{\text{DFT}}$"
 ax.set(xlabel="", ylabel=y_label, ylim=[1 - y_range, 1 + y_range])
 
-# plt.savefig(f"{figs_out_dir}/max-freq-rel-violin.pdf")
+save_fig(ax, f"{FIG_DIR}/max-freq-rel-violin.pdf")
 plt.show()
 
 
@@ -177,5 +178,5 @@ for key, op in ((Key.max_freq, "div"), (Key.max_freq, "sub"), (Key.min_freq, "su
     fig.layout.update(font_size=16)
     fig.show()
     img_name = f"violin-ph-{key.replace('_', '-').replace('-thz', '')}-{op}"
-    save_fig(fig, f"{figs_out_dir}/{img_name}.pdf")
+    save_fig(fig, f"{FIG_DIR}/{img_name}.pdf")
     save_fig(fig, f"{PAPER_DIR}/{img_name}.svg")

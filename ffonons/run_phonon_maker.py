@@ -1,3 +1,5 @@
+"""Locally run atomate2 PhononMaker on PhononDB, MP or GNoME supercells."""
+
 # %%
 import json
 import os
@@ -30,12 +32,12 @@ __date__ = "2023-11-19"
 
 
 # %%
-runs_dir = f"{ROOT}/tmp/runs"  # noqa: S108
 which_db = DB.phonon_db
-ph_docs_dir = f"{DATA_DIR}/{which_db}"
-figs_out_dir = f"{PDF_FIGS}/{which_db}"
-shutil.rmtree(runs_dir, ignore_errors=True)  # remove old runs to save space
-for directory in (ph_docs_dir, figs_out_dir, runs_dir):
+RUNS_DIR = f"{ROOT}/tmp/runs"  # noqa: S108
+PH_DOCS_DIR = f"{DATA_DIR}/{which_db}"
+FIGS_DIR = f"{PDF_FIGS}/{which_db}"
+shutil.rmtree(RUNS_DIR, ignore_errors=True)  # remove old runs to save space
+for directory in (PH_DOCS_DIR, FIGS_DIR, RUNS_DIR):
     os.makedirs(directory, exist_ok=True)
 
 common_relax_kwds = dict(fmax=0.00001)
@@ -81,7 +83,8 @@ models = {
 with open(f"{DATA_DIR}/mp-ids-with-pbesol-phonons.yml") as file:
     mp_ids = file.read().splitlines()[2:]
 bad_ids = [mp_id for mp_id in mp_ids if not mp_id.startswith("mp-")]
-assert len(bad_ids) == 0, f"{bad_ids=}"
+if len(bad_ids) != 0:
+    raise RuntimeError(f"{bad_ids=}")
 
 
 # %% check existing and missing DFT/ML phonon docs
@@ -114,7 +117,8 @@ skip_existing = True
 for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
     mat_id = "-".join(dft_doc_path.split("/")[-1].split("-")[:2])
     pbar.set_description(f"{mat_id=}")
-    assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
+    if not re.match(r"mp-\d+", mat_id):
+        raise ValueError(f"Invalid {mat_id=}")
 
     with zopen(dft_doc_path, "rt") as file:
         phonondb_doc: PhononDBDocParsed = json.load(file, cls=MontyDecoder)
@@ -131,9 +135,9 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
             torch.set_default_dtype(torch.float64)
 
         model_key = model.lower().replace(" ", "-")
-        os.makedirs(root_dir := f"{runs_dir}/{model_key}", exist_ok=True)
+        os.makedirs(root_dir := f"{RUNS_DIR}/{model_key}", exist_ok=True)
 
-        ml_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-{model_key}.json.lzma"
+        ml_doc_path = f"{PH_DOCS_DIR}/{mat_id}-{formula}-{model_key}.json.lzma"
 
         if os.path.isfile(ml_doc_path) and skip_existing:
             # skip if ML doc exists, can easily generate bs_dos_fig from that without
@@ -183,7 +187,7 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
             fig_bs_dos.show()
 
             img_name = f"{mat_id}-bs-dos-{Key.pbe}-vs-{model_key}"
-            save_fig(fig_bs_dos, f"{figs_out_dir}/{img_name}.pdf")
+            save_fig(fig_bs_dos, f"{FIGS_DIR}/{img_name}.pdf")
         except (ValueError, RuntimeError, BadZipFile, Exception) as exc:
             # known possible errors:
             # - the 2 band structures are not compatible, due to symmetry change during

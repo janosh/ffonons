@@ -1,3 +1,10 @@
+"""Module for fetching and parsing data from the PhononDB.
+
+Includes methods for downloading and extracting PhononDB docs, and converting phonopy
+output files to pymatgen objects. The main functionality is in parse_phonondb_docs,
+which returns a PhononDBDocParsed dataclass containing the parsed phonon data.
+"""
+
 import copy
 import io
 import json
@@ -128,7 +135,7 @@ def scrape_and_fetch_togo_docs_from_page(
 
         download_url = f"https://mdr.nims.go.jp/download_all/{doc_id}.zip"
         resp = requests.get(download_url, allow_redirects=True, timeout=15)
-        if resp.status_code != 200:
+        if resp.status_code != 200:  # noqa: PLR2004
             continue  # skip if download failed
         download_urls += [download_url]
         with open(out_path, "wb") as file:
@@ -165,7 +172,8 @@ def phonondb_doc_to_pmg_lzma(
 
     phonondb_doc = parse_phonondb_docs(zip_path, is_nac=False)
 
-    assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
+    if not re.match(r"mp-\d+", mat_id):
+        raise ValueError(f"Invalid {mat_id=}")
 
     formula = phonondb_doc.structure.formula.replace(" ", "")
     pmg_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-pbe.json.lzma"
@@ -236,6 +244,7 @@ class PhononDBDocParsed:
 
 
 def parse_phonondb_docs(
+    *,  # force keyword-only arguments
     phonopy_doc_path: str | None = None,
     phonopy_params: dict[str, Any] | None = None,
     supercell: list[int] = (2, 2, 2),

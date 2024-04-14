@@ -65,25 +65,17 @@ lint.ignore = [
   "C408",    # unnecessary-collection-call
   "C901",    # too-complex
   "COM812",  # missing trailing comma
-  "D100",    # undocumented-public-module
   "D205",    # blank-line-after-summary
   "E731",    # lambda-assignment
   "EM101",
-  "EM102",   #
+  "EM102",
   "ERA",     # commented-out-code
-  "FBT001",
-  "FBT002",
   "FIX002",
   "ISC001",
-  "N806",    # non-lowercase-variable-in-function
   "PD010",   # pandas prefer pivot_table
-  "PD901",   # pandas-df-variable-name
   "PERF203", # try-except-in-loop
-  "PLC0414", # useless-import-alias
-  "PLR",     # pylint refactor
-  "PLW2901", # redefined-loop-name
-  "PT006",   # pytest-parametrize-names-wrong-type
-  "PT013",   # pytest-incorrect-pytest-import
+  "PLR0913",
+  "PLR0915",
   "PTH",     # prefer pathlib to os.path
   "S101",    # use of assert detected
   "T201",
@@ -94,7 +86,7 @@ lint.pydocstyle.convention = "google"
 lint.isort.split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D"]
+"tests/*" = ["D", "S101"]
 
 [tool.pyright]
 typeCheckingMode = "off"

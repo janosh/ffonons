@@ -1,3 +1,9 @@
+"""Enums for labeling ffonons package data and models.
+
+LabelEnum extends the built-in StrEnum class, allowing the addition of optional label
+and description attributes. The Key, DB, and Model enums inherit from LabelEnum.
+"""
+
 from enum import StrEnum
 from typing import Self
 
@@ -91,7 +97,7 @@ class Key(LabelEnum):
         "r2_last_ph_dos_peak_thz",
         "R<sup>2</sup><sub>ω<sub>max</sub></sub> (THz)",
     )
-    max_freq = "max_freq_thz", "Ω<sub>max</sub> (THz)"
+    max_freq = "max_freq_thz", "Ω<sub>max</sub> (THz)"  # aka band width
     min_freq = "min_freq_thz", "Ω<sub>min</sub> (THz)"
     min_freq_pbe = "min_freq_thz_pbe", "Ω<sub>min</sub><sup>PBE</sup> (THz)"
     min_freq_ml = "min_freq_thz_ml", "Ω<sub>min</sub><sup>ML</sup> (THz)"
@@ -129,6 +135,7 @@ class DB(LabelEnum):
 class Model(LabelEnum):
     """Model names."""
 
+    # key, label, color
     m3gnet_ms = "m3gnet", "M3GNet-MS", "blue"
     chgnet_030 = "chgnet-v0.3.0", "CHGNet v0.3.0", "orange"
     mace_mp = "mace-y7uhwpje", "MACE-MP", "green"

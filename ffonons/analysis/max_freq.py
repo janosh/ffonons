@@ -2,10 +2,11 @@
 
 # %%
 import numpy as np
+import pandas as pd
 import plotly.express as px
 from IPython.display import display
 from pymatviz.io import save_fig
-from pymatviz.utils import add_identity_line, annotate_metrics
+from pymatviz.powerups import add_identity_line, annotate_metrics
 from sklearn.metrics import r2_score
 
 from ffonons import PAPER_DIR, PDF_FIGS
@@ -23,6 +24,7 @@ imaginary_freq_tol = 0.01
 df_summary = get_df_summary(
     which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
 )
+idx_n_avail = df_summary[Key.max_freq].unstack().dropna(thresh=4).index
 
 
 # %% parity plot of max_freq of bands vs last_phdos_peak
@@ -177,3 +179,32 @@ for model in Model:
     styler.format("{:.2f}", subset=float_cols).background_gradient(subset=float_cols)
 
     display(styler.format("{:.0%}", subset="pct_diff"))
+
+
+# %% print largest max freq error for each model
+df_max_freq_err = pd.DataFrame()
+df_dft = df_summary.xs(Key.pbe, level=1)
+max_err_key = "Max Ph Freq Max Error"
+
+for model in Model:
+    if model == Key.pbe or model not in df_summary.index.get_level_values(1):
+        continue
+
+    df_model = df_summary.loc[idx_n_avail].xs(model, level=1)
+    if len(df_model) != len(idx_n_avail):
+        raise ValueError(f"{len(df_model)=} {len(idx_n_avail)=}")
+    worst_mat_id = abs(df_dft[Key.max_freq] - df_model[Key.max_freq]).idxmax()
+    formula = df_model.loc[worst_mat_id, Key.formula]
+
+    dct = {Key.mat_id.label: worst_mat_id, "Formula": formula}
+    ml_freq = dct["Max Ph Freq ML"] = df_model.loc[worst_mat_id, Key.max_freq]
+    dft_freq = dct["Max Ph Freq DFT"] = df_dft.loc[worst_mat_id, Key.max_freq]
+    max_err = dct[max_err_key] = ml_freq - dft_freq
+    dct["Max Error Rel"] = max_err / df_dft[Key.max_freq].max()
+    df_max_freq_err[model.label.split()[0].replace("-MS", "")] = dct
+
+df_max_freq_err = df_max_freq_err.T.sort_values(by=max_err_key)
+df_max_freq_err = df_max_freq_err.convert_dtypes().round(4)
+df_max_freq_err.index.name = "Model"
+display(df_max_freq_err)
+df_max_freq_err.to_csv(f"{PAPER_DIR}/max-phonon-freq-errors.csv")

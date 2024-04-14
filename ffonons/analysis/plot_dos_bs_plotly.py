@@ -24,8 +24,8 @@ __date__ = "2024-02-22"
 # %% load summary data
 df_summary = get_df_summary(which_db := DB.phonon_db, refresh_cache=False)
 
-os.makedirs(figs_out_dir := SOFT_PES_DIR, exist_ok=True)
-os.makedirs(figs_out_dir := f"{PDF_FIGS}/{which_db}", exist_ok=True)
+os.makedirs(FIGS_DIR := SOFT_PES_DIR, exist_ok=True)
+os.makedirs(FIGS_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 
 idx_n_avail: dict[int, pd.Index] = {}
 
@@ -44,7 +44,7 @@ most_underpred = (
 ).sort_values()
 
 # get intersection with materials with less than 10 sites
-most_underpred = most_underpred.intersection(idx_n_avail[3])
+most_underpred = most_underpred.index.intersection(idx_n_avail[3])
 
 df_summary.loc[most_underpred].loc[most_underpred].query(f"{Key.n_sites} < 6")
 
@@ -64,7 +64,7 @@ for mp_id in tqdm(idx_n_avail[2]):
     bs_ml = getattr(ph_docs[mp_id][model], Key.bs)
 
     band_structs = {Key.pbe.label: bs_pbe, model.label: bs_ml}
-    out_path = f"{figs_out_dir}/{mp_id}-bands-pbe-vs-{model}.pdf"
+    out_path = f"{FIGS_DIR}/{mp_id}-bands-pbe-vs-{model}.pdf"
     if os.path.isfile(out_path):
         continue
     try:
@@ -94,7 +94,7 @@ for mp_id in tqdm(["mp-1784"]):
         pretty_labels.get(key, key): getattr(ph_doc[key], Key.dos) for key in keys
     }
     img_name = f"{mp_id}-bs-dos-{'-vs-'.join(keys)}"
-    out_path = f"{figs_out_dir}/{img_name}.pdf"
+    out_path = f"{FIGS_DIR}/{img_name}.pdf"
     # if os.path.isfile(out_path):
     #     continue
     color_map = {
@@ -121,14 +121,29 @@ for mp_id in tqdm(["mp-1784"]):
         print(f"{mp_id=} {exc=}")
         continue
 
+    # remap legend labels
+    for trace in fig_bs_dos.data:
+        trace.name = {
+            "PBE": "DFT",
+            Model.mace_mp.label: "MACE",
+            Model.chgnet_030.label: "CHGNet",
+            Model.m3gnet_ms.label: "M3GNet",
+        }.get(trace.name, trace.name)
+
     formula = next(iter(ph_doc.values())).structure.formula
-    fig_bs_dos.layout.title = dict(text=plotly_title(formula, mp_id), x=0.5, y=0.97)
-    fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
-    legend = dict(x=0.5, y=-0.17, xanchor="center", itemsizing="constant")
+    # fig_bs_dos.layout.title = dict(text=plotly_title(formula, mp_id), x=0.5, y=0.97)
+    # fig_bs_dos.layout.margin = dict(t=40, b=0, l=5, r=5)
+    fig_bs_dos.layout.margin = dict(t=5, b=0, l=5, r=5)
+    legend = dict(
+        x=0.5, y=1.1, xanchor="center", itemsizing="constant", bgcolor="rgba(0,0,0,0)"
+    )
     # legend = dict(x=1, y=1, xanchor="right", orientation="v", itemsizing="constant")
     fig_bs_dos.layout.legend.update(**legend)
+    # fig_bs_dos.layout.xaxis.update(title_standoff=0)
+    # fig_bs_dos.layout.xaxis2.update(title_standoff=0)
 
     fig_bs_dos.show()
-    save_fig(fig_bs_dos, out_path, prec=4)
-    fig_bs_dos.layout.update(template="pymatviz_black", paper_bgcolor="rgba(0,0,0,0)")
+    height = 400
+    save_fig(fig_bs_dos, out_path, prec=4, height=height, width=1.3 * height)
+    fig_bs_dos.layout.update(template="pymatviz_dark", paper_bgcolor="rgba(0,0,0,0)")
     save_fig(fig_bs_dos, f"{SITE_FIGS}/{img_name}.svelte", prec=4)

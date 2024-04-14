@@ -229,9 +229,9 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
                 f"POTCARs do not match: {mp_set_potcar=} vs togo={potcar_title}"
             )
 
-        params["potcar_enmax"] = int(max([potcar.ENMAX for potcar in mp_static.potcar]))
+        params["potcar_enmax"] = int(max(potcar.ENMAX for potcar in mp_static.potcar))
         params["potcar_1.3_enmax"] = int(
-            1.3 * max([potcar.ENMAX for potcar in mp_static.potcar])
+            1.3 * max(potcar.ENMAX for potcar in mp_static.potcar)
         )
 
         # extract togo calc parameters

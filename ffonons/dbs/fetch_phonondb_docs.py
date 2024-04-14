@@ -1,3 +1,5 @@
+"""Module to fetch and parse Togo PhononDB docs for MP materials."""
+
 # %%
 import re
 from glob import glob
@@ -53,11 +55,12 @@ new_ids = []
 for mp_id in pbar:
     pbar.set_postfix_str(f"{mp_id}")
     zip_path = fetch_togo_doc_by_id(mp_id)
-    assert zip_path.endswith(".zip"), f"Invalid {zip_path=}"
+    if not zip_path.endswith(".zip"):
+        raise ValueError(f"Invalid {zip_path=}")
 
     try:
         pmg_doc_path = phonondb_doc_to_pmg_lzma(zip_path)
-    except Exception as exc:
+    except (ValueError, RuntimeError) as exc:
         # TODO look into frequent error: is not a zip file (maybe from 404 response?)
         print(f"{mp_id=}: {exc}")
         continue
@@ -72,7 +75,8 @@ zip_files = glob(f"{ph_docs_dir}/mp-*-pbe.zip")
 
 for zip_path in (pbar := tqdm(zip_files, desc="Parsing PhononDB docs to PMG lzma")):
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
-    assert re.match(r"mp-\d+", mat_id), f"Invalid {mat_id=}"
+    if not re.match(r"mp-\d+", mat_id):
+        raise ValueError(f"Invalid {mat_id=}")
     existing_docs = glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma")
     if len(existing_docs) > 1:
         raise RuntimeError(f"> 1 doc for {mat_id=}: {existing_docs}")

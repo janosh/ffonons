@@ -112,6 +112,7 @@ def update_key_name(directory: str, key_map: dict[str, str]) -> None:
 
 def get_df_summary(
     ph_docs: PhDocs | DB = None,
+    *,  # force keyword-only arguments
     imaginary_freq_tol: float = 0.01,
     cache_path: str | Path = "",
     refresh_cache: bool = False,
@@ -178,7 +179,7 @@ def get_df_summary(
             last_peak = ph_dos.get_last_peak()
             summary_dict[id_model][Key.last_dos_peak] = last_peak
 
-            # max frequency from band structure
+            # min/max frequency from band structure
             ph_bs = ph_doc.phonon_bandstructure
             summary_dict[id_model][Key.max_freq] = ph_bs.bands.max()
             summary_dict[id_model][Key.min_freq] = ph_bs.bands.min()
@@ -207,6 +208,8 @@ def get_df_summary(
 def get_gnome_pmg_structures(
     zip_path: str = f"{DATA_DIR}/gnome/stable-cifs-by-id.zip",
     ids: int | Sequence[str] = 10,
+    pbar_desc: str = "Loading GNoME structures",
+    pbar_disable: bool | int = 100,
 ) -> dict[str, Structure]:
     """Load structures from GNoME ZIP file.
 
@@ -215,6 +218,10 @@ def get_gnome_pmg_structures(
             f"{DATA_DIR}/gnome/stable-cifs-by-id.zip".
         ids (int | Sequence[str]): number of structures to load or list of material IDs.
             Defaults to 10.
+        pbar_desc (str): tqdm progress bar description. Defaults to "Loading GNoME
+            structures".
+        pbar_disable (bool | int): Disable progress bar if True or if number of
+            structures is less than this value. Defaults to 100.
 
     Returns:
         dict[str, Structure]: dict of structures with material ID as key
@@ -228,8 +235,10 @@ def get_gnome_pmg_structures(
         else:
             raise TypeError(f"Invalid {ids=}")
 
-        desc = "Loading GNoME structures"
-        for filename in tqdm(file_list, desc=desc, disable=len(file_list) < 100):
+        if isinstance(pbar_disable, int):
+            pbar_disable = len(file_list) < pbar_disable
+
+        for filename in tqdm(file_list, desc=pbar_desc, disable=pbar_disable):
             if filename.endswith(".CIF"):
                 mat_id = filename.split("/")[-1].split(".")[0]
                 with zip_ref.open(filename) as file:

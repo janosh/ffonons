@@ -1,3 +1,7 @@
+"""Plotting utilities for phonon DOS using matplotlib. No longer used. Prefer
+interactive and more customizable band structure and DOS plotting functions in pymatviz.
+"""
+
 import plotly.express as px
 from matplotlib import pyplot as plt
 from pymatgen.core import Structure
@@ -42,7 +46,7 @@ def plot_phonon_dos_mpl(
 
     for key, kwargs in phonon_dos.items():
         if isinstance(kwargs, PhononDos):
-            kwargs = dict(dos=kwargs)
+            kwargs = dict(dos=kwargs)  # noqa: PLW2901
         ph_dos_plot.add_dos(label=key, **kwargs)
 
     ax = ph_dos_plot.get_plot(legend=dict(fontsize=22), ax=ax)
