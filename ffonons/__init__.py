@@ -1,5 +1,5 @@
-"""Unpublished Python package supporting the analysis and results in the
-2nd pymatgen publication.
+"""The ffonons package helps predict and analyze phonons with machine learning
+force fields.
 """
 
 import os

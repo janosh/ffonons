@@ -12,7 +12,7 @@ __date__ = "2024-02-19"
 
 
 class LabelEnum(StrEnum):
-    """StrEnum with optional label and description attributes plus dict() method."""
+    """StrEnum with optional label and description attributes plus dict() methods."""
 
     def __new__(
         cls, val: str, label: str | None = None, desc: str | None = None

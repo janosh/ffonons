@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools>=61.2"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "ffonons"
 version = "0.1.0"
@@ -54,6 +50,10 @@ include = ["ffonons*"]
 [tool.distutils.bdist_wheel]
 universal = true
 
+[build-system]
+requires = ["setuptools>=61.2"]
+build-backend = "setuptools.build_meta"
+
 [tool.ruff]
 target-version = "py311"
 lint.select = ["ALL"]
@@ -74,8 +74,9 @@ lint.ignore = [
   "ISC001",
   "PD010",   # pandas prefer pivot_table
   "PERF203", # try-except-in-loop
-  "PLR0913",
-  "PLR0915",
+  "PLR0912", # too many branches
+  "PLR0913", # too many arguments
+  "PLR0915", # too many statements
   "PTH",     # prefer pathlib to os.path
   "S101",    # use of assert detected
   "T201",
@@ -84,6 +85,9 @@ lint.ignore = [
 ]
 lint.pydocstyle.convention = "google"
 lint.isort.split-on-trailing-comma = false
+
+[tool.ruff.format]
+docstring-code-format = true
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "S101"]

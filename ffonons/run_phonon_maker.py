@@ -49,13 +49,12 @@ models = {
     Model.mace_mp: dict(
         bulk_relax_maker=ff_jobs.MACERelaxMaker(
             relax_kwargs=common_relax_kwds,
-            model_kwargs={"default_dtype": "float64"},
-            **mace_kwds,
+            calculator_kwargs={"default_dtype": "float64"} | mace_kwds,
         )
         if do_mlff_relax
         else None,
-        phonon_displacement_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
-        static_energy_maker=ff_jobs.MACEStaticMaker(**mace_kwds),
+        phonon_displacement_maker=ff_jobs.MACEStaticMaker(calculator_kwargs=mace_kwds),
+        static_energy_maker=ff_jobs.MACEStaticMaker(calculator_kwargs=mace_kwds),
     ),
     Model.m3gnet_ms: dict(
         bulk_relax_maker=ff_jobs.M3GNetRelaxMaker(relax_kwargs=common_relax_kwds)
@@ -66,16 +65,14 @@ models = {
     ),
     Model.chgnet_030: dict(
         bulk_relax_maker=ff_jobs.CHGNetRelaxMaker(
-            relax_kwargs=common_relax_kwds | {"assign_magmoms": False}, **chgnet_kwds
+            relax_kwargs=common_relax_kwds, calculator_kwargs=chgnet_kwds
         )
         if do_mlff_relax
         else None,
         phonon_displacement_maker=ff_jobs.CHGNetStaticMaker(
-            **chgnet_kwds, model_kwargs={"assign_magmoms": False}
+            calculator_kwargs=chgnet_kwds
         ),
-        static_energy_maker=ff_jobs.CHGNetStaticMaker(
-            **chgnet_kwds, model_kwargs={"assign_magmoms": False}
-        ),
+        static_energy_maker=ff_jobs.CHGNetStaticMaker(calculator_kwargs=chgnet_kwds),
     ),
 }
 
@@ -131,9 +128,6 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
     formula = struct.formula.replace(" ", "")
 
     for model, mlff_makers in models.items():
-        if model == Model.mace_mp:
-            torch.set_default_dtype(torch.float64)
-
         model_key = model.lower().replace(" ", "-")
         os.makedirs(root_dir := f"{RUNS_DIR}/{model_key}", exist_ok=True)
 
@@ -151,7 +145,7 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
                 store_force_constants=False,
                 # use "setyawan_curtarolo" when comparing to MP and "seekpath" else
                 # since setyawan_curtarolo only compatible with primitive cell
-                kpath_scheme="setyawan_curtarolo" if which_db == "mp" else "seekpath",
+                kpath_scheme="setyawan_curtarolo" if which_db == DB.mp else "seekpath",
                 create_thermal_displacements=False,
                 # use_symmetrized_structure="primitive",
             ).make(structure=struct, supercell_matrix=supercell)
