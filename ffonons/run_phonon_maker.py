@@ -150,8 +150,6 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
                 # use_symmetrized_structure="primitive",
             ).make(structure=struct, supercell_matrix=supercell)
 
-            # phonon_flow.draw_graph().show()
-
             result = run_locally(
                 phonon_flow, root_dir=root_dir, log=True, ensure_success=True
             )

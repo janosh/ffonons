@@ -2,6 +2,8 @@
 interactive and more customizable band structure and DOS plotting functions in pymatviz.
 """
 
+import re
+
 import plotly.express as px
 from matplotlib import pyplot as plt
 from pymatgen.core import Structure
@@ -90,12 +92,16 @@ def plot_phonon_dos_mpl(
 
 
 def plotly_title(formula: str, mat_id: str = "") -> str:
-    """Make plotly figure title from HTML-ified formula and and link to MP details page
+    """Make plotly figure title from HTML-ified formula and link to MP details page
     (legacy since only legacy has phonons) or other URL.
     """
     if mat_id.lower().strip().startswith(("mp-", "mvc-")):
         href = f"https://legacy.materialsproject.org/materials/{mat_id}"
-    elif mat_id.startswith("https://"):
+    elif (
+        mat_id.startswith("https://")
+        and "materialsproject.org" in mat_id
+        and re.match(r"mp-\d+$", mat_id)  # ends in mp-\d+
+    ):
         href = mat_id
         mat_id = mat_id.split("/")[-1]
     else:
