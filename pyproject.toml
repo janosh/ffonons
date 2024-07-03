@@ -90,7 +90,7 @@ lint.isort.split-on-trailing-comma = false
 docstring-code-format = true
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "INP001", "S101"]
+"tests/*" = ["D", "INP001", "PLR2004", "S101"]
 
 [tool.pyright]
 typeCheckingMode = "off"

@@ -14,7 +14,7 @@ import re
 import sys
 from dataclasses import dataclass
 from glob import glob
-from typing import Any, Literal, get_args
+from typing import Any, Literal
 from zipfile import ZipFile
 
 import numpy as np
@@ -33,7 +33,7 @@ from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 from pymatgen.symmetry.bandstructure import HighSymmKpath
 from pymatgen.symmetry.kpath import KPathSeek
 
-from ffonons import DATA_DIR
+from ffonons import DATA_DIR, KpathScheme, ValidKpathSchemes, seekpath_kpath_scheme
 from ffonons.enums import Key
 
 __author__ = "Janine George, Aakash Naik, Janosh Riebesell"
@@ -47,7 +47,6 @@ mp_to_togo_id = pd.read_csv(id_map_path, index_col=0)[Key.togo_id].to_dict()
 togo_to_mp_id = {val: key for key, val in mp_to_togo_id.items()}
 
 
-# %%
 def fetch_togo_doc_by_id(doc_id: str, out_path: str = "") -> str:
     """Download the phonopy file for a given MP ID. The file is saved to out_path which
     defaults to "data/phonon-db/{mp_id}-{togo_id}-pbe.zip". out_path is returned.
@@ -149,12 +148,16 @@ def scrape_and_fetch_togo_docs_from_page(
 
 
 def phonondb_doc_to_pmg_lzma(
-    zip_path: str, existing: Literal["skip", "overwrite", "raise"] = "skip"
+    zip_path: str,
+    *,
+    pmg_doc_path: str | None = None,
+    existing: Literal["skip", "overwrite", "raise"] = "skip",
 ) -> tuple[Structure, dict[str, Any]]:
     """Convert a zipped phonon DB doc to a pymatgen Structure and dict of phonon data.
 
     Args:
-        zip_path (str): path to the zipped phonon DB doc
+        zip_path (str): path to the zipped phonon DB doc.
+        pmg_doc_path (str, optional): path to save the pymatgen doc. Defaults to None.
         existing ("skip" | "overwrite" | "raise"): What to do if output file already
             exists. Defaults to "skip".
 
@@ -175,8 +178,9 @@ def phonondb_doc_to_pmg_lzma(
     if not re.match(r"mp-\d+", mat_id):
         raise ValueError(f"Invalid {mat_id=}")
 
-    formula = phonondb_doc.structure.formula.replace(" ", "")
-    pmg_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-pbe.json.lzma"
+    if pmg_doc_path is None:
+        formula = phonondb_doc.structure.formula.replace(" ", "")
+        pmg_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-pbe.json.lzma"
 
     with lzma.open(pmg_doc_path, "wt") as file:
         json.dump(phonondb_doc, file, cls=MontyEncoder)
@@ -184,11 +188,8 @@ def phonondb_doc_to_pmg_lzma(
     return pmg_doc_path
 
 
-KpathScheme = Literal["setyawan_curtarolo", "latimer_munro", "hinuma", "seekpath"]
-
-
 def get_phonopy_kpath(
-    structure: Structure, kpath_scheme: KpathScheme, symprec: float, **kwargs: Any
+    structure: Structure, kpath_scheme: KpathScheme, *, symprec: float, **kwargs: Any
 ) -> tuple:
     """Get high-symmetry points in k-space in phonopy format.
 
@@ -201,18 +202,16 @@ def get_phonopy_kpath(
     Returns:
         tuple: kpoints and path
     """
-    if kpath_scheme in ("setyawan_curtarolo", "latimer_munro", "hinuma"):
+    if kpath_scheme == seekpath_kpath_scheme:
+        high_symm_kpath = KPathSeek(structure, symprec=symprec, **kwargs)
+        kpath = high_symm_kpath._kpath  # noqa: SLF001
+    elif kpath_scheme in ValidKpathSchemes:
         high_symm_kpath = HighSymmKpath(
             structure, path_type=kpath_scheme, symprec=symprec, **kwargs
         )
         kpath = high_symm_kpath.kpath
-    elif kpath_scheme == "seekpath":
-        high_symm_kpath = KPathSeek(structure, symprec=symprec, **kwargs)
-        kpath = high_symm_kpath._kpath  # noqa: SLF001
     else:
-        raise ValueError(
-            f"Invalid {kpath_scheme=}, must be one of {get_args(KpathScheme)}"
-        )
+        raise ValueError(f"Invalid {kpath_scheme=}, must be one of {ValidKpathSchemes}")
 
     path = copy.deepcopy(kpath["path"])
 
@@ -244,8 +243,8 @@ class PhononDBDocParsed:
 
 
 def parse_phonondb_docs(
-    *,  # force keyword-only arguments
     phonopy_doc_path: str | None = None,
+    *,  # force keyword arguments
     phonopy_params: dict[str, Any] | None = None,
     supercell: list[int] = (2, 2, 2),
     primitive_matrix: str | list[list[float]] = "auto",
@@ -254,9 +253,10 @@ def parse_phonondb_docs(
     force_sets: str = "FORCE_SETS",
     born: str = "BORN",
     code: str = "vasp",
-    kpath_scheme: str = "seekpath",
+    kpath_scheme: str = seekpath_kpath_scheme,
     symprec: float = 1e-5,
     out_dir: str | None = None,
+    delete_unreadable: bool = True,
     **kwargs: Any,
 ) -> PhononDBDocParsed:
     """Get phonon data from phonopy and save it to disk. Returns the structure and the
@@ -283,8 +283,9 @@ def parse_phonondb_docs(
         symprec (float, optional): precision for symmetry determination.
             Defaults to 1e-5.
         out_dir (str, optional): path to output directory. Defaults to None.
-            Must be specified if passing band_structure_eigenvectors or
-            band_structure_eigenvectors as kwargs.
+            Must be specified if passing "band_structure_eigenvectors" as kwargs.
+        delete_unreadable (bool, optional): whether to delete unreadable files.
+            Defaults to True.
         **kwargs: additional parameters that can be passed to this method as a dict
 
     Returns:
@@ -303,6 +304,8 @@ def parse_phonondb_docs(
                 phonopy_params = lzma.open(yaml_xz, "rt")
         except Exception as exc:
             exc.add_note(f"Failed to load {phonopy_doc_path=}")
+            if delete_unreadable:
+                os.remove(phonopy_doc_path)
             raise
 
     if phonopy_params:
@@ -349,12 +352,16 @@ def parse_phonondb_docs(
     )
 
     # will determine if imaginary modes are present in the structure
-    has_imag_modes = bs_symm_line.has_imaginary_freq(
-        tol=kwargs.get("tol_imaginary_modes", 1e-5)
-    )
+    imag_freq_tol = kwargs.get("tol_imaginary_modes", 1e-5)
+    # convert np.bool to Python bool
+    has_imag_modes = bool(bs_symm_line.has_imaginary_freq(tol=imag_freq_tol))
 
     # gets data for visualization on website - yaml is also enough
     if kwargs.get("band_structure_eigenvectors"):
+        if out_dir is None:
+            raise ValueError(
+                "Specify out_dir if passing 'band_structure_eigenvectors' as kwargs"
+            )
         os.makedirs(out_dir, exist_ok=True)
         bs_symm_line.write_phononwebsite(f"{out_dir}/phonon-website.json")
 

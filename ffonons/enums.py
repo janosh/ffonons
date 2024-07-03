@@ -4,54 +4,10 @@ LabelEnum extends the built-in StrEnum class, allowing the addition of optional 
 and description attributes. The Key, DB, and Model enums inherit from LabelEnum.
 """
 
-from enum import StrEnum
-from typing import Self
+from pymatviz.enums import LabelEnum
 
 __author__ = "Janosh Riebesell"
 __date__ = "2024-02-19"
-
-
-class LabelEnum(StrEnum):
-    """StrEnum with optional label and description attributes plus dict() methods."""
-
-    def __new__(
-        cls, val: str, label: str | None = None, desc: str | None = None
-    ) -> Self:
-        """Create a new class."""
-        member = str.__new__(cls, val)
-        member._value_ = val
-        member.__dict__ |= dict(label=label, desc=desc)
-        return member
-
-    @property
-    def label(self) -> str:
-        """Make label read-only."""
-        return self.__dict__["label"]
-
-    @property
-    def description(self) -> str:
-        """Make description read-only."""
-        return self.__dict__["desc"]
-
-    @classmethod
-    def key_val_dict(cls) -> dict[str, str]:
-        """Map of keys to values."""
-        return {key: str(val) for key, val in cls.__members__.items()}
-
-    @classmethod
-    def val_label_dict(cls) -> dict[str, str | None]:
-        """Map of values to labels."""
-        return {str(val): val.label for val in cls.__members__.values()}
-
-    @classmethod
-    def val_desc_dict(cls) -> dict[str, str | None]:
-        """Map of values to descriptions."""
-        return {str(val): val.description for val in cls.__members__.values()}
-
-    @classmethod
-    def label_desc_dict(cls) -> dict[str | None, str | None]:
-        """Map of labels to descriptions."""
-        return {str(val.label): val.description for val in cls.__members__.values()}
 
 
 class Key(LabelEnum):

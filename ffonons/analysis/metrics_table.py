@@ -181,8 +181,9 @@ for df_loop, caption, filename in (
 
     if filename and write_to_disk:
         table_name = f"{filename}-tol={imaginary_freq_tol}"
-        df_to_pdf(styler, f"{PDF_FIGS}/{which_db}/{table_name}.pdf", size="landscape")
-        df_to_html_table(styler, f"{SITE_FIGS}/{table_name}.svelte")
+        pdf_table_path = f"{PDF_FIGS}/{which_db}/{table_name}.pdf"
+        df_to_pdf(styler, file_path=pdf_table_path, size="landscape")
+        df_to_html_table(styler, file_path=f"{SITE_FIGS}/{table_name}.svelte")
 
     styler.set_caption(caption)
     display(styler)
@@ -205,6 +206,7 @@ if False:
         [f"{col}{arrow_suffix.get(col, '')}" for col in styler.data], axis="columns"
     ).set_uuid("").hide(axis="index")
 
-    df_to_pdf(styler, f"{PDF_FIGS}/{table_name}.pdf")
-    df_to_html_table(styler, f"{SITE_FIGS}/{table_name}.svelte")
+    df_to_pdf(styler, file_path=f"{PDF_FIGS}/{table_name}.pdf")
+    df_to_html_table(styler, file_path=f"{SITE_FIGS}/{table_name}.svelte")
+    display(styler)
     styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")
