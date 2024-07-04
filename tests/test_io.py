@@ -9,8 +9,9 @@ from atomate2.common.schemas.phonons import PhononBSDOSDoc
 from pymatgen.core import Lattice, Structure
 from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
 from pymatgen.phonon.dos import PhononDos
+from pymatviz.enums import Key
 
-from ffonons.enums import Key
+from ffonons.enums import PhKey
 from ffonons.io import (
     get_df_summary,
     get_gnome_pmg_structures,
@@ -122,12 +123,12 @@ def test_get_df_summary(mock_phonon_docs: dict[str, dict[str, PhononBSDOSDoc]]) 
         Key.n_sites,
         Key.supercell,
         Key.last_dos_peak,
-        Key.max_freq,
-        Key.min_freq,
-        Key.dos_mae,
-        Key.ph_dos_r2,
-        Key.has_imag_freq,
-        Key.has_imag_gamma_freq,
+        Key.max_ph_freq,
+        Key.min_ph_freq,
+        Key.ph_dos_mae,
+        PhKey.ph_dos_r2,
+        Key.has_imag_ph_modes,
+        Key.has_imag_ph_gamma_modes,
     }
 
 

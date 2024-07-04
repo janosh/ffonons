@@ -19,12 +19,13 @@ from jobflow import run_locally
 from monty.io import zopen
 from monty.json import MontyDecoder, MontyEncoder
 from pymatviz import plot_phonon_bands_and_dos
+from pymatviz.enums import Key
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
 from ffonons import DATA_DIR, PDF_FIGS, ROOT
 from ffonons.dbs.phonondb import PhononDBDocParsed
-from ffonons.enums import DB, Key, Model
+from ffonons.enums import DB, Model
 from ffonons.plots import plotly_title
 
 __author__ = "Janosh Riebesell"

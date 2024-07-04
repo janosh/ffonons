@@ -4,9 +4,9 @@ import os
 import pytest
 from monty.io import zopen
 from pymatgen.phonon import PhononDos
+from pymatviz.enums import Key
 
 from ffonons import DATA_DIR, PDF_FIGS, ROOT
-from ffonons.enums import Key
 
 
 @pytest.fixture(scope="session")
@@ -14,13 +14,13 @@ def mp_661_mace_dos() -> PhononDos:
     with zopen(
         f"{DATA_DIR}/phonon-db/mp-661-Al2N2-mace-y7uhwpje.json.lzma", mode="rt"
     ) as file:
-        return PhononDos.from_dict(json.load(file)[Key.dos])
+        return PhononDos.from_dict(json.load(file)[Key.ph_dos])
 
 
 @pytest.fixture(scope="session")
 def mp_2789_pbe_dos() -> PhononDos:
     with zopen(f"{DATA_DIR}/phonon-db/mp-2789-N12O24-pbe.json.lzma", mode="rt") as file:
-        return PhononDos.from_dict(json.load(file)[Key.dos])
+        return PhononDos.from_dict(json.load(file)[Key.ph_dos])
 
 
 def test_root() -> None:

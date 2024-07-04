@@ -6,12 +6,13 @@ for each material at the Gamma point.
 import numpy as np
 import plotly.express as px
 import plotly.figure_factory as ff
+from pymatviz.enums import Key
 from pymatviz.io import save_fig
 from pymatviz.powerups import add_identity_line
 from sklearn.metrics import confusion_matrix
 
 from ffonons import PAPER_DIR, PDF_FIGS
-from ffonons.enums import DB, Key, Model
+from ffonons.enums import DB, Model
 from ffonons.io import get_df_summary
 
 __author__ = "Janosh Riebesell"
@@ -26,10 +27,10 @@ df_summary = get_df_summary(
 
 
 # %%
-unstable_rate = (df_summary[Key.has_imag_freq]).mean()
+unstable_rate = (df_summary[Key.has_imag_ph_modes]).mean()
 print(f"PBE unstable rate: {unstable_rate:.0%}")
 
-unstable_rate = (df_summary[Key.has_imag_gamma_freq]).mean()
+unstable_rate = (df_summary[Key.has_imag_ph_gamma_modes]).mean()
 print(f"PBE Γ-unstable rate: {unstable_rate:.0%}")
 
 
@@ -37,10 +38,10 @@ print(f"PBE Γ-unstable rate: {unstable_rate:.0%}")
 model = Model.chgnet_030
 
 # get material IDs where all models have results
-idx_n_avail = df_summary[Key.max_freq].unstack().dropna(thresh=4).index
+idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
 
 for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
-    for col in (Key.has_imag_gamma_freq, Key.has_imag_freq):
+    for col in (Key.has_imag_ph_gamma_modes, Key.has_imag_ph_modes):
         df_clean = df_summary.loc[idx_n_avail][col].unstack(level=1)[[Key.pbe, model]]
         y_true, y_pred = (df_clean[key] for key in (Key.pbe, model))
         conf_mat = confusion_matrix(y_true=y_true, y_pred=y_pred, normalize="all")
@@ -106,7 +107,7 @@ for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
 
 # %% plot imaginary modes confusion matrix as parity plot using min. freq. across all
 # k-points (with shaded regions for TP, FP, FN, TN)
-y_col, color_col = Key.min_freq, Key.model
+y_col, color_col = Key.min_ph_freq, Key.model
 
 df_melt = (
     df_summary.unstack(level=1)[y_col]

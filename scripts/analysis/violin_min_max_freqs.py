@@ -6,10 +6,11 @@ import os
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import seaborn as sns
+from pymatviz.enums import Key
 from pymatviz.io import save_fig
 
 from ffonons import PAPER_DIR, PDF_FIGS, SOFT_PES_DIR
-from ffonons.enums import DB, Key, Model
+from ffonons.enums import DB, Model
 from ffonons.io import get_df_summary
 
 __author__ = "Janosh Riebesell"
@@ -22,7 +23,7 @@ df_summary = get_df_summary(which_db := DB.phonon_db, refresh_cache=False)
 os.makedirs(FIG_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 os.makedirs(FIG_DIR := SOFT_PES_DIR, exist_ok=True)
 
-df_ph_freq = df_summary[Key.max_freq].unstack().dropna()
+df_ph_freq = df_summary[Key.max_ph_freq].unstack().dropna()
 
 # compute diff or ratio of ML and DFT max phonon frequencies
 df_ph_freq_ml_vs_pbe = df_ph_freq.div(df_ph_freq[Key.pbe], axis=0)
@@ -78,7 +79,11 @@ plt.show()
 
 
 # %% violin plot of max_freq_ml / max_freq_dft and max_freq_ml - max_freq_dft
-for key, op in ((Key.max_freq, "div"), (Key.max_freq, "sub"), (Key.min_freq, "sub")):
+for key, op in (
+    (Key.max_ph_freq, "div"),
+    (Key.max_ph_freq, "sub"),
+    (Key.min_ph_freq, "sub"),
+):
     print(f"{key=!s} {op=}")
     df_ph_freq = df_summary[key].unstack().dropna()
     # compute diff or ratio of ML and DFT max phonon frequencies
@@ -107,10 +112,10 @@ for key, op in ((Key.max_freq, "div"), (Key.max_freq, "sub"), (Key.min_freq, "su
     elif op == "sub":
         title = f"(ML - DFT) {key.label}"
         fig.layout.yaxis.update(title=title, title_standoff=5)
-        if key == Key.min_freq:
+        if key == Key.min_ph_freq:
             fig.layout.yaxis.update(range=[-5, 5])
         # shade region of acceptably low error green
-        y_low_err = 1.5 if key == Key.max_freq else 0.5
+        y_low_err = 1.5 if key == Key.max_ph_freq else 0.5
         y0, y1 = soft_boundary - y_low_err, soft_boundary + y_low_err
         fig.add_hrect(y0=y0, y1=y1, fillcolor="green", opacity=0.1, layer="below")
     else:

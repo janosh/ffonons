@@ -34,7 +34,7 @@ from pymatgen.symmetry.bandstructure import HighSymmKpath
 from pymatgen.symmetry.kpath import KPathSeek
 
 from ffonons import DATA_DIR, KpathScheme, ValidKpathSchemes, seekpath_kpath_scheme
-from ffonons.enums import Key
+from ffonons.enums import PhKey
 
 __author__ = "Janine George, Aakash Naik, Janosh Riebesell"
 __date__ = "2023-12-07"
@@ -43,7 +43,7 @@ db_name = "phonon-db"
 ph_docs_dir = f"{DATA_DIR}/{db_name}"
 
 id_map_path = f"{DATA_DIR}/{db_name}/map-mp-id-togo-id.csv"
-mp_to_togo_id = pd.read_csv(id_map_path, index_col=0)[Key.togo_id].to_dict()
+mp_to_togo_id = pd.read_csv(id_map_path, index_col=0)[PhKey.togo_id].to_dict()
 togo_to_mp_id = {val: key for key, val in mp_to_togo_id.items()}
 
 
@@ -56,7 +56,7 @@ def fetch_togo_doc_by_id(doc_id: str, out_path: str = "") -> str:
         togo_id = mp_to_togo_id.get(doc_id)
         if togo_id is None:
             raise ValueError(
-                f"No {Key.togo_id} found for {doc_id=}, it likely doesn't exist in "
+                f"No {PhKey.togo_id} found for {doc_id=}, it likely doesn't exist in "
                 f"PhononDB. See {id_map_path!r}."
             )
         mp_id = doc_id

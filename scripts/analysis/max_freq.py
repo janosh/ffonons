@@ -5,12 +5,13 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 from IPython.display import display
+from pymatviz.enums import Key
 from pymatviz.io import save_fig
 from pymatviz.powerups import add_identity_line, annotate_metrics
 from sklearn.metrics import r2_score
 
 from ffonons import PAPER_DIR, PDF_FIGS
-from ffonons.enums import DB, Key, Model
+from ffonons.enums import DB, Model, PhKey
 from ffonons.io import get_df_summary
 
 # from pymatgen.util.string import htmlify
@@ -24,11 +25,11 @@ imaginary_freq_tol = 0.01
 df_summary = get_df_summary(
     which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
 )
-idx_n_avail = df_summary[Key.max_freq].unstack().dropna(thresh=4).index
+idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
 
 
 # %% parity plot of max_freq of bands vs last_phdos_peak
-x_col, y_col = Key.max_freq, Key.last_dos_peak
+x_col, y_col = Key.max_ph_freq, Key.last_dos_peak
 model = Model.mace_mp  # Key.pbe
 
 df_plot = df_summary.xs(model, level=1)
@@ -69,7 +70,7 @@ fig.show()
 
 # %% plot MP vs model last phonon DOS peaks as scatter
 # prop = Key.last_dos_peak
-prop = Key.max_freq
+prop = Key.max_ph_freq
 df_plot = df_summary.unstack(level=1)[prop].dropna().round(2).copy()
 hover_cols = [Key.formula, Key.n_sites]
 df_plot[hover_cols] = df_summary.xs(Key.pbe, level=1)[hover_cols]
@@ -131,8 +132,8 @@ for trace in fig.data:
 #     fig.update_xaxes(range=[0, xy_max])
 #     fig.update_yaxes(range=[0, xy_max])
 
-fig.layout.xaxis.title = Key.val_label_dict()[f"{prop}_pbe"]
-fig.layout.yaxis.title = Key.val_label_dict()[f"{prop}_ml"]
+fig.layout.xaxis.title = PhKey.val_label_dict()[f"{prop}_pbe"]
+fig.layout.yaxis.title = PhKey.val_label_dict()[f"{prop}_ml"]
 fig.layout.legend.update(
     x=0.01,
     y=0.98,
@@ -167,13 +168,20 @@ for model in Model:
         continue
 
     df_ml = df_summary.xs(model, level=1)
-    dft_col = f"{Key.max_freq}_dft"
-    df_ml[dft_col] = df_dft[Key.max_freq]
-    df_ml["diff"] = df_ml[Key.max_freq] - df_dft[Key.max_freq]
-    df_ml["pct_diff"] = df_ml["diff"] / df_dft[Key.max_freq]
+    dft_col = f"{Key.max_ph_freq}_dft"
+    df_ml[dft_col] = df_dft[Key.max_ph_freq]
+    df_ml["diff"] = df_ml[Key.max_ph_freq] - df_dft[Key.max_ph_freq]
+    df_ml["pct_diff"] = df_ml["diff"] / df_dft[Key.max_ph_freq]
 
-    cols = [Key.formula, Key.supercell, Key.max_freq, dft_col, "diff", "pct_diff"]
-    col_map = Key.val_label_dict()
+    cols = [
+        Key.formula,
+        Key.supercell,
+        Key.max_ph_freq,
+        dft_col,
+        "diff",
+        "pct_diff",
+    ]
+    col_map = PhKey.val_label_dict()
     styler = df_ml[cols].sort_values("diff", key=abs).tail(10).style.set_caption(model)
     float_cols = [*df_ml[cols].select_dtypes(include="number")]
     styler.format("{:.2f}", subset=float_cols).background_gradient(subset=float_cols)
@@ -193,14 +201,14 @@ for model in Model:
     df_model = df_summary.loc[idx_n_avail].xs(model, level=1)
     if len(df_model) != len(idx_n_avail):
         raise ValueError(f"{len(df_model)=} {len(idx_n_avail)=}")
-    worst_mat_id = abs(df_dft[Key.max_freq] - df_model[Key.max_freq]).idxmax()
+    worst_mat_id = abs(df_dft[Key.max_ph_freq] - df_model[Key.max_ph_freq]).idxmax()
     formula = df_model.loc[worst_mat_id, Key.formula]
 
     dct = {Key.mat_id.label: worst_mat_id, "Formula": formula}
-    ml_freq = dct["Max Ph Freq ML"] = df_model.loc[worst_mat_id, Key.max_freq]
-    dft_freq = dct["Max Ph Freq DFT"] = df_dft.loc[worst_mat_id, Key.max_freq]
+    ml_freq = dct["Max Ph Freq ML"] = df_model.loc[worst_mat_id, Key.max_ph_freq]
+    dft_freq = dct["Max Ph Freq DFT"] = df_dft.loc[worst_mat_id, Key.max_ph_freq]
     max_err = dct[max_err_key] = ml_freq - dft_freq
-    dct["Max Error Rel"] = max_err / df_dft[Key.max_freq].max()
+    dct["Max Error Rel"] = max_err / df_dft[Key.max_ph_freq].max()
     df_max_freq_err[model.label.split()[0].replace("-MS", "")] = dct
 
 df_max_freq_err = df_max_freq_err.T.sort_values(by=max_err_key)

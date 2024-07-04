@@ -9,11 +9,12 @@ import os
 import pandas as pd
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 from pymatviz import plot_phonon_bands, plot_phonon_bands_and_dos
+from pymatviz.enums import Key
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
 from ffonons import PDF_FIGS, SITE_FIGS, SOFT_PES_DIR
-from ffonons.enums import DB, Key, Model
+from ffonons.enums import DB, Model
 from ffonons.io import get_df_summary, load_pymatgen_phonon_docs
 from ffonons.plots import plotly_title, pretty_labels
 
@@ -30,7 +31,7 @@ os.makedirs(FIGS_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 idx_n_avail: dict[int, pd.Index] = {}
 
 for idx in range(1, 5):
-    idx_n_avail[idx] = df_summary[Key.max_freq].unstack().dropna(thresh=idx).index
+    idx_n_avail[idx] = df_summary[Key.max_ph_freq].unstack().dropna(thresh=idx).index
     n_avail = len(idx_n_avail[idx])
     print(f"{n_avail:,} materials with results from at least {idx} models (incl. DFT)")
 
@@ -39,8 +40,8 @@ for idx in range(1, 5):
 
 # get index sorted by most underpredicted max freq according to CHGNet compared to DFT
 most_underpred = (
-    df_summary[Key.max_freq].xs(Model.chgnet_030, level=1)
-    - df_summary[Key.max_freq].xs(Key.pbe, level=1)
+    df_summary[Key.max_ph_freq].xs(Model.chgnet_030, level=1)
+    - df_summary[Key.max_ph_freq].xs(Key.pbe, level=1)
 ).sort_values()
 
 # get intersection with materials with less than 10 sites
@@ -60,8 +61,8 @@ ph_docs = load_pymatgen_phonon_docs(which_db)
 model = Model.m3gnet_ms
 
 for mp_id in tqdm(idx_n_avail[2]):
-    bs_pbe = getattr(ph_docs[mp_id][Key.pbe], Key.bs)
-    bs_ml = getattr(ph_docs[mp_id][model], Key.bs)
+    bs_pbe = getattr(ph_docs[mp_id][Key.pbe], Key.ph_band_structure)
+    bs_ml = getattr(ph_docs[mp_id][model], Key.ph_band_structure)
 
     band_structs = {Key.pbe.label: bs_pbe, model.label: bs_ml}
     out_path = f"{FIGS_DIR}/{mp_id}-bands-pbe-vs-{model}.pdf"
@@ -88,10 +89,11 @@ for mp_id in tqdm(["mp-1784"]):
 
     keys = sorted(ph_doc, reverse=True)
     bands_dict: dict[str, PhononBandStructureSymmLine] = {
-        pretty_labels.get(key, key): getattr(ph_doc[key], Key.bs) for key in keys
+        pretty_labels.get(key, key): getattr(ph_doc[key], Key.ph_band_structure)
+        for key in keys
     }
     dos_dict: dict[str, PhononDos] = {
-        pretty_labels.get(key, key): getattr(ph_doc[key], Key.dos) for key in keys
+        pretty_labels.get(key, key): getattr(ph_doc[key], Key.ph_dos) for key in keys
     }
     img_name = f"{mp_id}-bs-dos-{'-vs-'.join(keys)}"
     out_path = f"{FIGS_DIR}/{img_name}.pdf"

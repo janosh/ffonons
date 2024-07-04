@@ -21,10 +21,11 @@ from pymatgen.core import Structure
 from pymatgen.entries.compatibility import needs_u_correction
 from pymatgen.io.vasp import Incar, Kpoints
 from pymatgen.io.vasp.sets import BadInputSetWarning, MPRelaxSet, MPStaticSet
+from pymatviz.enums import Key
 from tqdm import tqdm
 
 from ffonons import DATA_DIR
-from ffonons.enums import DB, Key
+from ffonons.enums import DB
 
 __author__ = "Aakash Naik, Janosh Riebesell"
 __date__ = "2024-01-09"

@@ -10,33 +10,14 @@ __author__ = "Janosh Riebesell"
 __date__ = "2024-02-19"
 
 
-class Key(LabelEnum):
+class PhKey(LabelEnum):
     """Keys for accessing the data in phonon docs and dataframes."""
 
-    bs = "phonon_bandstructure", "Phonon band structure"
-    composition = "composition", "Chemical composition"
-    dft = "dft", "DFT"
-    dos = "phonon_dos", "Phonon density of states"
-    formula = "formula", "Chemical formula"
-    last_dos_peak = "last_ph_dos_peak_thz", "Last phonon DOS peak"
-    mat_id = "material_id", "Material ID"
-    model = "model", "Model"
-    n_sites = "n_sites", "Number of sites"
-    pbe = "pbe", "PBE"
-    pbesol = "pbesol", "PBEsol"
-    reduced_formula = "reduced_formula", "Reduced chemical formula"
-    needs_u_correction = "requires_u_correction", "Requires Hubbard U correction"
-    struct = "structure", "Structure"
-    supercell = "supercell", "Supercell"
     togo_id = "togo_id", "Togo DB ID"
-    volume = "volume", "Volume"
 
     # model metrics
     dos_mae = "ph_dos_mae_thz", "MAE<sub>ph DOS</sub> (THz)"
     ph_dos_r2 = "ph_dos_r2", "R<sup>2</sup><sub>ph DOS</sub>"
-    has_imag_gamma_freq = "has_imag_gamma_freq", "Has imaginary Γ modes"
-    has_imag_freq = "has_imag_freq", "Has imaginary modes"
-    last_ph_dos_peak_thz = "last_ph_dos_peak_thz", "ω<sub>max</sub> (THz)"
     last_ph_dos_peak_thz_ml = (
         "last_ph_dos_peak_thz_ml",
         "ω<sub>max</sub><sup>ML</sup> (THz)",
@@ -53,8 +34,6 @@ class Key(LabelEnum):
         "r2_last_ph_dos_peak_thz",
         "R<sup>2</sup><sub>ω<sub>max</sub></sub> (THz)",
     )
-    max_freq = "max_freq_thz", "Ω<sub>max</sub> (THz)"  # aka band width
-    min_freq = "min_freq_thz", "Ω<sub>min</sub> (THz)"
     min_freq_pbe = "min_freq_thz_pbe", "Ω<sub>min</sub><sup>PBE</sup> (THz)"
     min_freq_ml = "min_freq_thz_ml", "Ω<sub>min</sub><sup>ML</sup> (THz)"
     min_freq_rel = (

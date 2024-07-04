@@ -10,9 +10,9 @@ from pymatgen.core import Structure
 from pymatgen.phonon import PhononDos, PhononDosPlotter
 from pymatgen.util.string import htmlify, latexify
 
-from ffonons.enums import DB, Key, Model
+from ffonons.enums import DB, Model, PhKey
 
-pretty_labels = Key.val_label_dict() | Model.val_label_dict() | DB.val_label_dict()
+pretty_labels = PhKey.val_label_dict() | Model.val_label_dict() | DB.val_label_dict()
 
 px.defaults.labels |= pretty_labels
 

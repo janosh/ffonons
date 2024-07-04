@@ -19,11 +19,12 @@ from atomate2.common.schemas.phonons import PhononBSDOSDoc
 from monty.io import zopen
 from monty.json import MontyDecoder
 from pymatgen.core import Structure
+from pymatviz.enums import Key
 from tqdm import tqdm
 
 from ffonons import DATA_DIR
 from ffonons.dbs.phonondb import PhononDBDocParsed
-from ffonons.enums import DB, Key
+from ffonons.enums import DB, PhKey
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
@@ -185,19 +186,19 @@ def get_df_summary(
 
             # min/max frequency from band structure
             ph_bs = ph_doc.phonon_bandstructure
-            summary_dict[id_model][Key.max_freq] = ph_bs.bands.max()
-            summary_dict[id_model][Key.min_freq] = ph_bs.bands.min()
+            summary_dict[id_model][Key.max_ph_freq] = ph_bs.bands.max()
+            summary_dict[id_model][Key.min_ph_freq] = ph_bs.bands.min()
 
             if model != Key.pbe and Key.pbe in docs:  # calculate DOS MAE and R2
                 pbe_dos = ph_docs[mat_id][Key.pbe].phonon_dos
-                summary_dict[id_model][Key.dos_mae] = ph_dos.mae(pbe_dos)
-                summary_dict[id_model][Key.ph_dos_r2] = ph_dos.r2_score(pbe_dos)
+                summary_dict[id_model][Key.ph_dos_mae] = ph_dos.mae(pbe_dos)
+                summary_dict[id_model][PhKey.ph_dos_r2] = ph_dos.r2_score(pbe_dos)
 
             # has imaginary modes
             has_imag_modes = ph_bs.has_imaginary_freq(tol=imaginary_freq_tol)
-            summary_dict[id_model][Key.has_imag_freq] = has_imag_modes
+            summary_dict[id_model][Key.has_imag_ph_modes] = has_imag_modes
             has_imag_gamma_mode = ph_bs.has_imaginary_gamma_freq(tol=imaginary_freq_tol)
-            summary_dict[id_model][Key.has_imag_gamma_freq] = has_imag_gamma_mode
+            summary_dict[id_model][Key.has_imag_ph_gamma_modes] = has_imag_gamma_mode
 
     # convert_dtypes() turns boolean cols imaginary_(gamma_)freq to bool
     df_summary = pd.DataFrame(summary_dict).T.convert_dtypes()

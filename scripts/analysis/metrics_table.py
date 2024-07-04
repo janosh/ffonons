@@ -7,11 +7,12 @@ from typing import Literal
 
 import pandas as pd
 from IPython.display import display
+from pymatviz.enums import Key
 from pymatviz.io import df_to_html_table, df_to_pdf
 from sklearn.metrics import accuracy_score, confusion_matrix, r2_score, roc_auc_score
 
 from ffonons import PAPER_DIR, PDF_FIGS, SITE_FIGS
-from ffonons.enums import DB, Key, Model
+from ffonons.enums import DB, Model, PhKey
 from ffonons.io import get_df_summary
 
 __author__ = "Janosh Riebesell"
@@ -28,7 +29,7 @@ df_summary = get_df_summary(
 # %% save analyzed MP IDs to CSV for rendering with Typst
 
 # get material IDs where all models have results
-idx_n_avail = df_summary[Key.max_freq].unstack().dropna(thresh=4).index
+idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
 
 for folder in (
     PAPER_DIR,
@@ -52,14 +53,14 @@ for model in Model:
 
     df_model = df_summary.loc[idx_n_avail].xs(model, level=1)
 
-    for metric in (Key.dos_mae, Key.ph_dos_r2):
+    for metric in (Key.ph_dos_mae, PhKey.ph_dos_r2):
         df_regr.loc[model.label, metric.label] = df_model[metric].mean()
 
     df_dft = df_summary.xs(Key.pbe, level=1)
 
     for metric in (
         # Key.last_dos_peak,
-        Key.max_freq,
+        Key.max_ph_freq,
     ):
         diff = df_dft[metric] - df_model[metric]
         ph_freq_mae = diff.abs().mean()
@@ -67,17 +68,17 @@ for model in Model:
         ph_freq_r2 = r2_score(
             df_dft[metric].loc[not_nan], df_model[metric].loc[not_nan]
         )
-        df_regr.loc[model.label, getattr(Key, f"mae_{metric}").label] = ph_freq_mae
-        df_regr.loc[model.label, getattr(Key, f"r2_{metric}").label] = ph_freq_r2
+        df_regr.loc[model.label, getattr(PhKey, f"mae_{metric}").label] = ph_freq_mae
+        df_regr.loc[model.label, getattr(PhKey, f"r2_{metric}").label] = ph_freq_r2
 
 
 # sort by ph DOS MAE
-df_regr = df_regr.convert_dtypes().sort_values(by=Key.dos_mae.label).round(2)
+df_regr = df_regr.convert_dtypes().sort_values(by=Key.ph_dos_mae.label).round(2)
 
 
 # %% make dataframe with model metrics for phonon DOS and BS predictions
 dfs_imag: dict[str, pd.DataFrame] = {}
-for col in (Key.has_imag_freq, Key.has_imag_gamma_freq):
+for col in (Key.has_imag_ph_modes, Key.has_imag_ph_gamma_modes):
     df_imag = pd.DataFrame()
     df_imag.index.name = "Model"
     dfs_imag[col] = df_imag
@@ -111,23 +112,23 @@ for col in (Key.has_imag_freq, Key.has_imag_gamma_freq):
         f1 = 2 * (precision * recall) / (precision + recall)
         roc_auc = roc_auc_score(imag_modes_true, imag_modes_pred)
         for metric, val in {
-            Key.prec_imag_freq: precision,
-            Key.recall_imag_freq: recall,
-            Key.f1_imag_freq: f1,
-            Key.roc_auc_imag_freq: roc_auc,
-            Key.acc_imag_freq: acc,
-            Key.fpr_imag_freq: fp,
-            Key.fnr_imag_freq: fn,
+            PhKey.prec_imag_freq: precision,
+            PhKey.recall_imag_freq: recall,
+            PhKey.f1_imag_freq: f1,
+            PhKey.roc_auc_imag_freq: roc_auc,
+            PhKey.acc_imag_freq: acc,
+            PhKey.fpr_imag_freq: fp,
+            PhKey.fnr_imag_freq: fn,
         }.items():
             df_imag.loc[model.label, metric.label] = val
 
     df_imag = df_imag.sort_values(
-        by=Key.roc_auc_imag_freq.label, ascending=False
+        by=PhKey.roc_auc_imag_freq.label, ascending=False
     ).round(2)
 
 
 # %% --- vertical metrics table ---
-def caption_factory(key: Key) -> str:
+def caption_factory(key: PhKey) -> str:
     """Make caption for metrics table of classifying imaginary phonon mode."""
     return (
         f"MLFF vs {which_db.label} {key.label} classification<br>"
@@ -139,12 +140,16 @@ cmap = "Blues"
 regr_metrics_caption = (
     f"Harmonic phonons from MLFF vs PhononDB PBE (N={len(idx_n_avail):,})<br>"
 )
-clf_caption = caption_factory(Key.has_imag_freq)
-clf_gam_caption = caption_factory(Key.has_imag_gamma_freq)
+clf_caption = caption_factory(Key.has_imag_ph_modes)
+clf_gam_caption = caption_factory(Key.has_imag_ph_gamma_modes)
 write_to_disk = True
 for df_loop, caption, filename in (
-    (dfs_imag[Key.has_imag_freq], clf_caption, "ffonon-imag-clf-table"),
-    (dfs_imag[Key.has_imag_gamma_freq], clf_gam_caption, "ffonon-imag-gamma-clf-table"),
+    (dfs_imag[Key.has_imag_ph_modes], clf_caption, "ffonon-imag-clf-table"),
+    (
+        dfs_imag[Key.has_imag_ph_gamma_modes],
+        clf_gam_caption,
+        "ffonon-imag-gamma-clf-table",
+    ),
     # (df_regr, regr_metrics_caption, "ffonon-regr-metrics-table"),
 ):
     lower_better = [

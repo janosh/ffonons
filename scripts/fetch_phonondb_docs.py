@@ -6,6 +6,7 @@ from glob import glob
 
 import pandas as pd
 from mp_api.client import MPRester
+from pymatviz.enums import Key
 from tqdm import tqdm
 
 from ffonons import DATA_DIR
@@ -15,7 +16,6 @@ from ffonons.dbs.phonondb import (
     phonondb_doc_to_pmg_lzma,
     scrape_and_fetch_togo_docs_from_page,
 )
-from ffonons.enums import Key
 
 __author__ = "Janine George, Aakash Nair, Janosh Riebesell"
 __date__ = "2023-12-07"
