@@ -25,15 +25,15 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-  "matplotlib",
-  "numpy",
+  "matplotlib>=3.6.2",
+  "numpy>=1.26",
   "pandas>=2.0.0",
-  "plotly",
-  "pymatgen",
-  "pymatviz[export-figs]",
-  "scikit-learn",
-  "scipy",
-  "tqdm",
+  "plotly>=5.22",
+  "pymatgen>=2024.6.10",
+  "pymatviz[export-figs]>=0.9",
+  "scikit-learn>=1.4",
+  "scipy>=1.14",
+  "tqdm>=4.66",
 ]
 
 [project.urls]
@@ -91,6 +91,7 @@ docstring-code-format = true
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "INP001", "PLR2004", "S101"]
+"scripts/*" = ["INP001"]
 
 [tool.pyright]
 typeCheckingMode = "off"

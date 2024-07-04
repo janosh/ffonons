@@ -82,4 +82,4 @@ for zip_path in (pbar := tqdm(zip_files, desc="Parsing PhononDB docs to PMG lzma
         raise RuntimeError(f"> 1 doc for {mat_id=}: {existing_docs}")
 
     pbar.set_postfix_str(mat_id)
-    phonondb_doc_to_pmg_lzma(zip_path, existing="overwrite")
+    phonondb_doc_to_pmg_lzma(zip_path, existing="skip")

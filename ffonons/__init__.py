@@ -7,17 +7,17 @@ from datetime import UTC, datetime
 from typing import Literal, get_args
 
 import plotly.express as px
-import plotly.io as pio
-import pymatviz  # noqa: F401, import registers pymatviz_white template
 from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos, Dos
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
+from pymatviz import set_plotly_template
+
+from ffonons.enums import Key
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-15"
 
-px.defaults.template = "pymatviz_white"
-pio.templates.default = "pymatviz_white"
+set_plotly_template("pymatviz_white")
 
 PKG_DIR = os.path.dirname(__file__)
 ROOT = os.path.dirname(PKG_DIR)
@@ -29,7 +29,7 @@ SOFT_PES_DIR = f"{PDF_FIGS}/soft-pes"
 TEST_FILES = f"{ROOT}/tests/files"
 
 today = f"{datetime.now(tz=UTC):%Y-%m-%d}"
-
+px.defaults.labels |= Key.key_val_dict()
 
 speed_of_light = 299792458  # [m/s]
 thz_to_per_cm = 1e12 / (speed_of_light * 100)  # convert THz to cm^-1: 33.356410

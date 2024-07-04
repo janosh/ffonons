@@ -152,6 +152,7 @@ def phonondb_doc_to_pmg_lzma(
     *,
     pmg_doc_path: str | None = None,
     existing: Literal["skip", "overwrite", "raise"] = "skip",
+    on_read_error: Literal["raise", "warn", "ignore"] = "warn",
 ) -> tuple[Structure, dict[str, Any]]:
     """Convert a zipped phonon DB doc to a pymatgen Structure and dict of phonon data.
 
@@ -160,6 +161,8 @@ def phonondb_doc_to_pmg_lzma(
         pmg_doc_path (str, optional): path to save the pymatgen doc. Defaults to None.
         existing ("skip" | "overwrite" | "raise"): What to do if output file already
             exists. Defaults to "skip".
+        on_read_error ("raise" | "warn" | "ignore"): What to do if an error occurs while
+            reading the ZIP file. Defaults to "warn".
 
     Returns:
         tuple[Structure, dict[str, Any]]: Structure and dict of phonon data
@@ -173,7 +176,14 @@ def phonondb_doc_to_pmg_lzma(
             raise RuntimeError(f"{matches[0]} already exists.")
         # else: overwrite i.e. continue
 
-    phonondb_doc = parse_phonondb_docs(zip_path, is_nac=False)
+    try:
+        phonondb_doc = parse_phonondb_docs(zip_path, is_nac=False)
+    except Exception as exc:
+        if on_read_error == "raise":
+            raise
+        if on_read_error in ("warn", "ignore"):
+            print(exc, file=sys.stderr)
+            return None
 
     if not re.match(r"mp-\d+", mat_id):
         raise ValueError(f"Invalid {mat_id=}")
