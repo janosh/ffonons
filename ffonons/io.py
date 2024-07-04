@@ -60,7 +60,7 @@ def load_pymatgen_phonon_docs(
 
     for path in tqdm(paths, desc=f"Loading {which_db} docs"):
         try:
-            with zopen(path, "rt") as file:
+            with zopen(path, mode="rt") as file:
                 ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(
                     file, cls=MontyDecoder
                 )
@@ -68,9 +68,13 @@ def load_pymatgen_phonon_docs(
             print(f"error loading {path=}: {exc}")
             continue
 
-        mp_id, _formula, model = re.search(
-            rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.*", path
-        ).groups()
+        path_regex = rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.*"
+        try:
+            mp_id, _formula, model = re.search(path_regex, path).groups()
+        except (ValueError, AttributeError):
+            raise ValueError(
+                f"Can't parse MP ID and model from {path=}, should match {path_regex=}"
+            ) from None
         if not mp_id.startswith("mp-"):
             raise ValueError(f"Invalid {mp_id=}")
 
@@ -96,7 +100,7 @@ def update_key_name(directory: str, key_map: dict[str, str]) -> None:
 
     for path in tqdm(paths, desc="Updating key name"):
         try:
-            with zopen(path, "rt") as file:
+            with zopen(path, mode="rt") as file:
                 ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(file)
         except Exception as exc:
             print(f"Error loading {path=}: {exc}")
@@ -106,7 +110,7 @@ def update_key_name(directory: str, key_map: dict[str, str]) -> None:
             if old_key in ph_doc:
                 ph_doc[new_key] = ph_doc.pop(old_key)
 
-        with zopen(path, "wt") as file:
+        with zopen(path, mode="wt") as file:
             json.dump(ph_doc, file)
 
 
@@ -160,13 +164,13 @@ def get_df_summary(
         ph_docs = load_pymatgen_phonon_docs(which_db=ph_docs or "phonon-db")
 
     summary_dict: dict[tuple[str, str], dict] = defaultdict(dict)
-    for mat_id, docs in ph_docs.items():
+    for mat_id, docs in ph_docs.items():  # iterate over materials
         supercell = docs[Key.pbe].supercell
         # assert all off-diagonal elements are zero (check assumes all positive values)
         if not supercell.trace() == supercell.sum():
             raise ValueError(f"Non-diagonal {supercell=}")
 
-        for model, ph_doc in docs.items():
+        for model, ph_doc in docs.items():  # iterate over models for each material
             id_model = mat_id, model
             summary_dict[id_model][Key.formula] = ph_doc.structure.formula
             summary_dict[id_model][Key.n_sites] = len(ph_doc.structure)

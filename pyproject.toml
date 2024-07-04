@@ -25,7 +25,10 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+  "atomate2[phonons]>=0.0.14",
+  "bs4>=0.0.2",
   "matplotlib>=3.6.2",
+  "mp-api>=0.41",
   "numpy>=1.26",
   "pandas>=2.0.0",
   "plotly>=5.22",
@@ -42,7 +45,7 @@ Repo = "https://github.com/janosh/ffonons"
 Package = "https://pypi.org/project/ffonons"
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov"]
+test = ["pytest-cov>=4", "pytest>=8"]
 
 [tool.setuptools.packages.find]
 include = ["ffonons*"]

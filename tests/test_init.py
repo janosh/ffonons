@@ -12,14 +12,14 @@ from ffonons.enums import Key
 @pytest.fixture(scope="session")
 def mp_661_mace_dos() -> PhononDos:
     with zopen(
-        f"{DATA_DIR}/phonon-db/mp-661-Al2N2-mace-y7uhwpje.json.lzma", "rt"
+        f"{DATA_DIR}/phonon-db/mp-661-Al2N2-mace-y7uhwpje.json.lzma", mode="rt"
     ) as file:
         return PhononDos.from_dict(json.load(file)[Key.dos])
 
 
 @pytest.fixture(scope="session")
 def mp_2789_pbe_dos() -> PhononDos:
-    with zopen(f"{DATA_DIR}/phonon-db/mp-2789-N12O24-pbe.json.lzma", "rt") as file:
+    with zopen(f"{DATA_DIR}/phonon-db/mp-2789-N12O24-pbe.json.lzma", mode="rt") as file:
         return PhononDos.from_dict(json.load(file)[Key.dos])
 
 

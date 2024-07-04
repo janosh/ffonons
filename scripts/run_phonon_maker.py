@@ -117,7 +117,7 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
     if not re.match(r"mp-\d+", mat_id):
         raise ValueError(f"Invalid {mat_id=}")
 
-    with zopen(dft_doc_path, "rt") as file:
+    with zopen(dft_doc_path, mode="rt") as file:
         phonondb_doc: PhononDBDocParsed = json.load(file, cls=MontyDecoder)
 
     struct = phonondb_doc.structure
@@ -158,7 +158,7 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
             last_job_id = phonon_flow[-1].uuid
             ml_phonon_doc: Atomate2PhononBSDOSDoc = result[last_job_id][1].output
 
-            with zopen(ml_doc_path, "wt") as file:
+            with zopen(ml_doc_path, mode="wt") as file:
                 json.dump(ml_phonon_doc, file, cls=MontyEncoder)
 
             ml_bs, ml_dos = ml_phonon_doc.phonon_bandstructure, ml_phonon_doc.phonon_dos

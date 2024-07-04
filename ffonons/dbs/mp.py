@@ -17,8 +17,6 @@ if TYPE_CHECKING:
 __author__ = "Janosh Riebesell"
 __date__ = "2023-12-07"
 
-mp_rester = MPRester(mute_progress_bars=True)
-
 
 def get_mp_ph_docs(
     mp_id: str, docs_dir: str = f"{DATA_DIR}/mp"
@@ -33,20 +31,19 @@ def get_mp_ph_docs(
     Returns:
         tuple[PhononBSDOSDoc, str]: Phonon doc and path to saved doc.
     """
+    mp_rester = MPRester(mute_progress_bars=True)
     struct: Structure = mp_rester.get_structure_by_material_id(mp_id)
 
     id_formula = f"{mp_id}-{struct.formula.replace(' ', '')}"
     mp_ph_doc_path = f"{docs_dir}/{id_formula}.json.lzma" if docs_dir else ""
 
-    if mp_ph_doc_path and not os.path.isfile(mp_ph_doc_path):
-        mp_phonon_doc: PhononBSDOSDoc = mp_rester.materials.phonon.get_data_by_id(mp_id)
-
-        with zopen(mp_ph_doc_path, "wt") as file:
-            json.dump(mp_phonon_doc, file, cls=MontyEncoder)
-    elif os.path.isfile(mp_ph_doc_path):
-        with zopen(mp_ph_doc_path, "rt") as file:
+    if os.path.isfile(mp_ph_doc_path):
+        with zopen(mp_ph_doc_path, mode="rt") as file:
             mp_phonon_doc = json.load(file)
     else:
         mp_phonon_doc = mp_rester.materials.phonon.get_data_by_id(mp_id)
+        if mp_ph_doc_path:
+            with zopen(mp_ph_doc_path, mode="wt") as file:
+                json.dump(mp_phonon_doc, file, cls=MontyEncoder)
 
     return mp_phonon_doc, mp_ph_doc_path
