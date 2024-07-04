@@ -7,7 +7,7 @@ Uses pymatgen DOS and band potting methods powered by matplotlib.
 import os
 
 import pandas as pd
-from pymatgen.phonon.plotter import PhononBSPlotter
+from pymatgen.phonon import PhononBSPlotter
 from pymatgen.util.string import latexify
 from pymatviz.enums import Key
 from pymatviz.io import save_fig

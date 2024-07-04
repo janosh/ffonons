@@ -59,7 +59,7 @@ for model in Model:
     df_dft = df_summary.xs(Key.pbe, level=1)
 
     for metric in (
-        # Key.last_dos_peak,
+        # Key.last_ph_dos_peak,
         Key.max_ph_freq,
     ):
         diff = df_dft[metric] - df_model[metric]

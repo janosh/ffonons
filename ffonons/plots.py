@@ -91,22 +91,20 @@ def plot_phonon_dos_mpl(
     return ax
 
 
-def plotly_title(formula: str, mat_id: str = "") -> str:
+def plotly_title(formula: str, href: str = "") -> str:
     """Make plotly figure title from HTML-ified formula and link to MP details page
     (legacy since only legacy has phonons) or other URL.
     """
-    if mat_id.lower().strip().startswith(("mp-", "mvc-")):
-        href = f"https://legacy.materialsproject.org/materials/{mat_id}"
-    elif (
-        mat_id.startswith("https://")
-        and "materialsproject.org" in mat_id
-        and re.match(r"mp-\d+$", mat_id)  # ends in mp-\d+
-    ):
-        href = mat_id
-        mat_id = mat_id.split("/")[-1]
-    else:
-        raise ValueError(f"unrecognized {mat_id=}")
     title = f"{htmlify(formula)}"
-    if mat_id:
-        title += f'  <a href="{href}">{mat_id}</a>'
+
+    if href:
+        if href.lower().strip().startswith(("mp-", "mvc-")):
+            link_text = href
+            href = f"https://legacy.materialsproject.org/materials/{href}"
+        elif "materialsproject.org" in href and re.match(r"/mp-\d+$", href):
+            link_text = re.search(r"/(mp-\d+)$", href).group()
+        else:
+            link_text = href.split("://")[1].replace("www.", "")
+        title += f'  <a href="{href}">{link_text}</a>'
+
     return title

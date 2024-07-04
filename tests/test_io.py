@@ -1,4 +1,3 @@
-from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -7,8 +6,7 @@ import pandas as pd
 import pytest
 from atomate2.common.schemas.phonons import PhononBSDOSDoc
 from pymatgen.core import Lattice, Structure
-from pymatgen.phonon.bandstructure import PhononBandStructureSymmLine
-from pymatgen.phonon.dos import PhononDos
+from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 from pymatviz.enums import Key
 
 from ffonons.enums import PhKey
@@ -18,46 +16,6 @@ from ffonons.io import (
     load_pymatgen_phonon_docs,
     update_key_name,
 )
-
-
-@pytest.fixture()
-def mock_data_dir(tmp_path: Path) -> Generator[Path, None, None]:
-    with patch("ffonons.io.DATA_DIR", str(tmp_path)):
-        yield tmp_path
-
-
-@pytest.fixture()
-def mock_phonon_docs() -> dict[str, dict[str, PhononBSDOSDoc]]:
-    structure = Structure(
-        Lattice.cubic(5.0), ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]]
-    )
-    mock_band_structure = MagicMock(spec=PhononBandStructureSymmLine)
-    mock_band_structure.bands = np.array([[-1, 0, 1], [2, 3, 4]])
-    mock_band_structure.has_imaginary_freq.return_value = True
-    mock_band_structure.has_imaginary_gamma_freq.return_value = False
-    mock_dos = MagicMock(spec=PhononDos)
-    mock_dos.get_last_peak.return_value = 10.5
-    mock_dos.mae.return_value = 0.1
-    mock_dos.r2_score.return_value = 0.95
-
-    return {
-        "mp-1": {
-            "pbe": PhononBSDOSDoc(
-                structure=structure,
-                supercell=np.eye(3) * 2,
-                phonon_bandstructure=mock_band_structure,
-                phonon_dos=mock_dos,
-                has_imaginary_modes=False,
-            ),
-            "ml_model": PhononBSDOSDoc(
-                structure=structure,
-                supercell=np.eye(3) * 2,
-                phonon_bandstructure=mock_band_structure,
-                phonon_dos=mock_dos,
-                has_imaginary_modes=False,
-            ),
-        }
-    }
 
 
 def test_load_pymatgen_phonon_docs(mock_data_dir: Path) -> None:
@@ -122,7 +80,7 @@ def test_get_df_summary(mock_phonon_docs: dict[str, dict[str, PhononBSDOSDoc]]) 
         Key.formula,
         Key.n_sites,
         Key.supercell,
-        Key.last_dos_peak,
+        Key.last_ph_dos_peak,
         Key.max_ph_freq,
         Key.min_ph_freq,
         Key.ph_dos_mae,
@@ -204,3 +162,17 @@ def test_get_gnome_pmg_structures_with_specific_ids(tmp_path: Path) -> None:
     assert "mp-1" in structures
     assert "mp-3" in structures
     assert "mp-2" not in structures
+
+
+# --- test_find_last_dos_peak is in test_io.py because it's used by
+# ffonons.io.get_df_summary. get_last_peak was first implemented as find_last_dos_peak()
+# in ffonons and later upstreamed into pymatgen
+def test_get_last_peak(mp_661_mace_dos: PhononDos, mp_2789_pbe_dos: PhononDos) -> None:
+    # this test was written before find_last_dos_peak() became PhononDos.get_last_peak()
+    # in pymatgen
+    last_mp_661_peak = mp_661_mace_dos.get_last_peak()
+    assert last_mp_661_peak == pytest.approx(19.55269, abs=0.01)
+
+    # example material with only 1 high peak and all others tiny: mp-2789
+    last_mp_2789_peak = mp_2789_pbe_dos.get_last_peak()
+    assert last_mp_2789_peak == pytest.approx(55.659, abs=0.01)

@@ -1,42 +1,27 @@
-import json
 import os
+import re
 
-import pytest
-from monty.io import zopen
-from pymatgen.phonon import PhononDos
-from pymatviz.enums import Key
+import plotly.express as px
+import plotly.io as pio
 
-from ffonons import DATA_DIR, PDF_FIGS, ROOT
-
-
-@pytest.fixture(scope="session")
-def mp_661_mace_dos() -> PhononDos:
-    with zopen(
-        f"{DATA_DIR}/phonon-db/mp-661-Al2N2-mace-y7uhwpje.json.lzma", mode="rt"
-    ) as file:
-        return PhononDos.from_dict(json.load(file)[Key.ph_dos])
+from ffonons import DATA_DIR, PDF_FIGS, ROOT, today
+from ffonons.enums import PhKey
 
 
-@pytest.fixture(scope="session")
-def mp_2789_pbe_dos() -> PhononDos:
-    with zopen(f"{DATA_DIR}/phonon-db/mp-2789-N12O24-pbe.json.lzma", mode="rt") as file:
-        return PhononDos.from_dict(json.load(file)[Key.ph_dos])
-
-
-def test_root() -> None:
+def test_dir_globals() -> None:
     assert os.path.isdir(ROOT)
     assert os.path.isdir(PDF_FIGS)
     assert os.path.isdir(DATA_DIR)
 
 
-def test_find_last_dos_peak(
-    mp_661_mace_dos: PhononDos, mp_2789_pbe_dos: PhononDos
-) -> None:
-    # this test was written before find_last_dos_peak() became PhononDos.get_last_peak()
-    # in pymatgen
-    last_mp_661_peak = mp_661_mace_dos.get_last_peak()
-    assert last_mp_661_peak == pytest.approx(19.55269, abs=0.01)
+def test_plotly_defaults() -> None:
+    assert px.defaults.template == "pymatviz_white"
+    assert pio.templates.default == "pymatviz_white"
 
-    # example material with only 1 high peak and all others tiny: mp-2789
-    last_mp_2789_peak = mp_2789_pbe_dos.get_last_peak()
-    assert last_mp_2789_peak == pytest.approx(55.659, abs=0.01)
+    assert px.defaults.labels[PhKey.togo_id] == PhKey.togo_id.label
+    assert px.defaults.labels[PhKey.dos_mae] == PhKey.dos_mae.label
+    assert px.defaults.labels[PhKey.ph_dos_r2] == PhKey.ph_dos_r2.label
+
+
+def test_today() -> None:
+    assert re.match(r"20\d{2}-\d{2}-\d{2}", today)

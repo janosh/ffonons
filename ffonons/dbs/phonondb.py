@@ -168,7 +168,9 @@ def phonondb_doc_to_pmg_lzma(
         tuple[Structure, dict[str, Any]]: Structure and dict of phonon data
     """
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
-    if matches := glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma"):
+
+    doc_path_patt = pmg_doc_path or f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma"
+    if matches := glob(doc_path_patt):
         if existing == "skip":
             print(f"{matches[0]} already exists. skipping")
             return matches[0]

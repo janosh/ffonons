@@ -43,11 +43,11 @@ def test_get_mp_ph_docs_new_file(
     mock_mp_rester.get_structure_by_material_id.return_value = mock_structure
     mock_mp_rester.materials.phonon.get_data_by_id.return_value = mock_phonon_doc
 
-    result, file_path = get_mp_ph_docs("mp-149", docs_dir=str(tmp_path))
+    ph_doc, file_path = get_mp_ph_docs("mp-149", docs_dir=str(tmp_path))
 
-    assert isinstance(result, PhononBSDOSDoc)
-    assert result.material_id == mock_phonon_doc.material_id
-    assert result.last_updated.replace(tzinfo=UTC) <= datetime.now(UTC)
+    assert isinstance(ph_doc, PhononBSDOSDoc)
+    assert ph_doc.material_id == mock_phonon_doc.material_id
+    assert ph_doc.last_updated.replace(tzinfo=UTC) <= datetime.now(UTC)
     assert file_path == str(tmp_path / "mp-149-Si2.json.lzma")
     assert os.path.isfile(file_path)
 
@@ -88,10 +88,10 @@ def test_get_mp_ph_docs_no_save(
     mock_mp_rester.get_structure_by_material_id.return_value = mock_structure
     get_ph_data_by_id.return_value = mock_phonon_doc
 
-    result, file_path = get_mp_ph_docs("mp-149", docs_dir="")
+    ph_doc, file_path = get_mp_ph_docs("mp-149", docs_dir="")
 
-    assert isinstance(result, PhononBSDOSDoc)
-    assert result.material_id == mock_phonon_doc.material_id
-    assert result.last_updated.replace(tzinfo=UTC) <= datetime.now(UTC)
+    assert isinstance(ph_doc, PhononBSDOSDoc)
+    assert ph_doc.material_id == mock_phonon_doc.material_id
+    assert ph_doc.last_updated.replace(tzinfo=UTC) <= datetime.now(UTC)
     assert file_path == ""
     get_ph_data_by_id.assert_called_once_with("mp-149")

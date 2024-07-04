@@ -88,22 +88,22 @@ if len(bad_ids) != 0:
 # %% check existing and missing DFT/ML phonon docs
 dft_docs = glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.json.lzma")
 pbe_ids = [re.search(r"mp-\d+", path).group() for path in dft_docs]
-print(f"found {len(dft_docs)} DFT phonon docs")
 
-total_missing, df_missing = set(), pd.DataFrame()
+total_missing_ids, df_missing = set(), pd.DataFrame()
 for model in models:
     model_docs = glob(f"{DATA_DIR}/{which_db}/*-{model}.json.lzma")
     model_ids = [re.search(r"mp-\d+", path).group() for path in model_docs]
     missing_ids = {*pbe_ids} - {*model_ids}
-    total_missing |= missing_ids
+    total_missing_ids |= missing_ids
     df_missing[model.label] = {"missing": len(missing_ids), "have": len(model_ids)}
 
 missing_paths = [
-    path for path in dft_docs if any(mp_id in path for mp_id in total_missing)
+    path for path in dft_docs if any(mp_id in path for mp_id in total_missing_ids)
 ]
 
 caption = (
-    f"matching DFT docs: {len(dft_docs)}<br>total missing: {len(total_missing)}<br><br>"
+    f"found {len(dft_docs):,} {which_db} DFT phonon docs<br>"
+    f"total missing: {len(total_missing_ids):,}<br><br>"
 )
 display(df_missing.T.style.set_caption(caption))
 
@@ -163,12 +163,11 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
                 json.dump(ml_phonon_doc, file, cls=MontyEncoder)
 
             ml_bs, ml_dos = ml_phonon_doc.phonon_bandstructure, ml_phonon_doc.phonon_dos
+            bands_dict = {model.label: ml_bs}
+            dos_dict = {model.label: ml_dos}
             if "pbe_dos" in locals() and "pbe_bands" in locals():
-                dos_dict = {Key.pbe.label: pbe_dos, model.label: ml_dos}
-                bands_dict = {Key.pbe.label: pbe_bands, model.label: ml_bs}
-            else:
-                bands_dict = {model.label: ml_bs}
-                dos_dict = {model.label: ml_dos}
+                dos_dict[Key.pbe.label] = pbe_dos
+                bands_dict[Key.pbe.label] = pbe_bands
 
             fig_bs_dos = plot_phonon_bands_and_dos(bands_dict, dos_dict)
 

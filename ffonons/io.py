@@ -144,7 +144,7 @@ def get_df_summary(
     Returns:
         pd.DataFrame: Summary metrics for each material and model in ph_docs.
     """
-    if isinstance(ph_docs, str):
+    if isinstance(ph_docs, str) and cache_path is not None:
         cache_path = (
             cache_path
             or f"{DATA_DIR}/{ph_docs}/df-summary-tol={imaginary_freq_tol}.csv.gz"
@@ -182,7 +182,7 @@ def get_df_summary(
             # last phonon DOS peak
             ph_dos = ph_doc.phonon_dos
             last_peak = ph_dos.get_last_peak()
-            summary_dict[id_model][Key.last_dos_peak] = last_peak
+            summary_dict[id_model][Key.last_ph_dos_peak] = last_peak
 
             # min/max frequency from band structure
             ph_bs = ph_doc.phonon_bandstructure

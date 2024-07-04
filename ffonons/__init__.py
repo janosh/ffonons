@@ -29,7 +29,7 @@ SOFT_PES_DIR = f"{PDF_FIGS}/soft-pes"
 TEST_FILES = f"{ROOT}/tests/files"
 
 today = f"{datetime.now(tz=UTC):%Y-%m-%d}"
-px.defaults.labels |= PhKey.key_val_dict()
+px.defaults.labels |= PhKey.val_label_dict()
 
 speed_of_light = 299792458  # [m/s]
 thz_to_per_cm = 1e12 / (speed_of_light * 100)  # convert THz to cm^-1: 33.356410

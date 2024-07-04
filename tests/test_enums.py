@@ -1,8 +1,9 @@
 import inspect
 from enum import StrEnum
 
+from pymatviz.enums import LabelEnum
+
 import ffonons.enums
-from ffonons.enums import LabelEnum
 
 
 def test_label_enum() -> None:
