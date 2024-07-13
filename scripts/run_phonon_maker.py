@@ -42,7 +42,7 @@ for directory in (PH_DOCS_DIR, FIGS_DIR, RUNS_DIR):
     os.makedirs(directory, exist_ok=True)
 
 common_relax_kwds = dict(fmax=0.00001)
-mace_kwds = dict(model="https://tinyurl.com/y7uhwpje")
+mace_kwds = dict(model="medium")
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
 
 do_mlff_relax = True  # whether to MLFF-relax the PBE structure

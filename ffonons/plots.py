@@ -3,6 +3,7 @@ interactive and more customizable band structure and DOS plotting functions in p
 """
 
 import re
+import sys
 
 import plotly.express as px
 from matplotlib import pyplot as plt
@@ -24,7 +25,9 @@ def plot_phonon_dos_mpl(
     ax: plt.Axes | None = None,
     last_peak_anno: str | None = r"$\omega_\text{{max}}^{{{key}}}={last_peak:.1f}$",
 ) -> plt.Axes:
-    r"""Plot phonon DOS.
+    r"""Plot a phonon DOS with matplotlib.
+
+    Deprecated in favor of pymatviz.plot_phonon_dos powered by plotly.
 
     Args:
         phonon_dos (PhononDos | dict[str, PhononDos]): Single phonon DOS or dict of
@@ -43,6 +46,11 @@ def plot_phonon_dos_mpl(
     Returns:
         plt.Axes: Matplotlib axes
     """
+    print(
+        "plot_phonon_dos_mpl is deprecated, use the interactive plotly version in "
+        "pymatviz.plot_phonon_dos instead",
+        file=sys.stderr,
+    )
     ph_dos_plot = PhononDosPlotter()
     phonon_dos = phonon_dos if isinstance(phonon_dos, dict) else {"": phonon_dos}
 
