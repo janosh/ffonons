@@ -28,7 +28,7 @@ df_summary = get_df_summary(
 
 # %% save analyzed MP IDs to CSV for rendering with Typst
 
-# get material IDs where all models have results
+# get material IDs for which all models (ML + DFT) have results
 idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
 
 for folder in (
@@ -143,6 +143,8 @@ regr_metrics_caption = (
 clf_caption = caption_factory(Key.has_imag_ph_modes)
 clf_gam_caption = caption_factory(Key.has_imag_ph_gamma_modes)
 write_to_disk = True
+lower_better, higher_better = [], []
+
 for df_loop, caption, filename in (
     (dfs_imag[Key.has_imag_ph_modes], clf_caption, "ffonon-imag-clf-table"),
     (
@@ -155,7 +157,7 @@ for df_loop, caption, filename in (
     lower_better = [
         col for col in df_loop if any(pat in col for pat in ("MAE", "FNR", "FPR"))
     ]
-    higher_better = {*df_loop} - set(lower_better)
+    higher_better = list(set(df_loop) - set(lower_better))
     styler = df_loop.T.style.format(
         # render integers without decimal places
         lambda val: (f"{val:.0f}" if val == int(val) else f"{val:.2f}")
@@ -168,7 +170,7 @@ for df_loop, caption, filename in (
         cmap=f"{cmap}_r", subset=pd.IndexSlice[[*lower_better], :], axis="columns"
     )
     styler.background_gradient(
-        cmap=cmap, subset=pd.IndexSlice[[*higher_better], :], axis="columns"
+        cmap=cmap, subset=pd.IndexSlice[higher_better, :], axis="columns"
     )
 
     # add up/down arrows to indicate which metrics are better when higher/lower
@@ -195,23 +197,20 @@ for df_loop, caption, filename in (
 
 
 # %% --- horizontal metrics table ---
-if False:
-    lower_better = [
-        col for col in df_regr if any(pat in col for pat in ("MAE", "FNR", "FPR"))
-    ]
-    styler = df_regr.reset_index().style.format(precision=2, na_rep="-")
-    styler.background_gradient(cmap=cmap).background_gradient(
-        cmap=f"{cmap}_r", subset=lower_better
-    )
+lower_better = [
+    col for col in df_regr if any(pat in col for pat in ("MAE", "FNR", "FPR"))
+]
+styler = df_regr.reset_index().style.format(precision=2, na_rep="-")
+styler.background_gradient(cmap=cmap).background_gradient(
+    cmap=f"{cmap}_r", subset=lower_better
+)
 
-    arrow_suffix = dict.fromkeys(higher_better, " ↑") | dict.fromkeys(
-        lower_better, " ↓"
-    )
-    styler.relabel_index(
-        [f"{col}{arrow_suffix.get(col, '')}" for col in styler.data], axis="columns"
-    ).set_uuid("").hide(axis="index")
+arrow_suffix = dict.fromkeys(higher_better, " ↑") | dict.fromkeys(lower_better, " ↓")
+styler.relabel_index(
+    [f"{col}{arrow_suffix.get(col, '')}" for col in styler.data], axis="columns"
+).set_uuid("").hide(axis="index")
 
-    df_to_pdf(styler, file_path=f"{PDF_FIGS}/{table_name}.pdf")
-    df_to_html_table(styler, file_path=f"{SITE_FIGS}/{table_name}.svelte")
-    display(styler)
-    styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")
+df_to_pdf(styler, file_path=f"{PDF_FIGS}/ffonon-regr-metrics-table.pdf")
+df_to_html_table(styler, file_path=f"{SITE_FIGS}/ffonon-regr-metrics-table.svelte")
+display(styler)
+styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")
