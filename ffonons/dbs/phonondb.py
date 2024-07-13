@@ -34,12 +34,12 @@ from pymatgen.symmetry.bandstructure import HighSymmKpath
 from pymatgen.symmetry.kpath import KPathSeek
 
 from ffonons import DATA_DIR, KpathScheme, ValidKpathSchemes, seekpath_kpath_scheme
-from ffonons.enums import PhKey
+from ffonons.enums import DB, PhKey
 
 __author__ = "Janine George, Aakash Naik, Janosh Riebesell"
 __date__ = "2023-12-07"
 
-db_name = "phonon-db"
+db_name = DB.phonon_db
 ph_docs_dir = f"{DATA_DIR}/{db_name}"
 
 id_map_path = f"{DATA_DIR}/{db_name}/map-mp-id-togo-id.csv"

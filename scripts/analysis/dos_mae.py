@@ -7,7 +7,7 @@ from pymatviz.io import save_fig
 from pymatviz.powerups import add_ecdf_line
 
 from ffonons import PAPER_DIR
-from ffonons.enums import Model
+from ffonons.enums import DB, Model
 from ffonons.io import get_df_summary
 
 __author__ = "Janosh Riebesell"
@@ -15,7 +15,7 @@ __date__ = "2023-12-17"
 
 
 # %%
-df_summary = get_df_summary(which_db := "phonon-db")
+df_summary = get_df_summary(which_db := DB.phonon_db)
 df_model = df_summary.xs(Model.mace_mp, level=1)
 
 

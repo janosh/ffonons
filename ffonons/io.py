@@ -116,7 +116,7 @@ def update_key_name(directory: str, key_map: dict[str, str]) -> None:
 
 
 def get_df_summary(
-    ph_docs: PhDocs | DB = None,
+    ph_docs: PhDocs | DB = DB.phonon_db,
     *,  # force keyword-only arguments
     imaginary_freq_tol: float = 0.01,
     cache_path: str | Path = "",
