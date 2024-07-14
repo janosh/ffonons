@@ -34,30 +34,41 @@ PhDocs = dict[str, dict[str, PhononBSDOSDoc | PhononDBDocParsed]]
 
 
 def load_pymatgen_phonon_docs(
-    which_db: Literal["mp", "phonon-db"],
+    docs_to_load: Literal["mp", "phonon-db"] | Sequence[str],
+    *,
     materials_ids: Sequence[str] = (),
     glob_patt: str = "",
+    verbose: bool = True,
 ) -> PhDocs:
     """Load existing DFT/ML phonon band structure and DOS docs from disk for a
     specified database.
 
     Args:
-        which_db ("mp" | "phonon-db"): Which database to load docs from.
+        docs_to_load ("mp" | "phonon-db" | Sequence[str]): Database name to load docs
+            for or list of file paths to load.
         materials_ids (Sequence[str]): List of material IDs to load. Defaults to ().
         glob_patt (str): Glob pattern to match files to load from the database
-            directory. Defaults to "".
+            directory. Defaults to "". If set, only files matching this pattern will be
+            loaded. Ignored if docs_to_load is a list of file paths.
+        verbose (bool): Whether to print progress bar. Defaults to True.
 
     Returns:
         dict[str, dict[str, dict]]: Outer key is material ID, 2nd-level key is the model
             name (or DFT) mapped to a PhononBSDOSDoc.
     """
-    # glob json.gz or .json.lzma files
-    if glob_patt == "":
-        paths = glob(f"{DATA_DIR}/{which_db}/*.json.gz") + glob(
-            f"{DATA_DIR}/{which_db}/*.json.lzma"
-        )
+    if len(docs_to_load) == 0:
+        return {}
+    if isinstance(docs_to_load, str):
+        if glob_patt == "":
+            paths = glob(f"{DATA_DIR}/{docs_to_load}/*.json.gz") + glob(
+                f"{DATA_DIR}/{docs_to_load}/*.json.lzma"
+            )
+        else:
+            paths = glob(f"{DATA_DIR}/{docs_to_load}/{glob_patt}")
+    elif {*map(type, docs_to_load)} == {str}:
+        paths = docs_to_load
     else:
-        paths = glob(f"{DATA_DIR}/{which_db}/{glob_patt}")
+        raise TypeError(f"Invalid {docs_to_load=}, should be str or list of str")
 
     if materials_ids:
         paths = [
@@ -65,11 +76,14 @@ def load_pymatgen_phonon_docs(
         ]
 
     if len(paths) == 0:
-        raise FileNotFoundError(f"No files found in {DATA_DIR}/{which_db}")
+        raise FileNotFoundError(f"No files found in {DATA_DIR}/{docs_to_load}")
 
     ph_docs = defaultdict(dict)
 
-    for path in tqdm(paths, desc=f"Loading {which_db} docs"):
+    pbar = tqdm(paths, desc=f"Loading {len(paths)} docs")
+    for path in pbar if verbose else paths:
+        if verbose:
+            pbar.set_postfix_str(path.split("/")[-1])
         try:
             with zopen(path, mode="rt") as file:
                 ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(
@@ -79,7 +93,7 @@ def load_pymatgen_phonon_docs(
             print(f"error loading {path=}: {exc}")
             continue
 
-        path_regex = rf".*/{which_db}/(mp-\d+)-([A-Z][^-]+)-(.*).json.*"
+        path_regex = r".*/(mp-\d+)-([A-Z][^-]+)-(.*).json.*"
         try:
             mp_id, _formula, model = re.search(path_regex, path).groups()
         except (ValueError, AttributeError):
@@ -96,41 +110,12 @@ def load_pymatgen_phonon_docs(
     return ph_docs
 
 
-def update_key_name(directory: str, key_map: dict[str, str]) -> None:
-    """Load all phonon docs in a directory and update the name of a key, then save
-    updated doc back to disk.
-
-    Args:
-        directory (str): Path to the directory containing the phonon docs.
-        key_map (dict[str, str]): Mapping of old key names to new key names.
-
-    Example:
-        update_key_name(f"{DATA_DIR}/{which_db}/", {"supercell_matrix": "supercell"})
-    """
-    paths = glob(f"{directory}/*.json.gz") + glob(f"{directory}/*.json.lzma")
-
-    for path in tqdm(paths, desc="Updating key name"):
-        try:
-            with zopen(path, mode="rt") as file:
-                ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(file)
-        except Exception as exc:
-            print(f"Error loading {path=}: {exc}")
-            continue
-
-        for old_key, new_key in key_map.items():
-            if old_key in ph_doc:
-                ph_doc[new_key] = ph_doc.pop(old_key)
-
-        with zopen(path, mode="wt") as file:
-            json.dump(ph_doc, file)
-
-
 def get_df_summary(
     ph_docs: PhDocs | DB = DB.phonon_db,
     *,  # force keyword-only arguments
     imaginary_freq_tol: float = 0.01,
     cache_path: str | Path = "",
-    refresh_cache: bool | str = False,
+    refresh_cache: bool | str | Literal["incremental"] = "incremental",  # noqa: PYI051
 ) -> pd.DataFrame:
     """Get a pandas DataFrame with last phonon DOS peak frequencies, band widths, DOS
     MAE, DOS R^2, presence of imaginary modes (at Gamma or anywhere) and other metrics.
@@ -147,8 +132,7 @@ def get_df_summary(
             Defaults to 0.1. See pymatgen's PhononBandStructureSymmLine
             has_imaginary_freq() method.
         cache_path (str | Path): Path to cache file. Set to None to disable caching.
-            Defaults to f"{DATA_DIR}/{ph_docs}/df-summary.csv.gz" if ph_docs is a str,
-            else to None.
+            Default = f"{DATA_DIR}/{ph_docs}/df-summary-tol={imaginary_freq_tol}.csv.gz"
         refresh_cache (bool | str): If True, reload all phonon docs in given database
             directory. Will write a new summary CSV after. If a string, use as a
             glob pattern to only reload matching files for speed. Has no effect when
@@ -164,9 +148,9 @@ def get_df_summary(
             or f"{DATA_DIR}/{ph_docs}/df-summary-tol={imaginary_freq_tol}.csv.gz"
         )
 
-    existing_df = None
+    df_cached = None
     if os.path.isfile(cache_path or ""):
-        existing_df = pd.read_csv(
+        df_cached = pd.read_csv(
             cache_path, index_col=[Key.mat_id, Key.model]
         ).convert_dtypes()
         if not refresh_cache:
@@ -175,19 +159,46 @@ def get_df_summary(
                 - datetime.fromtimestamp(os.path.getmtime(cache_path), tz=UTC)
             ).days
             print(f"Using cached df_summary from {cache_path!r} (days old: {n_days}). ")
-            return existing_df
+            return df_cached
 
-    if isinstance(ph_docs, str):
-        glob_patt = refresh_cache if isinstance(refresh_cache, str) else ""
-        ph_docs = load_pymatgen_phonon_docs(which_db=ph_docs, glob_patt=glob_patt)
+    if (
+        isinstance(ph_docs, str)
+        and refresh_cache == "incremental"
+        and isinstance(df_cached, pd.DataFrame)
+    ):
+        all_files = glob(f"{DATA_DIR}/{ph_docs}/*.json.gz") + glob(
+            f"{DATA_DIR}/{ph_docs}/*.json.lzma"
+        )
+
+        loaded_mat_id_model_combos = tuple(df_cached.index)
+
+        def id_model_combo_already_loaded(path: str) -> bool:
+            mat_id, _formula, model = re.search(
+                r".*/(mp-\d+)-([A-Z][^-]+)-(.*).json.*", path
+            ).groups()
+            return (mat_id, model) in loaded_mat_id_model_combos
+
+        files_to_load = [
+            path for path in all_files if not id_model_combo_already_loaded(path)
+        ]
+        ph_docs = files_to_load
+
+    glob_patt = refresh_cache if isinstance(refresh_cache, str) else ""
+    loaded_docs = load_pymatgen_phonon_docs(docs_to_load=ph_docs, glob_patt=glob_patt)
 
     summary_dict: dict[tuple[str, str], dict] = defaultdict(dict)
-    for mat_id, docs in ph_docs.items():  # iterate over materials
+    for mat_id, docs in loaded_docs.items():  # iterate over materials
         for model, ph_doc in docs.items():  # iterate over models for each material
+            if df_cached is not None and (mat_id, model) in df_cached.index:
+                # Skip if this entry already exists in the cache
+                continue
+
             id_model = mat_id, model
             summary_dict[id_model][Key.formula] = ph_doc.structure.formula
             summary_dict[id_model][Key.n_sites] = len(ph_doc.structure)
-            supercell = getattr(ph_doc, "supercell", ph_doc.supercell_matrix)
+            supercell = getattr(
+                ph_doc, "supercell", getattr(ph_doc, "supercell_matrix", None)
+            )
             # assert all off-diagonal elements are zero (check assumes supercell matrix
             # has only positive values)
             if (
@@ -226,19 +237,21 @@ def get_df_summary(
     if len(new_df.index.names) == len(idx_names):
         new_df.index.names = idx_names
     elif len(new_df.index.names) == 1:
-        new_df.index.names = idx_names[0]
+        new_df.index.names = [idx_names[0]]
 
-    if existing_df is None:
+    # Concatenate the existing DataFrame with the new one
+
+    if df_cached is None:
         df_summary = new_df
     else:
-        existing_df.update(new_df)  # Update existing rows
-        existing_df = pd.concat(  # Add new rows not in existing_df
-            [existing_df, new_df[~new_df.index.isin(existing_df.index)]]
+        df_cached.update(new_df)  # Update existing rows
+        df_cached = pd.concat(  # Add new rows not in df_cached
+            [df_cached, new_df[~new_df.index.isin(df_cached.index)]]
         )
-        df_summary = existing_df
+        df_summary = df_cached
 
-    # if cache_path:
-    #     df_summary.to_csv(cache_path)
+    if cache_path:
+        df_summary.to_csv(cache_path)
 
     return df_summary
 
@@ -286,3 +299,32 @@ def get_gnome_pmg_structures(
                 structs[mat_id] = struct
 
     return structs
+
+
+def update_key_name(directory: str, key_map: dict[str, str]) -> None:
+    """Load all phonon docs in a directory and update the name of a key, then save
+    updated doc back to disk.
+
+    Args:
+        directory (str): Path to the directory containing the phonon docs.
+        key_map (dict[str, str]): Mapping of old key names to new key names.
+
+    Example:
+        update_key_name(f"{DATA_DIR}/{which_db}/", {"supercell_matrix": "supercell"})
+    """
+    paths = glob(f"{directory}/*.json.gz") + glob(f"{directory}/*.json.lzma")
+
+    for path in tqdm(paths, desc="Updating key name"):
+        try:
+            with zopen(path, mode="rt") as file:
+                ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(file)
+        except Exception as exc:
+            print(f"Error loading {path=}: {exc}")
+            continue
+
+        for old_key, new_key in key_map.items():
+            if old_key in ph_doc:
+                ph_doc[new_key] = ph_doc.pop(old_key)
+
+        with zopen(path, mode="wt") as file:
+            json.dump(ph_doc, file)

@@ -22,18 +22,20 @@ __date__ = "2023-12-15"
 # %% compute last phonon DOS peak for each model and MP
 imaginary_freq_tol = 0.01
 df_summary = get_df_summary(
-    which_db := DB.phonon_db,
-    imaginary_freq_tol=imaginary_freq_tol,
-    refresh_cache=f"*{Model.sevennet_0}*",
+    which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
 )
 
-# completed phonon calcs by model
+print(f"total docs {len(df_summary)=:,}")
+
+
+# %% completed phonon calcs by model
 n_completed_by_model = df_summary.groupby(level=1).size().sort_values()
 print(f"{n_completed_by_model=}".split("dtype: ")[0])
 
-# get material IDs for which all models (ML + DFT) have results
+# get material IDs for which all models (ML + DFT) have results (filtering by
+# Key.max_ph_freq but any column will)
 thresh = 5
-idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=5).index
+idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=thresh).index
 n_avail = len(idx_n_avail)
 print(f"{n_avail:,} materials with results from at least {thresh} models (incl. DFT)")
 

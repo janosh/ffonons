@@ -24,9 +24,7 @@ __date__ = "2024-02-22"
 
 
 # %% load summary data
-df_summary = get_df_summary(
-    which_db := DB.phonon_db, refresh_cache=f"*{Model.sevennet_0}*"
-)
+df_summary = get_df_summary(which_db := DB.phonon_db)
 
 os.makedirs(FIGS_DIR := SOFT_PES_DIR, exist_ok=True)
 os.makedirs(FIGS_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)

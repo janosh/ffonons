@@ -11,6 +11,7 @@ from zipfile import BadZipFile
 
 import atomate2.forcefields.jobs as ff_jobs
 import pandas as pd
+import plotly.graph_objects as go
 import sevenn
 import torch
 from atomate2.common.schemas.phonons import PhononBSDOSDoc as Atomate2PhononBSDOSDoc
@@ -31,6 +32,9 @@ from ffonons.plots import plotly_title
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-19"
+
+# make go.Figure.show() a no-op
+go.Figure.show = lambda *_args, **_kwargs: None
 
 
 # %%
