@@ -34,7 +34,9 @@ PhDocs = dict[str, dict[str, PhononBSDOSDoc | PhononDBDocParsed]]
 
 
 def load_pymatgen_phonon_docs(
-    which_db: Literal["mp", "phonon-db"], materials_ids: Sequence[str] = ()
+    which_db: Literal["mp", "phonon-db"],
+    materials_ids: Sequence[str] = (),
+    glob_patt: str = "",
 ) -> PhDocs:
     """Load existing DFT/ML phonon band structure and DOS docs from disk for a
     specified database.
@@ -42,21 +44,29 @@ def load_pymatgen_phonon_docs(
     Args:
         which_db ("mp" | "phonon-db"): Which database to load docs from.
         materials_ids (Sequence[str]): List of material IDs to load. Defaults to ().
+        glob_patt (str): Glob pattern to match files to load from the database
+            directory. Defaults to "".
 
     Returns:
         dict[str, dict[str, dict]]: Outer key is material ID, 2nd-level key is the model
             name (or DFT) mapped to a PhononBSDOSDoc.
     """
     # glob json.gz or .json.lzma files
-    paths = glob(f"{DATA_DIR}/{which_db}/*.json.gz") + glob(
-        f"{DATA_DIR}/{which_db}/*.json.lzma"
-    )
+    if glob_patt == "":
+        paths = glob(f"{DATA_DIR}/{which_db}/*.json.gz") + glob(
+            f"{DATA_DIR}/{which_db}/*.json.lzma"
+        )
+    else:
+        paths = glob(f"{DATA_DIR}/{which_db}/{glob_patt}")
+
     if materials_ids:
         paths = [
             path for path in paths if any(mp_id in path for mp_id in materials_ids)
         ]
+
     if len(paths) == 0:
         raise FileNotFoundError(f"No files found in {DATA_DIR}/{which_db}")
+
     ph_docs = defaultdict(dict)
 
     for path in tqdm(paths, desc=f"Loading {which_db} docs"):
@@ -120,7 +130,7 @@ def get_df_summary(
     *,  # force keyword-only arguments
     imaginary_freq_tol: float = 0.01,
     cache_path: str | Path = "",
-    refresh_cache: bool = False,
+    refresh_cache: bool | str = False,
 ) -> pd.DataFrame:
     """Get a pandas DataFrame with last phonon DOS peak frequencies, band widths, DOS
     MAE, DOS R^2, presence of imaginary modes (at Gamma or anywhere) and other metrics.
@@ -139,7 +149,11 @@ def get_df_summary(
         cache_path (str | Path): Path to cache file. Set to None to disable caching.
             Defaults to f"{DATA_DIR}/{ph_docs}/df-summary.csv.gz" if ph_docs is a str,
             else to None.
-        refresh_cache (bool): Whether to refresh the cache. Defaults to False.
+        refresh_cache (bool | str): If True, reload all phonon docs in given database
+            directory. Will write a new summary CSV after. If a string, use as a
+            glob pattern to only reload matching files for speed. Has no effect when
+            ph_docs is a list of documents and not a str (as in a database name) other
+            than writing a new CSV cache file. Defaults to False.
 
     Returns:
         pd.DataFrame: Summary metrics for each material and model in ph_docs.
@@ -150,31 +164,37 @@ def get_df_summary(
             or f"{DATA_DIR}/{ph_docs}/df-summary-tol={imaginary_freq_tol}.csv.gz"
         )
 
-    if not refresh_cache and os.path.isfile(cache_path or ""):
-        # print days since file was cached
-        n_days = (
-            datetime.now(tz=UTC)
-            - datetime.fromtimestamp(os.path.getmtime(cache_path), tz=UTC)
-        ).days
-        print(f"Using cached df_summary from {cache_path!r} (days old: {n_days}). ")
-        return pd.read_csv(
+    existing_df = None
+    if os.path.isfile(cache_path or ""):
+        existing_df = pd.read_csv(
             cache_path, index_col=[Key.mat_id, Key.model]
         ).convert_dtypes()
+        if not refresh_cache:
+            n_days = (
+                datetime.now(tz=UTC)
+                - datetime.fromtimestamp(os.path.getmtime(cache_path), tz=UTC)
+            ).days
+            print(f"Using cached df_summary from {cache_path!r} (days old: {n_days}). ")
+            return existing_df
 
-    if isinstance(ph_docs, str | type(None)):
-        ph_docs = load_pymatgen_phonon_docs(which_db=ph_docs or "phonon-db")
+    if isinstance(ph_docs, str):
+        glob_patt = refresh_cache if isinstance(refresh_cache, str) else ""
+        ph_docs = load_pymatgen_phonon_docs(which_db=ph_docs, glob_patt=glob_patt)
 
     summary_dict: dict[tuple[str, str], dict] = defaultdict(dict)
     for mat_id, docs in ph_docs.items():  # iterate over materials
-        supercell = docs[Key.pbe].supercell
-        # assert all off-diagonal elements are zero (check assumes all positive values)
-        if not supercell.trace() == supercell.sum():
-            raise ValueError(f"Non-diagonal {supercell=}")
-
         for model, ph_doc in docs.items():  # iterate over models for each material
             id_model = mat_id, model
             summary_dict[id_model][Key.formula] = ph_doc.structure.formula
             summary_dict[id_model][Key.n_sites] = len(ph_doc.structure)
+            supercell = getattr(ph_doc, "supercell", ph_doc.supercell_matrix)
+            # assert all off-diagonal elements are zero (check assumes supercell matrix
+            # has only positive values)
+            if (
+                isinstance(supercell, np.ndarray)
+                and supercell.trace() != supercell.sum()
+            ):
+                raise ValueError(f"Non-diagonal {supercell=}")
             summary_dict[id_model][Key.supercell] = ", ".join(
                 map(str, np.diag(supercell))
             )
@@ -201,11 +221,24 @@ def get_df_summary(
             summary_dict[id_model][Key.has_imag_ph_gamma_modes] = has_imag_gamma_mode
 
     # convert_dtypes() turns boolean cols imaginary_(gamma_)freq to bool
-    df_summary = pd.DataFrame(summary_dict).T.convert_dtypes()
-    df_summary.index.names = [str(Key.mat_id), "model"]
+    new_df = pd.DataFrame(summary_dict).T.convert_dtypes()
+    idx_names = [str(Key.mat_id), str(Key.model)]
+    if len(new_df.index.names) == len(idx_names):
+        new_df.index.names = idx_names
+    elif len(new_df.index.names) == 1:
+        new_df.index.names = idx_names[0]
 
-    if cache_path:
-        df_summary.to_csv(cache_path)
+    if existing_df is None:
+        df_summary = new_df
+    else:
+        existing_df.update(new_df)  # Update existing rows
+        existing_df = pd.concat(  # Add new rows not in existing_df
+            [existing_df, new_df[~new_df.index.isin(existing_df.index)]]
+        )
+        df_summary = existing_df
+
+    # if cache_path:
+    #     df_summary.to_csv(cache_path)
 
     return df_summary
 
