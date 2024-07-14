@@ -11,6 +11,8 @@ from zipfile import BadZipFile
 
 import atomate2.forcefields.jobs as ff_jobs
 import pandas as pd
+import plotly.graph_objects as go
+import sevenn
 import torch
 from atomate2.common.schemas.phonons import PhononBSDOSDoc as Atomate2PhononBSDOSDoc
 from atomate2.forcefields.flows.phonons import PhononMaker
@@ -31,6 +33,9 @@ from ffonons.plots import plotly_title
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-19"
 
+# make go.Figure.show() a no-op
+go.Figure.show = lambda *_args, **_kwargs: None
+
 
 # %%
 which_db = DB.phonon_db
@@ -42,8 +47,14 @@ for directory in (PH_DOCS_DIR, FIGS_DIR, RUNS_DIR):
     os.makedirs(directory, exist_ok=True)
 
 common_relax_kwds = dict(fmax=0.00001)
-mace_kwds = dict(model="https://tinyurl.com/y7uhwpje")
+mace_kwds = dict(model="medium")
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
+s7_ckhpt_dir = f"{sevenn.__file__.split('/sevenn')[0]}/pretrained_potentials"
+s7net_ckhpt = f"{s7_ckhpt_dir}/SevenNet_0__11July2024/checkpoint_sevennet_0.pth"
+s7net_kwds = dict(model=s7net_ckhpt)
+if not os.path.isfile(s7net_ckhpt):
+    raise FileNotFoundError(f"Missing {s7net_ckhpt=}")
+
 
 do_mlff_relax = True  # whether to MLFF-relax the PBE structure
 models = {
@@ -74,6 +85,15 @@ models = {
             calculator_kwargs=chgnet_kwds
         ),
         static_energy_maker=ff_jobs.CHGNetStaticMaker(calculator_kwargs=chgnet_kwds),
+    ),
+    Model.sevennet_0: dict(
+        bulk_relax_maker=ff_jobs.SevenNetRelaxMaker(
+            relax_kwargs=common_relax_kwds, calculator_kwargs=s7net_kwds
+        ),
+        phonon_displacement_maker=ff_jobs.SevenNetStaticMaker(
+            calculator_kwargs=s7net_kwds
+        ),
+        static_energy_maker=ff_jobs.SevenNetStaticMaker(calculator_kwargs=s7net_kwds),
     ),
 }
 

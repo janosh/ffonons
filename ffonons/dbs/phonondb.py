@@ -34,12 +34,12 @@ from pymatgen.symmetry.bandstructure import HighSymmKpath
 from pymatgen.symmetry.kpath import KPathSeek
 
 from ffonons import DATA_DIR, KpathScheme, ValidKpathSchemes, seekpath_kpath_scheme
-from ffonons.enums import PhKey
+from ffonons.enums import DB, PhKey
 
 __author__ = "Janine George, Aakash Naik, Janosh Riebesell"
 __date__ = "2023-12-07"
 
-db_name = "phonon-db"
+db_name = DB.phonon_db
 ph_docs_dir = f"{DATA_DIR}/{db_name}"
 
 id_map_path = f"{DATA_DIR}/{db_name}/map-mp-id-togo-id.csv"
@@ -67,7 +67,7 @@ def fetch_togo_doc_by_id(doc_id: str, out_path: str = "") -> str:
     filename = f"{mp_id}-{togo_id}-pbe.zip"
     out_path = out_path or f"{ph_docs_dir}/{filename}"
     if os.path.isfile(out_path):
-        print(f"{out_path=} already exists. skipping")
+        # nothing to do if file already exists, return its path
         return out_path
 
     download_url = f"https://mdr.nims.go.jp/download_all/{togo_id}.zip"
@@ -151,7 +151,7 @@ def phonondb_doc_to_pmg_lzma(
     zip_path: str,
     *,
     pmg_doc_path: str | None = None,
-    existing: Literal["skip", "overwrite", "raise"] = "skip",
+    existing: Literal["skip", "skip-silent", "overwrite", "raise"] = "skip",
     on_read_error: Literal["raise", "warn", "ignore"] = "warn",
 ) -> tuple[Structure, dict[str, Any]]:
     """Convert a zipped phonon DB doc to a pymatgen Structure and dict of phonon data.
@@ -171,6 +171,8 @@ def phonondb_doc_to_pmg_lzma(
 
     doc_path_patt = pmg_doc_path or f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma"
     if matches := glob(doc_path_patt):
+        if existing == "skip-silent":
+            return matches[0]
         if existing == "skip":
             print(f"{matches[0]} already exists. skipping")
             return matches[0]

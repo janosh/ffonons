@@ -42,7 +42,7 @@ def test_load_pymatgen_phonon_docs(mock_data_dir: Path) -> None:
             ("mp-1", "NaCl", "pbe"),
             ("mp-2", "MgO", "ml_model"),
         ]
-        result = load_pymatgen_phonon_docs(which_db="mp")
+        result = load_pymatgen_phonon_docs(docs_to_load="mp")
 
     assert len(result) == 2
     assert "mp-1" in result
@@ -106,10 +106,13 @@ def test_get_df_summary_with_cache(
 
     # Test cache loading
     with patch("ffonons.io.load_pymatgen_phonon_docs") as mock_load:
-        df_summary_cached = get_df_summary("mp", cache_path=str(cache_path))
+        df_summary_cached = get_df_summary(
+            "mp", cache_path=str(cache_path), refresh_cache=False
+        )
 
     mock_load.assert_not_called()
-    pd.testing.assert_frame_equal(df_summary, df_summary_cached)
+    # check_dtype=False since reloaded df has dtype=int32 on Windows, orig has int64
+    pd.testing.assert_frame_equal(df_summary, df_summary_cached, check_dtype=False)
 
 
 def test_get_gnome_pmg_structures(tmp_path: Path) -> None:

@@ -26,7 +26,7 @@ model2 = Model.chgnet_030
 
 
 # %% load summary data
-df_summary = get_df_summary(which_db := DB.one_off, refresh_cache=False)
+df_summary = get_df_summary(which_db := DB.one_off)
 
 os.makedirs(FIGS_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 

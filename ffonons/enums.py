@@ -76,3 +76,4 @@ class Model(LabelEnum):
     mace_mp = "mace-y7uhwpje", "MACE-MP", "green"
     gnome = "gnome", "GNoME", "red"
     pbe = "pbe", "PBE", "gray"
+    sevennet_0 = "sevennet-v0", "SevenNet v0", "purple"
