@@ -11,6 +11,7 @@ from zipfile import BadZipFile
 
 import atomate2.forcefields.jobs as ff_jobs
 import pandas as pd
+import sevenn
 import torch
 from atomate2.common.schemas.phonons import PhononBSDOSDoc as Atomate2PhononBSDOSDoc
 from atomate2.forcefields.flows.phonons import PhononMaker
@@ -44,6 +45,13 @@ for directory in (PH_DOCS_DIR, FIGS_DIR, RUNS_DIR):
 common_relax_kwds = dict(fmax=0.00001)
 mace_kwds = dict(model="medium")
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
+sevennet_repo = os.path.dirname(sevenn.__file__)
+sevennet_kwds = {
+    "model": (
+        f"{sevennet_repo}/pretrained_potentials/SevenNet_0__11July2024/checkpoint_sevennet_0.pth"
+    )
+}
+
 
 do_mlff_relax = True  # whether to MLFF-relax the PBE structure
 models = {
@@ -74,6 +82,17 @@ models = {
             calculator_kwargs=chgnet_kwds
         ),
         static_energy_maker=ff_jobs.CHGNetStaticMaker(calculator_kwargs=chgnet_kwds),
+    ),
+    Model.sevennet_0: dict(
+        bulk_relax_maker=ff_jobs.SevenNetRelaxMaker(
+            relax_kwargs=common_relax_kwds, calculator_kwargs=sevennet_kwds
+        ),
+        phonon_displacement_maker=ff_jobs.SevenNetStaticMaker(
+            calculator_kwargs=sevennet_kwds
+        ),
+        static_energy_maker=ff_jobs.SevenNetStaticMaker(
+            calculator_kwargs=sevennet_kwds
+        ),
     ),
 }
 
