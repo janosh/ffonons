@@ -45,12 +45,11 @@ for directory in (PH_DOCS_DIR, FIGS_DIR, RUNS_DIR):
 common_relax_kwds = dict(fmax=0.00001)
 mace_kwds = dict(model="medium")
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
-sevennet_repo = os.path.dirname(sevenn.__file__)
-sevennet_kwds = {
-    "model": (
-        f"{sevennet_repo}/pretrained_potentials/SevenNet_0__11July2024/checkpoint_sevennet_0.pth"
-    )
-}
+s7_ckhpt_dir = f"{sevenn.__file__.split('/sevenn')[0]}/pretrained_potentials"
+s7net_ckhpt = f"{s7_ckhpt_dir}/SevenNet_0__11July2024/checkpoint_sevennet_0.pth"
+s7net_kwds = dict(model=s7net_ckhpt)
+if not os.path.isfile(s7net_ckhpt):
+    raise FileNotFoundError(f"Missing {s7net_ckhpt=}")
 
 
 do_mlff_relax = True  # whether to MLFF-relax the PBE structure
@@ -85,14 +84,12 @@ models = {
     ),
     Model.sevennet_0: dict(
         bulk_relax_maker=ff_jobs.SevenNetRelaxMaker(
-            relax_kwargs=common_relax_kwds, calculator_kwargs=sevennet_kwds
+            relax_kwargs=common_relax_kwds, calculator_kwargs=s7net_kwds
         ),
         phonon_displacement_maker=ff_jobs.SevenNetStaticMaker(
-            calculator_kwargs=sevennet_kwds
+            calculator_kwargs=s7net_kwds
         ),
-        static_energy_maker=ff_jobs.SevenNetStaticMaker(
-            calculator_kwargs=sevennet_kwds
-        ),
+        static_energy_maker=ff_jobs.SevenNetStaticMaker(calculator_kwargs=s7net_kwds),
     ),
 }
 

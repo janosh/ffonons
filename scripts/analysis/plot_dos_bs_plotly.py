@@ -5,6 +5,7 @@ Uses pymatviz DOS and band potting functions powered by Plotly.
 
 # %%
 import os
+from glob import glob
 
 import pandas as pd
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
@@ -13,7 +14,7 @@ from pymatviz.enums import Key
 from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import PDF_FIGS, SITE_FIGS, SOFT_PES_DIR
+from ffonons import DATA_DIR, PDF_FIGS, SITE_FIGS, SOFT_PES_DIR
 from ffonons.enums import DB, Model
 from ffonons.io import get_df_summary, load_pymatgen_phonon_docs
 from ffonons.plots import plotly_title, pretty_labels
@@ -23,14 +24,16 @@ __date__ = "2024-02-22"
 
 
 # %% load summary data
-df_summary = get_df_summary(which_db := DB.phonon_db, refresh_cache=False)
+df_summary = get_df_summary(
+    which_db := DB.phonon_db, refresh_cache=f"*{Model.sevennet_0}*"
+)
 
 os.makedirs(FIGS_DIR := SOFT_PES_DIR, exist_ok=True)
 os.makedirs(FIGS_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 
 idx_n_avail: dict[int, pd.Index] = {}
 
-for idx in range(1, 5):
+for idx in range(1, 6):
     idx_n_avail[idx] = df_summary[Key.max_ph_freq].unstack().dropna(thresh=idx).index
     n_avail = len(idx_n_avail[idx])
     print(f"{n_avail:,} materials with results from at least {idx} models (incl. DFT)")
@@ -54,7 +57,12 @@ df_summary.query(f"{Key.n_sites} == 4")
 
 
 # %% load docs (takes a minute)
-ph_docs = load_pymatgen_phonon_docs(which_db)
+if load_all_docs := True:
+    ph_docs = load_pymatgen_phonon_docs(which_db)
+else:
+    ph_docs = load_pymatgen_phonon_docs(
+        glob(f"{DATA_DIR}/{which_db}/*{Model.sevennet_0}*.json.lzma")
+    )
 
 
 # %%

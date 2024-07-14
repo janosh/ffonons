@@ -22,15 +22,23 @@ __date__ = "2023-12-15"
 # %% compute last phonon DOS peak for each model and MP
 imaginary_freq_tol = 0.01
 df_summary = get_df_summary(
-    which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol, refresh_cache=False
+    which_db := DB.phonon_db,
+    imaginary_freq_tol=imaginary_freq_tol,
+    refresh_cache=f"*{Model.sevennet_0}*",
 )
+
+# completed phonon calcs by model
+n_completed_by_model = df_summary.groupby(level=1).size().sort_values()
+print(f"{n_completed_by_model=}".split("dtype: ")[0])
+
+# get material IDs for which all models (ML + DFT) have results
+thresh = 5
+idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=5).index
+n_avail = len(idx_n_avail)
+print(f"{n_avail:,} materials with results from at least {thresh} models (incl. DFT)")
 
 
 # %% save analyzed MP IDs to CSV for rendering with Typst
-
-# get material IDs for which all models (ML + DFT) have results
-idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
-
 for folder in (
     PAPER_DIR,
     # f"{DATA_DIR}/{which_db}",
@@ -127,7 +135,7 @@ for col in (Key.has_imag_ph_modes, Key.has_imag_ph_gamma_modes):
     ).round(2)
 
 
-# %% --- vertical metrics table ---
+# %% --- display metrics table (metrics as index, models as columns) ---
 def caption_factory(key: PhKey) -> str:
     """Make caption for metrics table of classifying imaginary phonon mode."""
     return (
@@ -147,12 +155,12 @@ lower_better, higher_better = [], []
 
 for df_loop, caption, filename in (
     (dfs_imag[Key.has_imag_ph_modes], clf_caption, "ffonon-imag-clf-table"),
-    (
-        dfs_imag[Key.has_imag_ph_gamma_modes],
-        clf_gam_caption,
-        "ffonon-imag-gamma-clf-table",
-    ),
-    # (df_regr, regr_metrics_caption, "ffonon-regr-metrics-table"),
+    # (
+    #     dfs_imag[Key.has_imag_ph_gamma_modes],
+    #     clf_gam_caption,
+    #     "ffonon-imag-gamma-clf-table",
+    # ),
+    (df_regr, regr_metrics_caption, "ffonon-regr-metrics-table"),
 ):
     lower_better = [
         col for col in df_loop if any(pat in col for pat in ("MAE", "FNR", "FPR"))
@@ -196,7 +204,7 @@ for df_loop, caption, filename in (
     display(styler)
 
 
-# %% --- horizontal metrics table ---
+# %% --- display transposed metrics table (models as index, metrics as columns) ---
 lower_better = [
     col for col in df_regr if any(pat in col for pat in ("MAE", "FNR", "FPR"))
 ]
@@ -212,5 +220,5 @@ styler.relabel_index(
 
 df_to_pdf(styler, file_path=f"{PDF_FIGS}/ffonon-regr-metrics-table.pdf")
 df_to_html_table(styler, file_path=f"{SITE_FIGS}/ffonon-regr-metrics-table.svelte")
-display(styler)
 styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")
+display(styler)
