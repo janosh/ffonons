@@ -106,7 +106,9 @@ def test_get_df_summary_with_cache(
 
     # Test cache loading
     with patch("ffonons.io.load_pymatgen_phonon_docs") as mock_load:
-        df_summary_cached = get_df_summary("mp", cache_path=str(cache_path))
+        df_summary_cached = get_df_summary(
+            "mp", cache_path=str(cache_path), refresh_cache=False
+        )
 
     mock_load.assert_not_called()
     pd.testing.assert_frame_equal(df_summary, df_summary_cached)

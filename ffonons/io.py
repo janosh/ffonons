@@ -221,7 +221,7 @@ def get_df_summary(
             summary_dict[id_model][Key.min_ph_freq] = ph_bs.bands.min()
 
             if model != Key.pbe and Key.pbe in docs:  # calculate DOS MAE and R2
-                pbe_dos = ph_docs[mat_id][Key.pbe].phonon_dos
+                pbe_dos = docs[Key.pbe].phonon_dos
                 summary_dict[id_model][Key.ph_dos_mae] = ph_dos.mae(pbe_dos)
                 summary_dict[id_model][PhKey.ph_dos_r2] = ph_dos.r2_score(pbe_dos)
 
