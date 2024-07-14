@@ -111,8 +111,8 @@ def test_get_df_summary_with_cache(
         )
 
     mock_load.assert_not_called()
-    # check_dtype="equiv" since reloaded df has dtype=int32 on Windows, orig has int64
-    pd.testing.assert_frame_equal(df_summary, df_summary_cached, check_dtype="equiv")
+    # check_dtype=False since reloaded df has dtype=int32 on Windows, orig has int64
+    pd.testing.assert_frame_equal(df_summary, df_summary_cached, check_dtype=False)
 
 
 def test_get_gnome_pmg_structures(tmp_path: Path) -> None:
