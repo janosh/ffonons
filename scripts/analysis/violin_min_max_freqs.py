@@ -5,9 +5,9 @@ import os
 
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+import pymatviz as pmv
 import seaborn as sns
 from pymatviz.enums import Key
-from pymatviz.io import save_fig
 
 from ffonons import PAPER_DIR, PDF_FIGS, SOFT_PES_DIR
 from ffonons.enums import DB, Model
@@ -74,7 +74,7 @@ y_range = 0.7
 y_label = r"$\Omega_{\text{max}}^{\text{ML}} \;/\; \Omega_{\text{max}}^{\text{DFT}}$"
 ax.set(xlabel="", ylabel=y_label, ylim=[1 - y_range, 1 + y_range])
 
-save_fig(ax, f"{FIG_DIR}/max-freq-rel-violin.pdf")
+pmv.save_fig(ax, f"{FIG_DIR}/max-freq-rel-violin.pdf")
 plt.show()
 
 
@@ -183,5 +183,5 @@ for key, op in (
     fig.layout.update(font_size=16)
     fig.show()
     img_name = f"violin-ph-{key.replace('_', '-').replace('-thz', '')}-{op}"
-    save_fig(fig, f"{FIG_DIR}/{img_name}.pdf")
-    save_fig(fig, f"{PAPER_DIR}/{img_name}.svg")
+    pmv.save_fig(fig, f"{FIG_DIR}/{img_name}.pdf")
+    pmv.save_fig(fig, f"{PAPER_DIR}/{img_name}.svg")

@@ -7,10 +7,10 @@ Uses pymatgen DOS and band potting methods powered by matplotlib.
 import os
 
 import pandas as pd
+import pymatviz as pmv
 from pymatgen.phonon import PhononBSPlotter
 from pymatgen.util.string import latexify
 from pymatviz.enums import Key
-from pymatviz.io import save_fig
 from tqdm import tqdm
 
 from ffonons import PDF_FIGS
@@ -61,7 +61,7 @@ for mp_id in idx_n_avail[2]:
     ax_dos.set_title(
         f"{mp_id} {latexify(formula, bold=True)}", fontsize=22, fontweight="bold"
     )
-    save_fig(ax_dos, f"{PDF_FIGS}/{mp_id}-{formula.replace(' ', '')}/dos-all.pdf")
+    pmv.save_fig(ax_dos, f"{PDF_FIGS}/{mp_id}-{formula.replace(' ', '')}/dos-all.pdf")
 
 
 # %% matplotlib bands
@@ -86,6 +86,5 @@ for mp_id in tqdm(idx_n_avail[1]):
         continue
     ax_bands.set_title(f"{latexify(formula)} {mp_id}", fontsize=24)
     ax_bands.figure.subplots_adjust(top=0.95)  # make room for title
-    # save_fig(ax_bands, bands_fig_path)
     # show
     ax_bands.figure.show()

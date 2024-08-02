@@ -7,17 +7,17 @@ from datetime import UTC, datetime
 from typing import Literal, get_args
 
 import plotly.express as px
+import pymatviz as pmv
 from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos, Dos
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
-from pymatviz import set_plotly_template
 
 from ffonons.enums import PhKey
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-15"
 
-set_plotly_template("pymatviz_white")
+pmv.set_plotly_template("pymatviz_white")
 
 PKG_DIR = os.path.dirname(__file__)
 ROOT = os.path.dirname(PKG_DIR)

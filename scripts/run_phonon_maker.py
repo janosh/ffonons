@@ -12,6 +12,7 @@ from zipfile import BadZipFile
 import atomate2.forcefields.jobs as ff_jobs
 import pandas as pd
 import plotly.graph_objects as go
+import pymatviz as pmv
 import sevenn
 import torch
 from atomate2.common.schemas.phonons import PhononBSDOSDoc as Atomate2PhononBSDOSDoc
@@ -20,9 +21,7 @@ from IPython.display import display
 from jobflow import run_locally
 from monty.io import zopen
 from monty.json import MontyDecoder, MontyEncoder
-from pymatviz import plot_phonon_bands_and_dos
 from pymatviz.enums import Key
-from pymatviz.io import save_fig
 from tqdm import tqdm
 
 from ffonons import DATA_DIR, PDF_FIGS, ROOT
@@ -189,8 +188,7 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
                 dos_dict[Key.pbe.label] = pbe_dos
                 bands_dict[Key.pbe.label] = pbe_bands
 
-            fig_bs_dos = plot_phonon_bands_and_dos(bands_dict, dos_dict)
-
+            fig_bs_dos = pmv.phonon_bands_and_dos(bands_dict, dos_dict)
             fig_bs_dos.layout.title = dict(
                 text=plotly_title(formula, mat_id), x=0.5, y=0.97
             )
@@ -199,7 +197,7 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
             fig_bs_dos.show()
 
             img_name = f"{mat_id}-bs-dos-{Key.pbe}-vs-{model_key}"
-            save_fig(fig_bs_dos, f"{FIGS_DIR}/{img_name}.pdf")
+            pmv.save_fig(fig_bs_dos, f"{FIGS_DIR}/{img_name}.pdf")
         except (ValueError, RuntimeError, BadZipFile, Exception) as exc:
             # known possible errors:
             # - the 2 band structures are not compatible, due to symmetry change during

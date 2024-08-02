@@ -5,16 +5,14 @@ Uses pymatviz DOS and band potting functions powered by Plotly.
 
 # %%
 import os
-from glob import glob
 
 import pandas as pd
+import pymatviz as pmv
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
-from pymatviz import plot_phonon_bands, plot_phonon_bands_and_dos
 from pymatviz.enums import Key
-from pymatviz.io import save_fig
 from tqdm import tqdm
 
-from ffonons import DATA_DIR, PDF_FIGS, SITE_FIGS, SOFT_PES_DIR
+from ffonons import PDF_FIGS, SITE_FIGS, SOFT_PES_DIR
 from ffonons.enums import DB, Model
 from ffonons.io import get_df_summary, load_pymatgen_phonon_docs
 from ffonons.plots import plotly_title, pretty_labels
@@ -51,16 +49,18 @@ most_underpred = most_underpred.index.intersection(idx_n_avail[3])
 df_summary.loc[most_underpred].loc[most_underpred].query(f"{Key.n_sites} < 6")
 
 
-df_summary.query(f"{Key.n_sites} == 4")
+material_ids_to_load = {
+    *df_summary.loc[idx_n_avail[4]]
+    .query(f"{Key.n_sites} <= 4")
+    .index.get_level_values(0)
+}
 
 
 # %% load docs (takes a minute)
-if load_all_docs := True:
-    ph_docs = load_pymatgen_phonon_docs(which_db)
-else:
-    ph_docs = load_pymatgen_phonon_docs(
-        glob(f"{DATA_DIR}/{which_db}/*{Model.sevennet_0}*.json.lzma")
-    )
+load_all_docs = False
+ph_docs = load_pymatgen_phonon_docs(
+    which_db, materials_ids=() if load_all_docs else material_ids_to_load
+)
 
 
 # %%
@@ -75,7 +75,7 @@ for mp_id in tqdm(idx_n_avail[2]):
     if os.path.isfile(out_path):
         continue
     try:
-        fig_bs = plot_phonon_bands(band_structs, line_kwds=dict(width=1.5))
+        fig_bs = pmv.phonon_bands(band_structs, line_kwds=dict(width=1.5))
     except ValueError as exc:
         print(f"{mp_id=} {exc=}")
         continue
@@ -86,11 +86,11 @@ for mp_id in tqdm(idx_n_avail[2]):
     fig_bs.layout.margin = dict(t=65, b=0, l=5, r=5)
 
     fig_bs.show()
-    save_fig(fig_bs, out_path, prec=5)
+    pmv.save_fig(fig_bs, out_path, prec=5)
 
 
-# %% plotly bands+DOS
-for mp_id in tqdm(["mp-1784"]):
+# %% plotly bands+DOS and similarity heatmaps
+for mp_id in tqdm(idx_n_avail[4]):  # Use materials with all 4 models available
     ph_doc = load_pymatgen_phonon_docs(which_db, materials_ids=[mp_id])[mp_id]
 
     keys = sorted(ph_doc, reverse=True)
@@ -115,7 +115,7 @@ for mp_id in tqdm(["mp-1784"]):
         )
     }
     try:
-        fig_bs_dos = plot_phonon_bands_and_dos(
+        fig_bs_dos = pmv.phonon_bands_and_dos(
             bands_dict,
             dos_dict,
             all_line_kwargs=dict(line_width=2),
@@ -129,7 +129,7 @@ for mp_id in tqdm(["mp-1784"]):
         print(f"{mp_id=} {exc=}")
         continue
 
-    # remap legend labels
+    # Remap legend labels
     for trace in fig_bs_dos.data:
         trace.name = {
             "PBE": "DFT",
@@ -152,6 +152,6 @@ for mp_id in tqdm(["mp-1784"]):
 
     fig_bs_dos.show()
     height = 400
-    save_fig(fig_bs_dos, out_path, prec=4, height=height, width=1.3 * height)
+    pmv.save_fig(fig_bs_dos, out_path, prec=4, height=height, width=1.3 * height)
     fig_bs_dos.layout.update(template="pymatviz_dark", paper_bgcolor="rgba(0,0,0,0)")
-    save_fig(fig_bs_dos, f"{SITE_FIGS}/{img_name}.svelte", prec=4)
+    pmv.save_fig(fig_bs_dos, f"{SITE_FIGS}/{img_name}.svelte", prec=4)

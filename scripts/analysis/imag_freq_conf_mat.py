@@ -6,9 +6,8 @@ for each material at the Gamma point.
 import numpy as np
 import plotly.express as px
 import plotly.figure_factory as ff
+import pymatviz as pmv
 from pymatviz.enums import Key
-from pymatviz.io import save_fig
-from pymatviz.powerups import add_identity_line
 from sklearn.metrics import confusion_matrix
 
 from ffonons import PAPER_DIR, PDF_FIGS
@@ -25,24 +24,40 @@ df_summary = get_df_summary(
     which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
 )
 
+avail_models = {*df_summary.index.get_level_values(1)}
+
+for models in (
+    [*{*Model} - {Model.pbe}],
+    (models_incl_pbe := [Model.pbe, Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms]),
+):
+    avail_keys = avail_models & set(models)  # df.loc doesn't handle missing keys
+    df_subset = df_summary.loc[(slice(None), list(avail_keys)), :]
+    print(f"{len(df_subset):,} rows for {', '.join(map(repr, avail_keys))}")
+
 
 # %%
 unstable_rate = (df_summary[Key.has_imag_ph_modes]).mean()
-print(f"PBE unstable rate: {unstable_rate:.0%}")
+print(f"PBE unstable rate: {unstable_rate:.0%} of {which_db.label}")
 
 unstable_rate = (df_summary[Key.has_imag_ph_gamma_modes]).mean()
-print(f"PBE Γ-unstable rate: {unstable_rate:.0%}")
+print(f"PBE Γ-unstable rate: {unstable_rate:.0%} of {which_db.label}")
 
 
 # %% plot confusion matrix
-model = Model.chgnet_030
 
 # get material IDs where all models have results
 idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
 
+# whether to only use materials with predictions from all models or every material with
+# predictions from the current model and PBE
+enforce_same_mat_ids_across_models = True
+
 for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
     for col in (Key.has_imag_ph_gamma_modes, Key.has_imag_ph_modes):
-        df_clean = df_summary.loc[idx_n_avail][col].unstack(level=1)[[Key.pbe, model]]
+        col_names = (
+            models_incl_pbe if enforce_same_mat_ids_across_models else [Key.pbe, model]
+        )
+        df_clean = df_summary[col].unstack(level=1)[col_names].dropna()
         y_true, y_pred = (df_clean[key] for key in (Key.pbe, model))
         conf_mat = confusion_matrix(y_true=y_true, y_pred=y_pred, normalize="all")
 
@@ -71,7 +86,7 @@ for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
             yref="paper",
             x=(x_anno := 0.45),
             y=(y_anno := -0.12),
-            text=f"Acc={acc:.0%}",
+            text=f"Acc={acc:.0%}, N={len(y_true)}",
             showarrow=False,
             font=dict(size=(font_size := 26)),
         )
@@ -80,11 +95,10 @@ for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
             yref="paper",
             x=x_anno,
             y=y_anno,
-            text=f"N={len(y_true)}, Tol={imaginary_freq_tol:.2}",
+            text=f"Tol={imaginary_freq_tol:.2}",
             showarrow=False,
             font=dict(size=4),
         )
-        assert len(idx_n_avail) == len(y_true)
 
         fig.layout.xaxis.title = model.label
         fig.layout.yaxis.update(title=Key.pbe.label, tickangle=-90)
@@ -100,9 +114,10 @@ for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
         fig.show()
 
         img_name = f"{col.replace('_', '-')}-{model}-confusion-matrix"
-        save_fig(fig, f"{PAPER_DIR}/{img_name}.pdf")
-        save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
-        save_fig(fig, f"{PAPER_DIR}/{img_name}.svg")
+        pmv.save_fig(fig, f"{PAPER_DIR}/{img_name}.pdf")
+        pmv.save_fig(fig, f"{PAPER_DIR}/{img_name}.png")
+        pmv.save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
+        pmv.save_fig(fig, f"{PAPER_DIR}/{img_name}.svg")
 
 
 # %% plot imaginary modes confusion matrix as parity plot using min. freq. across all
@@ -110,11 +125,12 @@ for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
 y_col, color_col = Key.min_ph_freq, Key.model
 
 df_melt = (
-    df_summary.unstack(level=1)[y_col]
+    df_summary.set_index(Key.formula, append=True)
+    .unstack(level=1)[y_col]
     .reset_index(names=[Key.mat_id, Key.formula])
     .melt(
         id_vars=[Key.mat_id, Key.formula, Key.pbe],
-        value_vars=list(Model.key_val_dict()),
+        value_vars=list({*Model.val_label_dict()} & avail_models),
         var_name=color_col,
         value_name=y_col,
     )
@@ -132,7 +148,8 @@ imaginary_tol = 0.1
 # add dashed dynamic instability decision boundary separators
 fig.add_vline(x=-imaginary_tol, line=dict(width=1, dash="dash"))
 fig.add_hline(y=-imaginary_tol, line=dict(width=1, dash="dash"))
-add_identity_line(fig)
+pmv.powerups.add_identity_line(fig)
+
 
 # add transparent rectangle with TN, TP, FN, FP labels in each quadrant
 for sign_x, sign_y, label, color in (

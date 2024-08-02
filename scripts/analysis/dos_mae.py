@@ -2,9 +2,8 @@
 
 # %%
 import plotly.express as px
+import pymatviz as pmv
 from pymatviz.enums import Key
-from pymatviz.io import save_fig
-from pymatviz.powerups import add_ecdf_line
 
 from ffonons import PAPER_DIR
 from ffonons.enums import DB, Model
@@ -22,7 +21,7 @@ df_model = df_summary.xs(Model.mace_mp, level=1)
 # %% plot histogram of all phDOS MAEs
 fig = px.histogram(df_model[Key.ph_dos_mae], nbins=350)
 fig.data[0].showlegend = False
-add_ecdf_line(fig, trace_kwargs=dict(line_color="navy"))
+pmv.powerups.add_ecdf_line(fig, trace_kwargs=dict(line_color="navy"))
 
 fig.layout.xaxis.update(title=Key.ph_dos_mae.label, range=[0, 16])
 fig.layout.yaxis.update(title="Number of Materials")
@@ -31,4 +30,4 @@ fig.layout.margin = dict(l=10, r=10, b=10, t=10)
 fig.layout.font.size = 16
 
 fig.show()
-save_fig(fig, f"{PAPER_DIR}/phdos-mae-hist.pdf")
+pmv.save_fig(fig, f"{PAPER_DIR}/phdos-mae-hist.pdf")

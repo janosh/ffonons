@@ -4,10 +4,9 @@
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import pymatviz as pmv
 from IPython.display import display
 from pymatviz.enums import Key
-from pymatviz.io import save_fig
-from pymatviz.powerups import add_identity_line, annotate_metrics
 from sklearn.metrics import r2_score
 
 from ffonons import PAPER_DIR, PDF_FIGS
@@ -41,10 +40,10 @@ fig = px.scatter(
     hover_data=[Key.formula],
 )
 
-annotate_metrics(
+pmv.powerups.annotate_metrics(
     fig=fig, xs=df_plot[x_col], ys=df_plot[y_col], suffix=f"N={len(df_plot):,}"
 )
-add_identity_line(fig)
+pmv.powerups.add_identity_line(fig)
 title = f"{model.label} {x_col.label} vs {y_col.label}"
 fig.layout.title.update(text=title, x=0.5, y=0.97)
 fig.layout.margin = dict(l=5, r=5, b=5, t=35)
@@ -146,7 +145,8 @@ fig.layout.legend.update(
     ),
     itemsizing="constant",
 )
-add_identity_line(fig)  # annotations change plot range so add parity line after
+# annotations change x/y-range so add parity line after to ensure it spans whole plot
+pmv.powerups.add_identity_line(fig)
 
 fig.layout.margin = dict(l=3, r=3, b=3, t=3)
 fig.show()
@@ -155,8 +155,8 @@ img_name = f"parity-pbe-vs-ml-{file_suffix}"
 
 
 # %%
-save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
-save_fig(fig, f"{PAPER_DIR}/{img_name}.svg", width=600, height=400)
+pmv.save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
+pmv.save_fig(fig, f"{PAPER_DIR}/{img_name}.svg", width=600, height=400)
 
 
 # %%

@@ -6,9 +6,9 @@ for each material at the Gamma point.
 from typing import Literal
 
 import pandas as pd
+import pymatviz as pmv
 from IPython.display import display
 from pymatviz.enums import Key
-from pymatviz.io import df_to_html_table, df_to_pdf
 from sklearn.metrics import accuracy_score, confusion_matrix, r2_score, roc_auc_score
 
 from ffonons import PAPER_DIR, PDF_FIGS, SITE_FIGS
@@ -199,8 +199,8 @@ for df_loop, caption, filename in (
     if filename and write_to_disk:
         table_name = f"{filename}-tol={imaginary_freq_tol}"
         pdf_table_path = f"{PDF_FIGS}/{which_db}/{table_name}.pdf"
-        df_to_pdf(styler, file_path=pdf_table_path, size="landscape")
-        df_to_html_table(styler, file_path=f"{SITE_FIGS}/{table_name}.svelte")
+        pmv.df_to_pdf(styler, file_path=pdf_table_path, size="landscape")
+        pmv.df_to_html_table(styler, file_path=f"{SITE_FIGS}/{table_name}.svelte")
 
     styler.set_caption(caption)
     display(styler)
@@ -220,7 +220,7 @@ styler.relabel_index(
     [f"{col}{arrow_suffix.get(col, '')}" for col in styler.data], axis="columns"
 ).set_uuid("").hide(axis="index")
 
-df_to_pdf(styler, file_path=f"{PDF_FIGS}/ffonon-regr-metrics-table.pdf")
-df_to_html_table(styler, file_path=f"{SITE_FIGS}/ffonon-regr-metrics-table.svelte")
+pmv.df_to_pdf(styler, file_path=f"{PDF_FIGS}/ffonon-regr-metrics-table.pdf")
+pmv.df_to_html_table(styler, file_path=f"{SITE_FIGS}/ffonon-regr-metrics-table.svelte")
 styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")
 display(styler)
