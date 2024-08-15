@@ -24,7 +24,7 @@ from pymatgen.io.vasp.sets import BadInputSetWarning, MPRelaxSet, MPStaticSet
 from pymatviz.enums import Key
 from tqdm import tqdm
 
-from ffonons import DATA_DIR
+from ffonons import DATA_DIR, today
 from ffonons.enums import DB
 
 __author__ = "Aakash Naik, Janosh Riebesell"
@@ -34,8 +34,6 @@ __date__ = "2024-01-09"
 # and UserWarning: No Pauling electronegativity for Ne. Setting to NaN.
 for category in (UserWarning, BadInputSetWarning):
     warnings.filterwarnings(action="ignore", category=category, module="pymatgen")
-
-csv_path = f"{DATA_DIR}/{DB.phonon_db}/togo-vasp-params.csv.bz2"
 
 
 # %%
@@ -58,12 +56,12 @@ def get_density_from_kmesh(mesh: Sequence[int], struct: Structure) -> float:
 def get_mp_kppa_kppvol_from_mesh(
     mesh: Sequence[int], struct: Structure, default_grid: float
 ) -> tuple[float, float, float]:
-    """Get materials project kpoints grid density using a kpoints mesh.
+    """Get Materials Project kpoints grid density using a kpoints mesh.
 
     Args:
         mesh (list): The kpoint mesh.
         struct (pymatgen.Structure): The pymatgen structure object.
-        default_grid (float): The default materials project kpoints grid density.
+        default_grid (float): The default Materials Project kpoints grid density.
 
     Returns:
         tuple[float, float, float]:
@@ -82,10 +80,7 @@ def get_mp_kppa_kppvol_from_mesh(
     kpts_per_atom = int(round(n_grid_magnitude * len(struct)))
     kpts_per_vol = int(round(kpts_per_atom / (vol * len(struct))))
 
-    if default_grid is not None:
-        kpts_per_atom_ref = int(default_grid * vol * len(struct))
-    else:
-        kpts_per_atom_ref = None
+    kpts_per_atom_ref = int(default_grid * vol * len(struct)) if default_grid else None
 
     return kpts_per_atom, kpts_per_vol, kpts_per_atom_ref
 
@@ -110,7 +105,7 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
     # get supercell matrix from phonopy_params.yaml.xz
     with (
         zip_ref.open("phonopy_params.yaml.xz", mode="r") as lzma_file,
-        lzma.open(lzma_file, "rb") as lzma_file_content,
+        lzma.open(lzma_file, mode="rb") as lzma_file_content,
     ):
         phonopy_yaml = yaml.safe_load(lzma_file_content.read().decode("utf-8"))
 
@@ -122,19 +117,19 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
     # 3. open the phonopy_params.yaml.xz archive from the lzma file
     with (
         zip_ref.open("vasp-settings.tar.lzma") as lzma_file,
-        lzma.open(lzma_file, "rb") as lzma_file_content,
-        tarfile.open(fileobj=lzma_file_content, mode="r") as tar,
+        lzma.open(lzma_file, mode="rb") as lzma_file_content,
+        tarfile.open(fileobj=lzma_file_content, mode="r") as vasp_settings_tar,
     ):
-        file_list = tar.getnames()  # list contents of the tar archive
+        file_list = vasp_settings_tar.getnames()  # list contents of the tar archive
         user_potcar_settings: dict[str, str] = {}  # extract POTCAR settings
         potcar_title = []
         for file_name in file_list:
             if "PAW_dataset.txt" not in file_name:
                 continue
-            paw_lines = tar.extractfile(file_name).readlines()
-            for con in paw_lines:
-                element = con.decode("utf-8").strip().split("</c><c>")[1].strip()
-                for data in con.decode("utf-8").strip().split("</c><c>"):
+            paw_lines = vasp_settings_tar.extractfile(file_name).readlines()
+            for paw_line in paw_lines:
+                element = paw_line.decode("utf-8").strip().split("</c><c>")[1].strip()
+                for data in paw_line.decode("utf-8").strip().split("</c><c>"):
                     if "PAW" not in data:
                         continue
                     potcar_title.append(
@@ -147,7 +142,7 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
 
         # Read specific files from the tar archive without extracting them
         poscar_file_name = "vasp-settings/POSCAR-unitcell"
-        poscar_file = tar.extractfile(poscar_file_name)
+        poscar_file = vasp_settings_tar.extractfile(poscar_file_name)
         paw_lines = poscar_file.read().decode("utf-8")
         struct = Structure.from_str(paw_lines, fmt="poscar")
         params[Key.reduced_formula] = (
@@ -155,7 +150,7 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
         )
         params[Key.formula] = struct.formula
 
-        params["requires_u_correction"] = bool(needs_u_correction(struct.composition))
+        params[Key.needs_u_correction] = bool(needs_u_correction(struct.composition))
 
         mp_relax = MPRelaxSet(
             structure=struct, user_potcar_settings=user_potcar_settings
@@ -183,45 +178,51 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
         mp_static = MPStaticSet(
             structure=supercell, user_potcar_settings=user_potcar_settings
         )
-        params["mp_static_kpts_sc"] = mp_static.kpoints.kpts[0]
+        params["mp_static_kpts_supercell"] = mp_static.kpoints.kpts[0]
 
         # get MP kpoint grid density
-        kppa_sc, kppvol_sc, kppa_ref_sc = get_mp_kppa_kppvol_from_mesh(
-            struct=supercell, mesh=mp_static.kpoints.kpts[0], default_grid=100
+        kppa_supercell, kppvol_supercell, kppa_ref_supercell = (
+            get_mp_kppa_kppvol_from_mesh(
+                struct=supercell, mesh=mp_static.kpoints.kpts[0], default_grid=100
+            )
         )
 
-        params["mp_static_grid_density_sc"] = kppa_sc
-        params["mp_static_reciprocal_density_sc"] = kppvol_sc
+        params["mp_static_grid_density_supercell"] = kppa_supercell
+        params["mp_static_reciprocal_density_supercell"] = kppvol_supercell
 
         # AiiDA k-point density
         kpt_dens = get_density_from_kmesh(
             mesh=mp_static.kpoints.kpts[0], struct=supercell
         )
-        params["mp_static_grid_density_aiida_sc"] = kpt_dens
+        params["mp_static_grid_density_aiida_supercell"] = kpt_dens
 
-        params["mp_default_kpoint_grid_density_sc_static"] = kppa_ref_sc
+        params["mp_default_kpoint_grid_density_supercell_static"] = kppa_ref_supercell
 
         # mp-relax for supercell
-        mp_relax_sc = MPRelaxSet(
+        mp_relax_supercell = MPRelaxSet(
             structure=supercell, user_potcar_settings=user_potcar_settings
         )
-        params["mp_relax_kpts_sc"] = mp_relax_sc.kpoints.kpts[0]
+        params["mp_relax_kpts_supercell"] = mp_relax_supercell.kpoints.kpts[0]
 
         # get MP kpoint grid density
-        kppa_sc, kppvol_sc, kppa_ref_sc = get_mp_kppa_kppvol_from_mesh(
-            struct=supercell, mesh=mp_relax_sc.kpoints.kpts[0], default_grid=64
+        kppa_supercell, kppvol_supercell, kppa_ref_supercell = (
+            get_mp_kppa_kppvol_from_mesh(
+                struct=supercell,
+                mesh=mp_relax_supercell.kpoints.kpts[0],
+                default_grid=64,
+            )
         )
 
-        params["mp_relax_grid_density_sc"] = kppa_sc
-        params["mp_relax_reciprocal_density_sc"] = kppvol_sc
+        params["mp_relax_grid_density_supercell"] = kppa_supercell
+        params["mp_relax_reciprocal_density_supercell"] = kppvol_supercell
 
         # AiiDA k-point density
         kpt_dens = get_density_from_kmesh(
-            mesh=mp_relax_sc.kpoints.kpts[0], struct=supercell
+            mesh=mp_relax_supercell.kpoints.kpts[0], struct=supercell
         )
-        params["mp_relax_grid_density_aiida_sc"] = kpt_dens
+        params["mp_relax_grid_density_aiida_supercell"] = kpt_dens
 
-        params["mp_default_kpoint_grid_density_sc_relax"] = kppa_ref_sc
+        params["mp_default_kpoint_grid_density_supercell_relax"] = kppa_ref_supercell
 
         # check for potcars title match
         mp_set_potcar = [potcar.TITEL for potcar in mp_static.potcar]
@@ -238,15 +239,18 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
         # extract togo calc parameters
         for file_name in file_list:
             if "INCAR" in file_name:
-                incar_file = tar.extractfile(file_name)
+                incar_file = vasp_settings_tar.extractfile(file_name)
                 incar = Incar.from_str(incar_file.read().decode("utf-8"))
                 name = file_name.split("/")[-1]
 
-                params[f"{name}_encut"] = incar.get("ENCUT")
                 params[f"{name}_magnetization"] = bool(incar.get("ISPIN"))
 
+                params = {
+                    f"{name}_{key}": value for key, value in incar.items()
+                } | params  # merge whole INCAR into params with prefix
+
             if "KPOINTS" in file_name:
-                kpoint_file = tar.extractfile(file_name)
+                kpoint_file = vasp_settings_tar.extractfile(file_name)
                 kpoint = Kpoints.from_str(kpoint_file.read().decode("utf-8"))
                 name = file_name.split("/")[-1]
 
@@ -254,18 +258,18 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
 
                 if "force" in name:
                     # get MP kpoint grid density from togo k-points for supercell
-                    kppa_sc, kppvol_sc, _ = get_mp_kppa_kppvol_from_mesh(
+                    kppa_supercell, kppvol_supercell, _ = get_mp_kppa_kppvol_from_mesh(
                         struct=supercell, mesh=kpoint.kpts[0], default_grid=None
                     )
 
-                    params[f"{name}_grid_density_sc"] = kppa_sc
-                    params[f"{name}_reciprocal_density_sc"] = kppvol_sc
+                    params[f"{name}_grid_density_supercell"] = kppa_supercell
+                    params[f"{name}_reciprocal_density_supercell"] = kppvol_supercell
 
                     # AiiDA k-point density
                     kpt_dens = get_density_from_kmesh(
                         mesh=kpoint.kpts[0], struct=supercell
                     )
-                    params[f"{name}_grid_density_aiida_sc"] = kpt_dens
+                    params[f"{name}_grid_density_aiida_supercell"] = kpt_dens
 
                 else:
                     # get MP kpoint grid density from togo k-points for unit cell
@@ -285,8 +289,7 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
     return params, struct
 
 
-# %%
-# directory to where Togo DB ZIP files were downloaded
+# %% directory to where Togo DB ZIP files were downloaded
 ph_docs_dir = f"{DATA_DIR}/{DB.phonon_db}"
 db_files = sorted(  # sort by MP ID
     glob(f"{ph_docs_dir}/*.zip"), key=lambda path: int(path.split("-")[-3])
@@ -294,20 +297,20 @@ db_files = sorted(  # sort by MP ID
 print(f"found {len(db_files)=:,}")
 mp_togo_id_map = {f'mp-{file.split("-")[-3]}': file.split("-")[-2] for file in db_files}
 
-params = locals().get("results", {})  # prevent accidental results overwrite
-structures = locals().get("structures", {})  # prevent accidental results overwrite
+all_params = locals().get("results", {})  # prevent overwriting results
+structures = locals().get("structures", {})  # prevent overwriting results
 
-for file in tqdm(db_files):
+for file in tqdm(db_files, desc="Processing PhononDB files"):
     mp_id = f'mp-{file.split("-")[-3]}'
-    if mp_id in params and mp_id in structures:
+    if mp_id in all_params and mp_id in structures:
         continue
     params, struct = get_vasp_calc_params(file)
     if params and struct:
-        params[mp_id], structures[mp_id] = params, struct
+        all_params[mp_id], structures[mp_id] = params, struct
 
 
 # %%
-df_params = pd.DataFrame(params).T.sort_index().convert_dtypes().round(5)
+df_params = pd.DataFrame(all_params).T.sort_index().convert_dtypes().round(5)
 
 # Togo DB phonons were calculated without magnetism or U-corrections (check this by
 # ensuring all ISPIN values are False). any offending materials should be excluded from
@@ -315,7 +318,12 @@ df_params = pd.DataFrame(params).T.sort_index().convert_dtypes().round(5)
 assert sum(df_params.filter(like="magnetization").sum()) == 0
 assert not any(df_params[Key.needs_u_correction])
 
-df_params.to_csv(csv_path)
+
+csv_out_path = f"{DATA_DIR}/{DB.phonon_db}/{today}-togo-vasp-params.csv.bz2"
+df_params.to_csv(csv_out_path)
+gga_incar_vals = df_params["INCAR-relax_GGA"]
+assert all(gga_incar_vals == "Ps"), f"{gga_incar_vals.value_counts()}"
+df_params.filter(like="_GGA").value_counts()
 
 
 # %%
@@ -325,4 +333,10 @@ with lzma.open(f"{DATA_DIR}/{DB.phonon_db}/structures.json.lzma", "wb") as lzma_
 
 
 # %% load CSV file
-df_params = pd.read_csv(csv_path, index_col=Key.mat_id)
+prev_csv_path = f"{DATA_DIR}/phonon-db/2024-03-22-togo-vasp-params.csv.bz2"
+df_params = pd.read_csv(prev_csv_path, index_col=Key.mat_id)
+
+
+# %% print GGA value counts
+gga_cols = df_params.filter(like="_GGA").columns
+gga_counts = df_params[gga_cols].apply(pd.Series.value_counts)
