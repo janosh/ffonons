@@ -13,7 +13,6 @@ import atomate2.forcefields.jobs as ff_jobs
 import pandas as pd
 import plotly.graph_objects as go
 import pymatviz as pmv
-import sevenn
 import torch
 from atomate2.common.schemas.phonons import PhononBSDOSDoc as Atomate2PhononBSDOSDoc
 from atomate2.forcefields.flows.phonons import PhononMaker
@@ -48,11 +47,7 @@ for directory in (PH_DOCS_DIR, FIGS_DIR, RUNS_DIR):
 common_relax_kwds = dict(fmax=0.00001)
 mace_kwds = dict(model="medium")
 chgnet_kwds = dict(optimizer_kwargs=dict(use_device="mps"))
-s7_ckhpt_dir = f"{sevenn.__file__.split('/sevenn')[0]}/pretrained_potentials"
-s7net_ckhpt = f"{s7_ckhpt_dir}/SevenNet_0__11July2024/checkpoint_sevennet_0.pth"
-s7net_kwds = dict(model=s7net_ckhpt)
-if not os.path.isfile(s7net_ckhpt):
-    raise FileNotFoundError(f"Missing {s7net_ckhpt=}")
+s7net_kwds = dict(model="SevenNet-0")
 
 
 do_mlff_relax = True  # whether to MLFF-relax the PBE structure
