@@ -25,6 +25,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+  "IPython>=8.20",
   "atomate2[phonons]>=0.0.14",
   "bs4>=0.0.2",
   "matplotlib>=3.6.2",
