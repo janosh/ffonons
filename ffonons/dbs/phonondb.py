@@ -2,7 +2,8 @@
 
 Includes methods for downloading and extracting PhononDB docs, and converting phonopy
 output files to pymatgen objects. The main functionality is in parse_phonondb_docs,
-which returns a PhononDBDocParsed dataclass containing the parsed phonon data.
+which given a path to a zipped phonopy doc, returns a PhononDBDocParsed dataclass
+containing the parsed phonon data.
 """
 
 import copy

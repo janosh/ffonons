@@ -14,7 +14,7 @@ from pymatviz.enums import Key
 from ffonons import TEST_FILES
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_data_dir(tmp_path: Path) -> Generator[Path, None, None]:
     with (
         patch("ffonons.io.DATA_DIR", str(tmp_path)),
@@ -23,7 +23,7 @@ def mock_data_dir(tmp_path: Path) -> Generator[Path, None, None]:
         yield tmp_path
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_phonon_docs() -> dict[str, dict[str, PhononBSDOSDoc]]:
     structure = Structure(np.eye(3) * 5, ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
     mock_band_structure = MagicMock(spec=PhononBandStructureSymmLine)
