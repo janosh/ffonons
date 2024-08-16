@@ -107,14 +107,20 @@ for col in (Key.has_imag_ph_modes, Key.has_imag_ph_gamma_modes):
             y_true=imag_modes_true, y_pred=imag_modes_pred, normalize=normalize
         )
         (tn, fp), (fn, tp) = conf_mat
+        err_msg = "Invalid confusion matrix"
         if normalize == "true":
-            assert tn + fp == 1
-            assert fn + tp == 1
+            if tn + fp != 1:
+                raise ValueError(f"{err_msg} {tn=} + {fp=} = {tn + fp}, should be 1")
+            if tn + fn != 1:
+                raise ValueError(f"{err_msg} {tn=} + {fn=} = {tn + fn}, should be 1")
         elif normalize == "pred":
-            assert tn + fn == 1
-            assert fp + tp == 1
+            if tn + fp != 1:
+                raise ValueError(f"{err_msg} {tn=} + {fp=} = {tn + fp}, should be 1")
+            if fp + tp != 1:
+                raise ValueError(f"{err_msg} {fp=} + {tp=} = {fp + tp}, should be 1")
         elif normalize == "all":
-            assert tn + fp + fn + tp == 1
+            if tn + fp + fn + tp != 1:
+                raise ValueError(err_msg)
         acc = accuracy_score(imag_modes_true, imag_modes_pred)
 
         precision = tp / (tp + fp)

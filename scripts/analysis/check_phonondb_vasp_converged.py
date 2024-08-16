@@ -312,18 +312,28 @@ for file in tqdm(db_files, desc="Processing PhononDB files"):
 # %%
 df_params = pd.DataFrame(all_params).T.sort_index().convert_dtypes().round(5)
 
-# Togo DB phonons were calculated without magnetism or U-corrections (check this by
-# ensuring all ISPIN values are False). any offending materials should be excluded from
-# the analysis.
-assert sum(df_params.filter(like="magnetization").sum()) == 0
-assert not any(df_params[Key.needs_u_correction])
+# we claim Togo DB phonons were calculated without magnetism or U-corrections in the
+# MACE-MP paper (check this by ensuring all ISPIN values are False). any offending
+# materials should be excluded from the analysis or carefully checked for compatible
+# magnetization and U-correction settings with model training data.
+magnet_cols = [*df_params.filter(like="magnetization")]
+if bad_magnet_ids := df_params[df_params[magnet_cols].any(axis=1)].index:
+    raise ValueError(
+        f"Non-zero magnetization in benchmark materials, {bad_magnet_ids=}"
+    )
 
+if bad_u_corr_ids := df_params[df_params[Key.needs_u_correction]].index:
+    raise ValueError(f"Materials needing U-corrections, {bad_u_corr_ids=}")
+
+gga_incar_vals = df_params["INCAR-relax_GGA"]
+if bad_gga_ids := gga_incar_vals[gga_incar_vals != "Ps"].index:
+    raise ValueError(
+        f"Non-PBEsol functional in benchmark materials\n{gga_incar_vals.value_counts()}"
+        f"\n{bad_gga_ids=}"
+    )
 
 csv_out_path = f"{DATA_DIR}/{DB.phonon_db}/{today}-togo-vasp-params.csv.bz2"
 df_params.to_csv(csv_out_path)
-gga_incar_vals = df_params["INCAR-relax_GGA"]
-assert all(gga_incar_vals == "Ps"), f"{gga_incar_vals.value_counts()}"
-df_params.filter(like="_GGA").value_counts()
 
 
 # %%
