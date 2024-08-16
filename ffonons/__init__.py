@@ -22,8 +22,8 @@ pmv.set_plotly_template("pymatviz_white")
 PKG_DIR = os.path.dirname(__file__)
 ROOT = os.path.dirname(PKG_DIR)
 DATA_DIR = f"{ROOT}/data"
-PDF_FIGS = f"{ROOT}/figs"
-PAPER_DIR = f"{ROOT}/figs/phonon-db"
+os.makedirs(PDF_FIGS := f"{ROOT}/figs", exist_ok=True)
+os.makedirs(PAPER_DIR := f"{ROOT}/figs/phonon-db", exist_ok=True)
 SITE_FIGS = f"{ROOT}/site/src/figs"
 SOFT_PES_DIR = f"{PDF_FIGS}/soft-pes"
 TEST_FILES = f"{ROOT}/tests/files"
