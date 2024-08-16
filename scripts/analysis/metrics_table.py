@@ -111,11 +111,11 @@ for col in (Key.has_imag_ph_modes, Key.has_imag_ph_gamma_modes):
         if normalize == "true":
             if tn + fp != 1:
                 raise ValueError(f"{err_msg} {tn=} + {fp=} = {tn + fp}, should be 1")
+            if fn + tp != 1:
+                raise ValueError(f"{err_msg} {fn=} + {tp=} = {fn + tp}, should be 1")
+        elif normalize == "pred":
             if tn + fn != 1:
                 raise ValueError(f"{err_msg} {tn=} + {fn=} = {tn + fn}, should be 1")
-        elif normalize == "pred":
-            if tn + fp != 1:
-                raise ValueError(f"{err_msg} {tn=} + {fp=} = {tn + fp}, should be 1")
             if fp + tp != 1:
                 raise ValueError(f"{err_msg} {fp=} + {tp=} = {fp + tp}, should be 1")
         elif normalize == "all":
