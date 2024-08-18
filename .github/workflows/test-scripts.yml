@@ -26,7 +26,12 @@ jobs:
           python-version: 3.11
 
       - name: Install package and dependencies
-        run: pip install -e .[models]
+        run: |
+          pip install uv
+          # TODO remove with next atomate2 release fixing
+          # TypeError: MACERelaxMaker.__init__() got an unexpected keyword argument 'calculator_kwargs'
+          uv pip install --system git+https://github.com/materialsproject/atomate2
+          uv pip install -e .[models] --system
 
       - name: Run script
         run: python ${{ matrix.script }}
