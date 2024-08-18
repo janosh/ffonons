@@ -11,9 +11,8 @@ from IPython.display import display
 from pymatviz.enums import Key
 from sklearn.metrics import accuracy_score, confusion_matrix, r2_score, roc_auc_score
 
-from ffonons import PAPER_DIR, PDF_FIGS, SITE_FIGS
+import ffonons
 from ffonons.enums import DB, Model, PhKey
-from ffonons.io import get_df_summary
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-12-15"
@@ -21,7 +20,7 @@ __date__ = "2023-12-15"
 
 # %% compute last phonon DOS peak for each model and MP
 imaginary_freq_tol = 0.01
-df_summary = get_df_summary(
+df_summary = ffonons.io.get_df_summary(
     which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
 )
 
@@ -42,8 +41,8 @@ print(f"{n_avail:,} materials with results from at least {thresh} models (incl. 
 
 # %% save analyzed MP IDs to CSV for rendering with Typst
 for folder in (
-    PAPER_DIR,
-    # f"{DATA_DIR}/{which_db}",
+    ffonons.PAPER_DIR,
+    # f"{ffonons.DATA_DIR}/{which_db}",
 ):
     df_summary.xs(Key.pbe, level=1).loc[idx_n_avail][
         [Key.formula, Key.supercell, Key.n_sites]
@@ -204,9 +203,11 @@ for df_loop, caption, filename in (
 
     if filename and write_to_disk:
         table_name = f"{filename}-tol={imaginary_freq_tol}"
-        pdf_table_path = f"{PDF_FIGS}/{which_db}/{table_name}.pdf"
+        pdf_table_path = f"{ffonons.PDF_FIGS}/{which_db}/{table_name}.pdf"
         pmv.io.df_to_pdf(styler, file_path=pdf_table_path, size="landscape")
-        pmv.io.df_to_html_table(styler, file_path=f"{SITE_FIGS}/{table_name}.svelte")
+        pmv.io.df_to_html_table(
+            styler, file_path=f"{ffonons.SITE_FIGS}/{table_name}.svelte"
+        )
 
     styler.set_caption(caption)
     display(styler)
@@ -226,9 +227,9 @@ styler.relabel_index(
     [f"{col}{arrow_suffix.get(col, '')}" for col in styler.data], axis="columns"
 ).set_uuid("").hide(axis="index")
 
-pmv.io.df_to_pdf(styler, file_path=f"{PDF_FIGS}/ffonon-regr-metrics-table.pdf")
+pmv.io.df_to_pdf(styler, file_path=f"{ffonons.PDF_FIGS}/ffonon-regr-metrics-table.pdf")
 pmv.io.df_to_html_table(
-    styler, file_path=f"{SITE_FIGS}/ffonon-regr-metrics-table.svelte"
+    styler, file_path=f"{ffonons.SITE_FIGS}/ffonon-regr-metrics-table.svelte"
 )
 styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")
 display(styler)

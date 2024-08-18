@@ -4,7 +4,6 @@ force fields.
 
 import os
 from datetime import UTC, datetime
-from typing import Literal, get_args
 
 import plotly.express as px
 import pymatviz as pmv
@@ -12,6 +11,7 @@ from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos, Dos
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 
+import ffonons.io
 from ffonons.enums import PhKey
 
 __author__ = "Janosh Riebesell"
@@ -35,12 +35,3 @@ speed_of_light = 299792458  # [m/s]
 thz_to_per_cm = 1e12 / (speed_of_light * 100)  # convert THz to cm^-1: 33.356410
 AnyDos = CompleteDos | PhononDos | Dos
 AnyBandStructure = BandStructureSymmLine | PhononBandStructureSymmLine
-
-KpathScheme = Literal["setyawan_curtarolo", "latimer_munro", "hinuma", "seekpath"]
-ValidKpathSchemes = get_args(KpathScheme)
-(
-    setyawan_curtarolo_kpath_scheme,
-    latimer_munro_kpath_scheme,
-    hinuma_kpath_scheme,
-    seekpath_kpath_scheme,
-) = ValidKpathSchemes

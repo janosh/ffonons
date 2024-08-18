@@ -5,16 +5,15 @@ import plotly.express as px
 import pymatviz as pmv
 from pymatviz.enums import Key
 
-from ffonons import PAPER_DIR
+import ffonons
 from ffonons.enums import DB, Model
-from ffonons.io import get_df_summary
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-12-17"
 
 
 # %%
-df_summary = get_df_summary(which_db := DB.phonon_db)
+df_summary = ffonons.io.get_df_summary(which_db := DB.phonon_db)
 df_model = df_summary.xs(Model.mace_mp, level=1)
 
 
@@ -30,4 +29,4 @@ fig.layout.margin = dict(l=10, r=10, b=10, t=10)
 fig.layout.font.size = 16
 
 fig.show()
-pmv.save_fig(fig, f"{PAPER_DIR}/phdos-mae-hist.pdf")
+pmv.save_fig(fig, f"{ffonons.PAPER_DIR}/phdos-mae-hist.pdf")

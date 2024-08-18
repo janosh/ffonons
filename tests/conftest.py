@@ -17,7 +17,7 @@ from ffonons import TEST_FILES
 @pytest.fixture
 def mock_data_dir(tmp_path: Path) -> Generator[Path, None, None]:
     with (
-        patch("ffonons.io.DATA_DIR", str(tmp_path)),
+        patch("ffonons.DATA_DIR", str(tmp_path)),
         patch("ffonons.dbs.mp.DATA_DIR", str(tmp_path)),
     ):
         yield tmp_path

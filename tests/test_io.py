@@ -9,13 +9,8 @@ from pymatgen.core import Lattice, Structure
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 from pymatviz.enums import Key
 
+import ffonons
 from ffonons.enums import PhKey
-from ffonons.io import (
-    get_df_summary,
-    get_gnome_pmg_structures,
-    load_pymatgen_phonon_docs,
-    update_key_name,
-)
 
 
 def test_load_pymatgen_phonon_docs(mock_data_dir: Path) -> None:
@@ -42,7 +37,7 @@ def test_load_pymatgen_phonon_docs(mock_data_dir: Path) -> None:
             ("mp-1", "NaCl", "pbe"),
             ("mp-2", "MgO", "ml_model"),
         ]
-        result = load_pymatgen_phonon_docs(docs_to_load="mp")
+        result = ffonons.io.load_pymatgen_phonon_docs(docs_to_load="mp")
 
     assert len(result) == 2
     assert "mp-1" in result
@@ -62,7 +57,7 @@ def test_update_key_name(mock_data_dir: Path) -> None:
         patch("ffonons.io.json.dump") as mock_json_dump,
     ):
         mock_json_load.return_value = {"old_key": "value"}
-        update_key_name(str(test_dir), {"old_key": "new_key"})
+        ffonons.io.update_key_name(str(test_dir), {"old_key": "new_key"})
 
     mock_json_dump.assert_called_once()
     args, _ = mock_json_dump.call_args
@@ -72,7 +67,7 @@ def test_update_key_name(mock_data_dir: Path) -> None:
 
 def test_get_df_summary(mock_phonon_docs: dict[str, dict[str, PhononBSDOSDoc]]) -> None:
     with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
-        df_summary = get_df_summary("mp", cache_path=None)
+        df_summary = ffonons.io.get_df_summary("mp", cache_path=None)
 
     assert isinstance(df_summary, pd.DataFrame)
     assert df_summary.index.names == [str(Key.mat_id), "model"]
@@ -100,13 +95,13 @@ def test_get_df_summary_with_cache(
 
     # Test cache creation
     with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
-        df_summary = get_df_summary("mp", cache_path=str(cache_path))
+        df_summary = ffonons.io.get_df_summary("mp", cache_path=str(cache_path))
 
     assert cache_path.exists()
 
     # Test cache loading
     with patch("ffonons.io.load_pymatgen_phonon_docs") as mock_load:
-        df_summary_cached = get_df_summary(
+        df_summary_cached = ffonons.io.get_df_summary(
             "mp", cache_path=str(cache_path), refresh_cache=False
         )
 
@@ -131,7 +126,7 @@ def test_get_gnome_pmg_structures(tmp_path: Path) -> None:
 
         with patch("ffonons.io.Structure") as mock_structure:
             mock_structure.from_str.return_value = MagicMock(properties={})
-            structures = get_gnome_pmg_structures(str(mock_zip_path), ids=2)
+            structures = ffonons.io.get_gnome_pmg_structures(str(mock_zip_path), ids=2)
 
     assert len(structures) == 2
     assert "mp-1" in structures
@@ -157,7 +152,7 @@ def test_get_gnome_pmg_structures_with_specific_ids(tmp_path: Path) -> None:
 
         with patch("ffonons.io.Structure") as mock_structure:
             mock_structure.from_str.return_value = MagicMock(properties={})
-            structures = get_gnome_pmg_structures(
+            structures = ffonons.io.get_gnome_pmg_structures(
                 str(mock_zip_path), ids=["mp-1", "mp-3"]
             )
 
@@ -168,8 +163,8 @@ def test_get_gnome_pmg_structures_with_specific_ids(tmp_path: Path) -> None:
 
 
 # --- test_find_last_dos_peak is in test_io.py because it's used by
-# ffonons.io.get_df_summary. get_last_peak was first implemented as find_last_dos_peak()
-# in ffonons and later upstreamed into pymatgen
+# ffonons.io.ffonons.io.get_df_summary. get_last_peak was first implemented as
+# find_last_dos_peak() in ffonons and later upstreamed into pymatgen
 def test_get_last_peak(mp_661_mace_dos: PhononDos, mp_2789_pbe_dos: PhononDos) -> None:
     # this test was written before find_last_dos_peak() became PhononDos.get_last_peak()
     # in pymatgen

@@ -14,7 +14,7 @@ from tqdm import tqdm
 from ffonons import DATA_DIR
 from ffonons.dbs.phonondb import (
     fetch_togo_doc_by_id,
-    mp_to_togo_id,
+    map_mp_to_togo_id,
     phonondb_doc_to_pmg_lzma,
     scrape_and_fetch_togo_docs_from_page,
 )
@@ -52,7 +52,7 @@ df_mp = pd.DataFrame(docs).set_index(Key.mat_id, drop=False)
 # %% fetch Togo docs by MP ID
 pbar = tqdm(
     # fetch all PhononDB docs
-    mp_to_togo_id,
+    map_mp_to_togo_id,
     # fetch docs for MP materials with above specified number of sites
     # df_mp.query(f"{Key.mat_id} in {list(mp_to_togo_id)}").index,
     desc="Fetching Togo docs",

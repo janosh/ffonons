@@ -13,9 +13,8 @@ from pymatgen.util.string import latexify
 from pymatviz.enums import Key
 from tqdm import tqdm
 
-from ffonons import PDF_FIGS
+import ffonons
 from ffonons.enums import DB, Model
-from ffonons.io import get_df_summary, load_pymatgen_phonon_docs
 from ffonons.plots import plot_phonon_dos_mpl
 
 __author__ = "Janosh Riebesell"
@@ -26,9 +25,9 @@ model2 = Model.chgnet_030
 
 
 # %% load summary data
-df_summary = get_df_summary(which_db := DB.one_off)
+df_summary = ffonons.io.get_df_summary(which_db := DB.one_off)
 
-os.makedirs(FIGS_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
+os.makedirs(FIGS_DIR := f"{ffonons.PDF_FIGS}/{which_db}", exist_ok=True)
 
 idx_n_avail: dict[int, pd.Index] = {}
 
@@ -39,7 +38,7 @@ for idx in range(1, 5):
 
 
 # %% load docs (takes a minute)
-ph_docs = load_pymatgen_phonon_docs(which_db)
+ph_docs = ffonons.io.load_pymatgen_phonon_docs(which_db)
 
 
 # %% matplotlib DOS
@@ -61,7 +60,9 @@ for mp_id in idx_n_avail[2]:
     ax_dos.set_title(
         f"{mp_id} {latexify(formula, bold=True)}", fontsize=22, fontweight="bold"
     )
-    pmv.save_fig(ax_dos, f"{PDF_FIGS}/{mp_id}-{formula.replace(' ', '')}/dos-all.pdf")
+    pmv.save_fig(
+        ax_dos, f"{ffonons.PDF_FIGS}/{mp_id}-{formula.replace(' ', '')}/dos-all.pdf"
+    )
 
 
 # %% matplotlib bands

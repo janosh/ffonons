@@ -12,9 +12,9 @@ from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 from pymatviz.enums import Key
 from tqdm import tqdm
 
+import ffonons
 from ffonons import PDF_FIGS, SITE_FIGS, SOFT_PES_DIR
 from ffonons.enums import DB, Model
-from ffonons.io import get_df_summary, load_pymatgen_phonon_docs
 from ffonons.plots import plotly_title, pretty_labels
 
 __author__ = "Janosh Riebesell"
@@ -22,7 +22,7 @@ __date__ = "2024-02-22"
 
 
 # %% load summary data
-df_summary = get_df_summary(which_db := DB.phonon_db)
+df_summary = ffonons.io.get_df_summary(which_db := DB.phonon_db)
 
 os.makedirs(FIGS_DIR := SOFT_PES_DIR, exist_ok=True)
 os.makedirs(FIGS_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
@@ -58,7 +58,7 @@ material_ids_to_load = {
 
 # %% load docs (takes a minute)
 load_all_docs = False
-ph_docs = load_pymatgen_phonon_docs(
+ph_docs = ffonons.io.load_pymatgen_phonon_docs(
     which_db, materials_ids=() if load_all_docs else material_ids_to_load
 )
 
@@ -91,7 +91,9 @@ for mp_id in tqdm(idx_n_avail[2]):
 
 # %% plotly bands+DOS and similarity heatmaps
 for mp_id in tqdm(idx_n_avail[4]):  # Use materials with all 4 models available
-    ph_doc = load_pymatgen_phonon_docs(which_db, materials_ids=[mp_id])[mp_id]
+    ph_doc = ffonons.io.load_pymatgen_phonon_docs(which_db, materials_ids=[mp_id])[
+        mp_id
+    ]
 
     keys = sorted(ph_doc, reverse=True)
     bands_dict: dict[str, PhononBandStructureSymmLine] = {
