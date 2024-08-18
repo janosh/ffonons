@@ -9,16 +9,16 @@ import pymatviz as pmv
 import seaborn as sns
 from pymatviz.enums import Key
 
+import ffonons
 from ffonons import PAPER_DIR, PDF_FIGS, SOFT_PES_DIR
 from ffonons.enums import DB, Model
-from ffonons.io import get_df_summary
 
 __author__ = "Janosh Riebesell"
 __date__ = "2024-02-22"
 
 
 # %% load summary data
-df_summary = get_df_summary(which_db := DB.phonon_db)
+df_summary = ffonons.io.get_df_summary(which_db := DB.phonon_db)
 
 os.makedirs(FIG_DIR := f"{PDF_FIGS}/{which_db}", exist_ok=True)
 os.makedirs(FIG_DIR := SOFT_PES_DIR, exist_ok=True)

@@ -9,9 +9,8 @@ from IPython.display import display
 from pymatviz.enums import Key
 from sklearn.metrics import r2_score
 
-from ffonons import PAPER_DIR, PDF_FIGS
+import ffonons
 from ffonons.enums import DB, Model, PhKey
-from ffonons.io import get_df_summary
 
 # from pymatgen.util.string import htmlify
 
@@ -21,7 +20,7 @@ __date__ = "2023-11-24"
 
 # %%
 imaginary_freq_tol = 0.01
-df_summary = get_df_summary(
+df_summary = ffonons.io.get_df_summary(
     which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
 )
 idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
@@ -155,8 +154,8 @@ img_name = f"parity-pbe-vs-ml-{file_suffix}"
 
 
 # %%
-pmv.save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
-pmv.save_fig(fig, f"{PAPER_DIR}/{img_name}.svg", width=600, height=400)
+pmv.save_fig(fig, f"{ffonons.PDF_FIGS}/{which_db}/{img_name}.pdf")
+pmv.save_fig(fig, f"{ffonons.PAPER_DIR}/{img_name}.svg", width=600, height=400)
 
 
 # %%
@@ -215,4 +214,4 @@ df_max_freq_err = df_max_freq_err.T.sort_values(by=max_err_key)
 df_max_freq_err = df_max_freq_err.convert_dtypes().round(4)
 df_max_freq_err.index.name = "Model"
 display(df_max_freq_err)
-df_max_freq_err.to_csv(f"{PAPER_DIR}/max-phonon-freq-errors.csv")
+df_max_freq_err.to_csv(f"{ffonons.PAPER_DIR}/max-phonon-freq-errors.csv")

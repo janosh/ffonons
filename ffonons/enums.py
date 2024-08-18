@@ -77,3 +77,12 @@ class Model(LabelEnum):
     gnome = "gnome", "GNoME", "red"
     pbe = "pbe", "PBE", "gray"
     sevennet_0 = "sevennet-v0", "SevenNet v0", "purple"
+
+
+class KpathScheme(LabelEnum):
+    """K-path schemes for band structure plots."""
+
+    setyawan_curtarolo = "setyawan_curtarolo", "Setyawan-Curtarolo"
+    latimer_munro = "latimer_munro", "Latimer-Munro"
+    hinuma = "hinuma", "Hinuma"
+    seekpath = "seekpath", "Seekpath"

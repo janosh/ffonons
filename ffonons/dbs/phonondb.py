@@ -2,7 +2,8 @@
 
 Includes methods for downloading and extracting PhononDB docs, and converting phonopy
 output files to pymatgen objects. The main functionality is in parse_phonondb_docs,
-which returns a PhononDBDocParsed dataclass containing the parsed phonon data.
+which given a path to a zipped phonopy doc, returns a PhononDBDocParsed dataclass
+containing the parsed phonon data.
 """
 
 import copy
@@ -33,8 +34,8 @@ from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 from pymatgen.symmetry.bandstructure import HighSymmKpath
 from pymatgen.symmetry.kpath import KPathSeek
 
-from ffonons import DATA_DIR, KpathScheme, ValidKpathSchemes, seekpath_kpath_scheme
-from ffonons.enums import DB, PhKey
+from ffonons import DATA_DIR
+from ffonons.enums import DB, KpathScheme, PhKey
 
 __author__ = "Janine George, Aakash Naik, Janosh Riebesell"
 __date__ = "2023-12-07"
@@ -43,8 +44,8 @@ db_name = DB.phonon_db
 ph_docs_dir = f"{DATA_DIR}/{db_name}"
 
 id_map_path = f"{DATA_DIR}/{db_name}/map-mp-id-togo-id.csv"
-mp_to_togo_id = pd.read_csv(id_map_path, index_col=0)[PhKey.togo_id].to_dict()
-togo_to_mp_id = {val: key for key, val in mp_to_togo_id.items()}
+map_mp_to_togo_id = pd.read_csv(id_map_path, index_col=0)[PhKey.togo_id].to_dict()
+map_togo_to_mp_id = {val: key for key, val in map_mp_to_togo_id.items()}
 
 
 def fetch_togo_doc_by_id(doc_id: str, out_path: str = "") -> str:
@@ -53,7 +54,7 @@ def fetch_togo_doc_by_id(doc_id: str, out_path: str = "") -> str:
     If the file already exists, it is skipped but its path is still returned.
     """
     if doc_id.startswith("mp-"):
-        togo_id = mp_to_togo_id.get(doc_id)
+        togo_id = map_mp_to_togo_id.get(doc_id)
         if togo_id is None:
             raise ValueError(
                 f"No {PhKey.togo_id} found for {doc_id=}, it likely doesn't exist in "
@@ -62,7 +63,7 @@ def fetch_togo_doc_by_id(doc_id: str, out_path: str = "") -> str:
         mp_id = doc_id
     else:
         togo_id = doc_id
-        mp_id = togo_to_mp_id[doc_id]
+        mp_id = map_togo_to_mp_id[doc_id]
 
     filename = f"{mp_id}-{togo_id}-pbe.zip"
     out_path = out_path or f"{ph_docs_dir}/{filename}"
@@ -216,16 +217,18 @@ def get_phonopy_kpath(
     Returns:
         tuple: kpoints and path
     """
-    if kpath_scheme == seekpath_kpath_scheme:
+    if kpath_scheme == KpathScheme.seekpath:
         high_symm_kpath = KPathSeek(structure, symprec=symprec, **kwargs)
         kpath = high_symm_kpath._kpath  # noqa: SLF001
-    elif kpath_scheme in ValidKpathSchemes:
+    elif hasattr(KpathScheme, kpath_scheme):
         high_symm_kpath = HighSymmKpath(
             structure, path_type=kpath_scheme, symprec=symprec, **kwargs
         )
         kpath = high_symm_kpath.kpath
     else:
-        raise ValueError(f"Invalid {kpath_scheme=}, must be one of {ValidKpathSchemes}")
+        raise ValueError(
+            f"Invalid {kpath_scheme=}, must be one of {[*map(str, KpathScheme)]}"
+        )
 
     path = copy.deepcopy(kpath["path"])
 
@@ -255,6 +258,11 @@ class PhononDBDocParsed:
     mp_id: str | None = None  # material ID
     formula: str | None = None  # chemical formula
 
+    # make class subscriptable
+    def __getitem__(self, key: str) -> Any:
+        """Allow dict-like subscripting of the class."""
+        return getattr(self, key)
+
 
 def parse_phonondb_docs(
     phonopy_doc_path: str | None = None,
@@ -267,7 +275,7 @@ def parse_phonondb_docs(
     force_sets: str = "FORCE_SETS",
     born: str = "BORN",
     code: str = "vasp",
-    kpath_scheme: str = seekpath_kpath_scheme,
+    kpath_scheme: str = KpathScheme.seekpath,
     symprec: float = 1e-5,
     out_dir: str | None = None,
     delete_unreadable: bool = True,

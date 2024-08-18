@@ -10,9 +10,8 @@ import pymatviz as pmv
 from pymatviz.enums import Key
 from sklearn.metrics import confusion_matrix
 
-from ffonons import PAPER_DIR, PDF_FIGS
+import ffonons
 from ffonons.enums import DB, Model
-from ffonons.io import get_df_summary
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-12-15"
@@ -20,7 +19,7 @@ __date__ = "2023-12-15"
 
 # %% compute last phonon DOS peak for each model and MP
 imaginary_freq_tol = 0.01
-df_summary = get_df_summary(
+df_summary = ffonons.io.get_df_summary(
     which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
 )
 
@@ -114,10 +113,10 @@ for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
         fig.show()
 
         img_name = f"{col.replace('_', '-')}-{model}-confusion-matrix"
-        pmv.save_fig(fig, f"{PAPER_DIR}/{img_name}.pdf")
-        pmv.save_fig(fig, f"{PAPER_DIR}/{img_name}.png")
-        pmv.save_fig(fig, f"{PDF_FIGS}/{which_db}/{img_name}.pdf")
-        pmv.save_fig(fig, f"{PAPER_DIR}/{img_name}.svg")
+        pmv.save_fig(fig, f"{ffonons.PAPER_DIR}/{img_name}.pdf")
+        pmv.save_fig(fig, f"{ffonons.PAPER_DIR}/{img_name}.png")
+        pmv.save_fig(fig, f"{ffonons.PDF_FIGS}/{which_db}/{img_name}.pdf")
+        pmv.save_fig(fig, f"{ffonons.PAPER_DIR}/{img_name}.svg")
 
 
 # %% plot imaginary modes confusion matrix as parity plot using min. freq. across all

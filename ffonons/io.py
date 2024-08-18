@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from glob import glob
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from zipfile import ZipFile
 
 import numpy as np
@@ -22,9 +22,12 @@ from pymatgen.core import Structure
 from pymatviz.enums import Key
 from tqdm import tqdm
 
-from ffonons import DATA_DIR
-from ffonons.dbs.phonondb import PhononDBDocParsed
 from ffonons.enums import DB, PhKey
+
+if TYPE_CHECKING:
+    from ffonons.dbs.phonondb import PhononDBDocParsed
+else:
+    PhononDBDocParsed = object
 
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
@@ -56,6 +59,8 @@ def load_pymatgen_phonon_docs(
         dict[str, dict[str, dict]]: Outer key is material ID, 2nd-level key is the model
             name (or DFT) mapped to a PhononBSDOSDoc.
     """
+    from ffonons import DATA_DIR
+
     if len(docs_to_load) == 0:
         return {}
     if isinstance(docs_to_load, str):
@@ -142,6 +147,8 @@ def get_df_summary(
     Returns:
         pd.DataFrame: Summary metrics for each material and model in ph_docs.
     """
+    from ffonons import DATA_DIR
+
     if isinstance(ph_docs, str) and cache_path is not None:
         cache_path = (
             cache_path
@@ -257,7 +264,7 @@ def get_df_summary(
 
 
 def get_gnome_pmg_structures(
-    zip_path: str = f"{DATA_DIR}/gnome/stable-cifs-by-id.zip",
+    zip_path: str = "",
     ids: int | Sequence[str] = 10,
     pbar_desc: str = "Loading GNoME structures",
     pbar_disable: bool | int = 100,
@@ -277,6 +284,10 @@ def get_gnome_pmg_structures(
     Returns:
         dict[str, Structure]: dict of structures with material ID as key
     """
+    from ffonons import DATA_DIR
+
+    zip_path = zip_path or f"{DATA_DIR}/gnome/stable-cifs-by-id.zip"
+
     structs: dict[str, Structure] = {}
     with ZipFile(zip_path) as zip_ref:
         if isinstance(ids, int):

@@ -11,7 +11,7 @@ import pytest
 from pymatgen.core import Lattice, Structure
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 
-from ffonons import TEST_FILES, seekpath_kpath_scheme
+from ffonons import TEST_FILES
 from ffonons.dbs.phonondb import (
     PhononDBDocParsed,
     fetch_togo_doc_by_id,
@@ -20,14 +20,15 @@ from ffonons.dbs.phonondb import (
     phonondb_doc_to_pmg_lzma,
     scrape_and_fetch_togo_docs_from_page,
 )
+from ffonons.enums import KpathScheme
 
 
 # Mock global variables
 @pytest.fixture(autouse=True)
 def _mock_mp_togo_id_maps() -> Generator[None, None, None]:
     with (
-        patch("ffonons.dbs.phonondb.mp_to_togo_id", {"mp-1": "1"}),
-        patch("ffonons.dbs.phonondb.togo_to_mp_id", {"1": "mp-1"}),
+        patch("ffonons.dbs.phonondb.map_mp_to_togo_id", {"mp-1": "1"}),
+        patch("ffonons.dbs.phonondb.map_togo_to_mp_id", {"1": "mp-1"}),
     ):
         yield
 
@@ -80,7 +81,7 @@ def test_get_phonopy_kpath() -> None:
         species=("Fe", "Fe"),
         coords=((0, 0, 0), (0.5, 0.5, 0.5)),
     )
-    result = get_phonopy_kpath(struct, seekpath_kpath_scheme, symprec=1e-5)
+    result = get_phonopy_kpath(struct, KpathScheme.seekpath, symprec=1e-5)
 
     assert isinstance(result, tuple)
     assert len(result) == 2

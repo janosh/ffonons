@@ -14,20 +14,20 @@ from ffonons import TEST_FILES
 from ffonons.dbs.mp import get_mp_ph_docs
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_mp_rester() -> Generator[MagicMock, None, None]:
     with patch("ffonons.dbs.mp.MPRester") as mock:
         yield mock.return_value
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_structure() -> MagicMock:
     structure = MagicMock(spec=Structure)
     structure.formula = "Si2"
     return structure
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_phonon_doc() -> PhononBSDOSDoc:
     return PhononBSDOSDoc(
         material_id="mp-149", last_updated=datetime(2023, 1, 1, tzinfo=UTC)
