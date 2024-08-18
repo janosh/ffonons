@@ -36,7 +36,7 @@ dependencies = [
   "pymatgen>=2024.7.18",
   "pymatviz[export-figs]>=0.10.1",
   "scikit-learn>=1.4",
-  "scipy>=1.14",
+  "scipy>=1.13",
   "tqdm>=4.66",
 ]
 
