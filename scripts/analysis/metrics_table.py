@@ -53,7 +53,7 @@ for folder in (
 
 
 # %% make dataframe with model regression metrics for phonon DOS and BS predictions
-df_regr = pd.DataFrame()
+df_regr: pd.DataFrame = pd.DataFrame()
 df_regr.index.name = "Model"
 
 
@@ -205,8 +205,8 @@ for df_loop, caption, filename in (
     if filename and write_to_disk:
         table_name = f"{filename}-tol={imaginary_freq_tol}"
         pdf_table_path = f"{PDF_FIGS}/{which_db}/{table_name}.pdf"
-        pmv.df_to_pdf(styler, file_path=pdf_table_path, size="landscape")
-        pmv.df_to_html_table(styler, file_path=f"{SITE_FIGS}/{table_name}.svelte")
+        pmv.io.df_to_pdf(styler, file_path=pdf_table_path, size="landscape")
+        pmv.io.df_to_html_table(styler, file_path=f"{SITE_FIGS}/{table_name}.svelte")
 
     styler.set_caption(caption)
     display(styler)
@@ -226,7 +226,9 @@ styler.relabel_index(
     [f"{col}{arrow_suffix.get(col, '')}" for col in styler.data], axis="columns"
 ).set_uuid("").hide(axis="index")
 
-pmv.df_to_pdf(styler, file_path=f"{PDF_FIGS}/ffonon-regr-metrics-table.pdf")
-pmv.df_to_html_table(styler, file_path=f"{SITE_FIGS}/ffonon-regr-metrics-table.svelte")
+pmv.io.df_to_pdf(styler, file_path=f"{PDF_FIGS}/ffonon-regr-metrics-table.pdf")
+pmv.io.df_to_html_table(
+    styler, file_path=f"{SITE_FIGS}/ffonon-regr-metrics-table.svelte"
+)
 styler.set_caption("Metrics for harmonic phonons from ML force fields vs PBE")
 display(styler)
