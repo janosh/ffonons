@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pandas as pd
 import pytest
 from atomate2.common.schemas.phonons import PhononBSDOSDoc
 from monty.io import zopen
@@ -12,6 +13,9 @@ from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 from pymatviz.enums import Key
 
 from ffonons import TEST_FILES
+
+summary_csv_url = "https://github.com/janosh/ffonons/raw/3d1d39e9/data/phonon-db/df-summary-tol=0.01.csv.gz"
+df_preds_mock = pd.read_csv(summary_csv_url, index_col=[0, 1])
 
 
 @pytest.fixture

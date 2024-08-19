@@ -19,7 +19,7 @@ def test_plotly_defaults() -> None:
     assert pio.templates.default == "pymatviz_white"
 
     assert px.defaults.labels[PhKey.togo_id] == PhKey.togo_id.label
-    assert px.defaults.labels[PhKey.dos_mae] == PhKey.dos_mae.label
+    assert px.defaults.labels[PhKey.ph_dos_mae] == PhKey.ph_dos_mae.label
     assert px.defaults.labels[PhKey.ph_dos_r2] == PhKey.ph_dos_r2.label
 
 

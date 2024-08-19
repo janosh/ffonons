@@ -105,3 +105,6 @@ docstring-code-format = true
 typeCheckingMode = "off"
 reportPossiblyUnboundVariable = true
 reportUnboundVariable = true
+
+[tool.codespell]
+ignore-words-list = ["MAPE"]

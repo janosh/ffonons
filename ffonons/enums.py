@@ -16,7 +16,7 @@ class PhKey(LabelEnum):
     togo_id = "togo_id", "Togo DB ID"
 
     # model metrics
-    dos_mae = "ph_dos_mae_thz", "MAE<sub>ph DOS</sub> (THz)"
+    ph_dos_mae = "ph_dos_mae_thz", "MAE<sub>ph DOS</sub> (THz)"
     ph_dos_r2 = "ph_dos_r2", "R<sup>2</sup><sub>ph DOS</sub>"
     last_ph_dos_peak_thz_ml = (
         "last_ph_dos_peak_thz_ml",
