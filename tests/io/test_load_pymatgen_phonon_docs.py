@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -13,7 +14,7 @@ from tests.conftest import mace_ph_doc_path, phonondb_ph_doc_path
 
 
 def test_load_pymatgen_phonon_docs(mock_data_dir: Path) -> None:
-    mp_dir = mock_data_dir / "mp"
+    mp_dir = mock_data_dir / DB.mp
     mp_dir.mkdir()
     (mp_dir / "mp-1-NaCl-pbe.json.gz").touch()
     (mp_dir / "mp-2-MgO-ml_model.json.lzma").touch()
@@ -47,7 +48,7 @@ def test_load_pymatgen_phonon_docs(mock_data_dir: Path) -> None:
 
 
 def test_load_pymatgen_phonon_docs_with_glob_pattern(mock_data_dir: Path) -> None:
-    mp_dir = mock_data_dir / "mp"
+    mp_dir = mock_data_dir / DB.mp
     mp_dir.mkdir()
     (mp_dir / "mp-1-NaCl-pbe.json.gz").touch()
     (mp_dir / "mp-2-MgO-ml_model.json.lzma").touch()
@@ -75,7 +76,7 @@ def test_load_pymatgen_phonon_docs_with_glob_pattern(mock_data_dir: Path) -> Non
 
 
 def test_load_pymatgen_phonon_docs_with_materials_ids(mock_data_dir: Path) -> None:
-    mp_dir = mock_data_dir / "mp"
+    mp_dir = mock_data_dir / DB.mp
     mp_dir.mkdir()
     (mp_dir / "mp-1-NaCl-pbe.json.gz").touch()
     (mp_dir / "mp-2-MgO-ml_model.json.lzma").touch()
@@ -130,7 +131,7 @@ def test_load_pymatgen_phonon_docs_invalid_input(
 
 
 def test_load_pymatgen_phonon_docs_file_read_error(mock_data_dir: Path) -> None:
-    mp_dir = mock_data_dir / "mp"
+    mp_dir = mock_data_dir / DB.mp
     mp_dir.mkdir()
     (mp_dir / "mp-1-NaCl-pbe.json.gz").touch()
 
@@ -147,9 +148,8 @@ def test_load_pymatgen_phonon_docs_file_read_error(mock_data_dir: Path) -> None:
 
 def test_load_pymatgen_phonon_docs_invalid_file_name() -> None:
     nonexistent_file = f"{phonondb_ph_doc_path}.nonexistent"
-    with pytest.raises(
-        FileNotFoundError, match=f"No such file or directory: {nonexistent_file!r}"
-    ):
+    err_msg = f"No such file or directory: {nonexistent_file!r}"
+    with pytest.raises(FileNotFoundError, match=re.escape(err_msg)):
         ffonons.io.load_pymatgen_phonon_docs(docs_to_load=[nonexistent_file])
 
 

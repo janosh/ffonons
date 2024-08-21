@@ -3,16 +3,16 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 from pymatgen.core import Lattice, Structure
 from pymatviz.enums import Key
 
-import ffonons
 from ffonons.enums import DB, PhKey
 from ffonons.io import get_df_summary
 from tests.conftest import mock_phonon_docs
 
 
-def test_get_df_summary_basic() -> None:
+def test_get_df_summary_basic(capsys: pytest.CaptureFixture[str]) -> None:
     with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
         df_summary = get_df_summary(DB.phonon_db, cache_path=None)
 
@@ -32,23 +32,34 @@ def test_get_df_summary_basic() -> None:
     }
     assert set(df_summary.columns) >= expected_columns
 
+    ref_key = "missing_key"
+    with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
+        df_summary = get_df_summary(DB.phonon_db, ref_key=ref_key, cache_path=None)
+
+    mat_id = next(iter(mock_phonon_docs))
+    stdout, stderr = capsys.readouterr()
+    assert (
+        f"Skipping {mat_id=}, no {ref_key} doc found, please (re-)generate!\n" in stdout
+    )
+    assert stderr == ""
+
 
 def test_get_df_summary_with_cache(mock_data_dir: Path) -> None:
-    cache_path = mock_data_dir / "mp" / "df-summary-tol=0.01.csv.gz"
+    cache_path = mock_data_dir / DB.mp / "df-summary-tol=0.01.csv.gz"
     cache_path.parent.mkdir(parents=True)
 
     assert not cache_path.exists()
 
     # Test cache creation
     with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
-        df_summary = ffonons.io.get_df_summary("mp", cache_path=str(cache_path))
+        df_summary = get_df_summary(DB.mp, cache_path=str(cache_path))
 
     assert cache_path.exists()
 
     # Test cache loading
     with patch("ffonons.io.load_pymatgen_phonon_docs") as mock_load:
-        df_summary_cached = ffonons.io.get_df_summary(
-            "mp", cache_path=str(cache_path), refresh_cache=False
+        df_summary_cached = get_df_summary(
+            DB.mp, cache_path=str(cache_path), refresh_cache=False
         )
 
     mock_load.assert_not_called()
@@ -57,12 +68,12 @@ def test_get_df_summary_with_cache(mock_data_dir: Path) -> None:
 
 
 def test_get_df_summary_refresh_cache(mock_data_dir: Path) -> None:
-    cache_path = mock_data_dir / "mp" / "df-summary-tol=0.01.csv.gz"
+    cache_path = mock_data_dir / DB.mp / "df-summary-tol=0.01.csv.gz"
     cache_path.parent.mkdir(parents=True)
 
     # Create initial cache
     with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
-        get_df_summary("mp", cache_path=str(cache_path))
+        get_df_summary(DB.mp, cache_path=str(cache_path))
 
     # Modify mock_phonon_docs
     mock_phonon_docs["mp-1"]["ml_model"].phonon_dos.get_last_peak.return_value = 11.0
@@ -70,19 +81,19 @@ def test_get_df_summary_refresh_cache(mock_data_dir: Path) -> None:
     # Refresh cache
     with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
         df_summary_refreshed = get_df_summary(
-            "mp", cache_path=str(cache_path), refresh_cache=True
+            DB.mp, cache_path=str(cache_path), refresh_cache=True
         )
 
     assert df_summary_refreshed.loc[("mp-1", "ml_model"), Key.last_ph_dos_peak] == 11.0
 
 
 def test_get_df_summary_incremental_refresh(mock_data_dir: Path) -> None:
-    cache_path = mock_data_dir / "mp" / "df-summary-tol=0.01.csv.gz"
+    cache_path = mock_data_dir / DB.mp / "df-summary-tol=0.01.csv.gz"
     cache_path.parent.mkdir(parents=True)
 
     # Create initial cache
     with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
-        get_df_summary("mp", cache_path=str(cache_path))
+        get_df_summary(DB.mp, cache_path=str(cache_path))
 
     # Add new material to mock_phonon_docs
     new_doc = deepcopy(mock_phonon_docs["mp-1"]["ml_model"])
@@ -95,7 +106,7 @@ def test_get_df_summary_incremental_refresh(mock_data_dir: Path) -> None:
     # Perform incremental refresh
     with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
         df_summary_incremental = get_df_summary(
-            "mp", cache_path=str(cache_path), refresh_cache="incremental"
+            DB.mp, cache_path=str(cache_path), refresh_cache="incremental"
         )
 
     assert "mp-2" in df_summary_incremental.index.get_level_values(0)

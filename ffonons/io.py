@@ -131,6 +131,7 @@ def get_df_summary(
     imaginary_freq_tol: float = 0.01,
     cache_path: str | Path = "",
     refresh_cache: bool | str | Literal["incremental"] = "incremental",  # noqa: PYI051
+    ref_key: str = Key.pbe,
 ) -> pd.DataFrame:
     """Get a pandas DataFrame with last phonon DOS peak frequencies, band widths, DOS
     MAE, DOS R^2, presence of imaginary modes (at Gamma or anywhere) and other metrics.
@@ -153,6 +154,7 @@ def get_df_summary(
             glob pattern to only reload matching files for speed. Has no effect when
             ph_docs is a list of documents and not a str (as in a database name) other
             than writing a new CSV cache file. Defaults to "incremental".
+        ref_key (str): Dict key for DFT reference phonon doc. Defaults to Key.pbe.
 
     Returns:
         pd.DataFrame: Summary metrics for each material and model in ph_docs.
@@ -205,6 +207,12 @@ def get_df_summary(
 
     summary_dict: dict[tuple[str, str], dict] = defaultdict(dict)
     for mat_id, docs in loaded_docs.items():  # iterate over materials
+        if ref_key not in docs:
+            # ML preds for a material with no DFT ground
+            # truth shouldn't happen, so warn to regenerate DFT reference doc
+            print(f"Skipping {mat_id=}, no {ref_key} doc found, please (re-)generate!")
+            continue
+
         for model, ph_doc in docs.items():  # iterate over models for each material
             if (mat_id, model) in getattr(df_cached, "index", ()) and not refresh_cache:
                 # Skip if this entry already exists in the cache
