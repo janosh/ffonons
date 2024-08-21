@@ -61,7 +61,10 @@ def load_pymatgen_phonon_docs(
     """
     from ffonons import DATA_DIR
 
-    if len(docs_to_load) == 0:
+    if not isinstance(docs_to_load, str | list | tuple | Sequence):
+        raise TypeError(f"Invalid {docs_to_load=}")
+
+    if isinstance(docs_to_load, list | tuple) and len(docs_to_load) == 0:
         return {}
     if isinstance(docs_to_load, str):
         if glob_patt == "":
@@ -81,11 +84,11 @@ def load_pymatgen_phonon_docs(
         ]
 
     if len(paths) == 0:
-        err_msg = f"No files found in {DATA_DIR}/{docs_to_load}"
+        err_msg = f"No files found in\n\t'{DATA_DIR}/{docs_to_load}'"
         if glob_patt:
-            err_msg += f" and {glob_patt=}"
+            err_msg += f"\n\twith {glob_patt=}"
         if materials_ids:
-            err_msg += f" and {materials_ids=}"
+            err_msg += f"\n\twith {materials_ids=}"
         raise FileNotFoundError(err_msg)
 
     ph_docs = defaultdict(dict)
@@ -99,8 +102,10 @@ def load_pymatgen_phonon_docs(
                 ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(
                     file, cls=MontyDecoder
                 )
+        except FileNotFoundError:
+            raise
         except Exception as exc:
-            print(f"error loading {path=}: {exc}")
+            print(f"skipping {path=} due to {exc=}")
             continue
 
         path_regex = r".*/(mp-\d+)-([A-Z][^-]+)-(.*).json.*"
@@ -334,7 +339,7 @@ def update_key_name(directory: str, key_map: dict[str, str]) -> None:
             with zopen(path, mode="rt") as file:
                 ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(file)
         except Exception as exc:
-            print(f"Error loading {path=}: {exc}")
+            print(f"skipping {path=} due to {exc=}")
             continue
 
         for old_key, new_key in key_map.items():

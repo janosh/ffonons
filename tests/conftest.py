@@ -72,18 +72,20 @@ def mock_phonon_docs_fixture() -> dict[str, dict[str, PhononBSDOSDoc]]:
     side-effects since fixture will regenerate the mock_phonon_docs for every test
     function.
     """
-    return mock_phonon_docs
+    return mock_phonon_docs.copy()
+
+
+mace_ph_doc_path = f"{TEST_FILES}/phonondb/mp-661-Al2N2-mace-y7uhwpje.json.lzma"
+phonondb_ph_doc_path = f"{TEST_FILES}/phonondb/mp-2789-N12O24-pbe.json.lzma"
 
 
 @pytest.fixture(scope="session")
 def mp_661_mace_dos() -> PhononDos:
-    mace_ph_dos_path = f"{TEST_FILES}/phonondb/mp-661-Al2N2-mace-y7uhwpje.json.lzma"
-    with zopen(mace_ph_dos_path, mode="rt") as file:
+    with zopen(mace_ph_doc_path, mode="rt") as file:
         return PhononDos.from_dict(json.load(file)[Key.ph_dos])
 
 
 @pytest.fixture(scope="session")
 def mp_2789_pbe_dos() -> PhononDos:
-    phonondb_ph_dos_path = f"{TEST_FILES}/phonondb/mp-2789-N12O24-pbe.json.lzma"
-    with zopen(phonondb_ph_dos_path, mode="rt") as file:
+    with zopen(phonondb_ph_doc_path, mode="rt") as file:
         return PhononDos.from_dict(json.load(file)[Key.ph_dos])
