@@ -1,7 +1,9 @@
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
+from pymatgen.core import Lattice, Structure
 from pymatviz.enums import Key
 
 import ffonons
@@ -52,3 +54,58 @@ def test_get_df_summary_with_cache(mock_data_dir: Path) -> None:
     mock_load.assert_not_called()
     # check_dtype=False since reloaded df has dtype=int32 on Windows, orig has int64
     pd.testing.assert_frame_equal(df_summary, df_summary_cached, check_dtype=False)
+
+
+def test_get_df_summary_refresh_cache(mock_data_dir: Path) -> None:
+    cache_path = mock_data_dir / "mp" / "df-summary-tol=0.01.csv.gz"
+    cache_path.parent.mkdir(parents=True)
+
+    # Create initial cache
+    with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
+        get_df_summary("mp", cache_path=str(cache_path))
+
+    # Modify mock_phonon_docs
+    mock_phonon_docs["mp-1"]["ml_model"].phonon_dos.get_last_peak.return_value = 11.0
+
+    # Refresh cache
+    with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
+        df_summary_refreshed = get_df_summary(
+            "mp", cache_path=str(cache_path), refresh_cache=True
+        )
+
+    assert df_summary_refreshed.loc[("mp-1", "ml_model"), Key.last_ph_dos_peak] == 11.0
+
+
+def test_get_df_summary_incremental_refresh(mock_data_dir: Path) -> None:
+    cache_path = mock_data_dir / "mp" / "df-summary-tol=0.01.csv.gz"
+    cache_path.parent.mkdir(parents=True)
+
+    # Create initial cache
+    with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
+        get_df_summary("mp", cache_path=str(cache_path))
+
+    # Add new material to mock_phonon_docs
+    new_doc = deepcopy(mock_phonon_docs["mp-1"]["ml_model"])
+    new_structure = Structure(
+        Lattice.cubic(4.2), ["Mg", "O"], [[0, 0, 0], [0.5, 0.5, 0.5]]
+    )
+    new_doc.structure = new_structure
+    mock_phonon_docs["mp-2"] = {"pbe": new_doc, "ml_model": new_doc}
+
+    # Perform incremental refresh
+    with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
+        df_summary_incremental = get_df_summary(
+            "mp", cache_path=str(cache_path), refresh_cache="incremental"
+        )
+
+    assert "mp-2" in df_summary_incremental.index.get_level_values(0)
+
+
+def test_get_df_summary_imaginary_freq_tol() -> None:
+    with patch("ffonons.io.load_pymatgen_phonon_docs", return_value=mock_phonon_docs):
+        df_summary = get_df_summary(
+            DB.phonon_db, cache_path=None, imaginary_freq_tol=0.1
+        )
+
+    assert Key.has_imag_ph_modes in df_summary.columns
+    assert Key.has_imag_ph_gamma_modes in df_summary.columns
