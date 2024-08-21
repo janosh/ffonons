@@ -11,7 +11,7 @@ from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos, Dos
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 
-import ffonons.io
+from ffonons import io
 from ffonons.enums import PhKey
 
 __author__ = "Janosh Riebesell"

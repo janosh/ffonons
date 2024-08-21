@@ -18,7 +18,7 @@ from ffonons.dbs.phonondb import (
     get_phonopy_kpath,
     parse_phonondb_docs,
     phonondb_doc_to_pmg_lzma,
-    scrape_and_fetch_togo_docs_from_page,
+    scrape_togo_ids_and_urls_from_page,
 )
 from ffonons.enums import KpathScheme
 
@@ -68,7 +68,7 @@ def test_scrape_and_fetch_togo_docs_from_page(
     ]
     mock_get.return_value.status_code = 200
 
-    result = scrape_and_fetch_togo_docs_from_page("http://mock.url")
+    result = scrape_togo_ids_and_urls_from_page("http://mock.url")
 
     assert isinstance(result, pd.DataFrame)
     assert "doc_ids" in result.columns

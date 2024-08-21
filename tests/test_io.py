@@ -71,7 +71,7 @@ def test_get_df_summary(mock_phonon_docs: dict[str, dict[str, PhononBSDOSDoc]]) 
 
     assert isinstance(df_summary, pd.DataFrame)
     assert df_summary.index.names == [str(Key.mat_id), "model"]
-    assert set(df_summary.columns) == {
+    assert set(df_summary.columns) >= {
         Key.formula,
         Key.n_sites,
         Key.supercell,

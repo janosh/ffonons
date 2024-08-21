@@ -16,7 +16,7 @@ from ffonons.dbs.phonondb import (
     fetch_togo_doc_by_id,
     map_mp_to_togo_id,
     phonondb_doc_to_pmg_lzma,
-    scrape_and_fetch_togo_docs_from_page,
+    scrape_togo_ids_and_urls_from_page,
 )
 from ffonons.enums import DB
 
@@ -33,7 +33,7 @@ urls = [f"{phonondb_base_url}?{page=}" for page in range(1, 1005)]
 
 dfs_fetched = []
 for url in tqdm(urls, desc="Downloading Togo Phonopy DB"):
-    dfs_fetched += [scrape_and_fetch_togo_docs_from_page(url, on_error="ignore")]
+    dfs_fetched += [scrape_togo_ids_and_urls_from_page(url, on_error="ignore")]
 
 
 # %%
@@ -93,8 +93,8 @@ ids_todo = {
 } - {re.match(r"(mp-\d+)-", lzma_path.split("/")[-1])[1] for lzma_path in lzma_files}
 
 print(
-    f"total downloaded: {len(zip_files)}, total converted: {len(lzma_files)}, "
-    f"left todo: {len(ids_todo)}"
+    f"total downloaded: {len(zip_files):,}, total converted: {len(lzma_files):,}, "
+    f"left todo: {len(ids_todo):,}"
 )
 
 
@@ -108,7 +108,9 @@ for mat_id in (pbar := tqdm(ids_todo, desc="Parsing PhononDB docs to PMG lzma"))
         raise RuntimeError(f"> 1 doc for {mat_id=}: {existing_lzma_docs}")
     zip_docs = glob(f"{ph_docs_dir}/{mat_id}-*-pbe.zip")
     if len(zip_docs) > 1:
-        raise RuntimeError(f"> 1 doc for {mat_id=}: {zip_docs}")
+        raise RuntimeError(
+            f"more than 1 doc ({len(zip_docs)}) for {mat_id=}:\n{zip_docs}"
+        )
 
     pbar.set_postfix_str(mat_id)
     phonondb_doc_to_pmg_lzma(zip_docs[0], existing="skip")
