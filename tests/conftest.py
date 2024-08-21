@@ -10,6 +10,7 @@ from atomate2.common.schemas.phonons import PhononBSDOSDoc
 from monty.io import zopen
 from pymatgen.core import Structure
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
+from pymatgen.phonon.dos import PhononDosFingerprint
 from pymatviz.enums import Key
 
 from ffonons import TEST_FILES
@@ -27,26 +28,51 @@ def mock_data_dir(tmp_path: Path) -> Generator[Path, None, None]:
         yield tmp_path
 
 
-@pytest.fixture
-def mock_phonon_docs() -> dict[str, dict[str, PhononBSDOSDoc]]:
-    structure = Structure(np.eye(3) * 5, ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+def get_mock_ph_doc(formula: str = "Na Cl") -> PhononBSDOSDoc:
+    struct = Structure(np.eye(3) * 5, formula.split(), [[0, 0, 0], [0.5, 0.5, 0.5]])
     mock_band_structure = MagicMock(spec=PhononBandStructureSymmLine)
     mock_band_structure.bands = np.array([[-1, 0, 1], [2, 3, 4]])
     mock_band_structure.has_imaginary_freq.return_value = True
     mock_band_structure.has_imaginary_gamma_freq.return_value = False
+
+    frequencies = np.linspace(0, 20, 100)
+    densities = np.random.default_rng().random(100)
     mock_dos = MagicMock(spec=PhononDos)
-    mock_dos.get_last_peak.return_value = 10.5
+    mock_dos.frequencies = frequencies
+    mock_dos.densities = densities
+    mock_dos.get_last_peak.return_value = 11
     mock_dos.mae.return_value = 0.1
     mock_dos.r2_score.return_value = 0.95
 
-    phonon_doc = PhononBSDOSDoc(
-        structure=structure,
+    ph_dos_fp = PhononDosFingerprint(
+        frequencies=np.array([frequencies]),
+        densities=densities,
+        n_bins=100,
+        bin_width=0.2,
+    )
+    mock_dos.get_dos_fp.return_value = ph_dos_fp
+
+    return PhononBSDOSDoc(
+        structure=struct,
         supercell=np.eye(3) * 2,
         phonon_bandstructure=mock_band_structure,
         phonon_dos=mock_dos,
         has_imaginary_modes=False,
     )
-    return {"mp-1": {"pbe": phonon_doc, "ml_model": phonon_doc}}
+
+
+mock_phonon_docs = {
+    "mp-1": {"pbe": get_mock_ph_doc(), "ml_model": get_mock_ph_doc(formula="Al O")}
+}
+
+
+@pytest.fixture
+def mock_phonon_docs_fixture() -> dict[str, dict[str, PhononBSDOSDoc]]:
+    """Prefer mock_phonon_docs over mock_phonon_docs_fixture since more sensitive to
+    side-effects since fixture will regenerate the mock_phonon_docs for every test
+    function.
+    """
+    return mock_phonon_docs
 
 
 @pytest.fixture(scope="session")
