@@ -4,6 +4,8 @@ LabelEnum extends the built-in StrEnum class, allowing the addition of optional 
 and description attributes. The Key, DB, and Model enums inherit from LabelEnum.
 """
 
+from functools import cached_property
+
 from pymatviz.enums import LabelEnum
 
 __author__ = "Janosh Riebesell"
@@ -77,6 +79,14 @@ class Model(LabelEnum):
     gnome = "gnome", "GNoME", "red"
     pbe = "pbe", "PBE", "gray"
     sevennet_0 = "sevennet-v0", "SevenNet v0", "purple"
+    ocp = "ocp", "OCP", "purple"
+    gemnet = "gemnet", "GemNet", "brown"
+    gemnet_omat24 = "gemnet-omat24", "GemNet Omat 24", "brown"
+
+    @cached_property
+    def color(self) -> str:
+        """Color for plotting."""
+        return self.description
 
 
 class KpathScheme(LabelEnum):

@@ -7,11 +7,12 @@ from datetime import UTC, datetime
 
 import plotly.express as px
 import pymatviz as pmv
+import scipy.constants
 from pymatgen.electronic_structure.bandstructure import BandStructureSymmLine
 from pymatgen.electronic_structure.dos import CompleteDos, Dos
 from pymatgen.phonon import PhononBandStructureSymmLine, PhononDos
 
-import ffonons.io
+from ffonons import io
 from ffonons.enums import PhKey
 
 __author__ = "Janosh Riebesell"
@@ -31,7 +32,7 @@ TEST_FILES = f"{ROOT}/tests/files"
 today = f"{datetime.now(tz=UTC):%Y-%m-%d}"
 px.defaults.labels |= PhKey.val_label_dict()
 
-speed_of_light = 299792458  # [m/s]
-thz_to_per_cm = 1e12 / (speed_of_light * 100)  # convert THz to cm^-1: 33.356410
+# convert THz to cm^-1: 33.356410
+thz_to_per_cm = scipy.constants.tera / (scipy.constants.c * scipy.constants.centi)
 AnyDos = CompleteDos | PhononDos | Dos
 AnyBandStructure = BandStructureSymmLine | PhononBandStructureSymmLine

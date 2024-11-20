@@ -323,7 +323,7 @@ def parse_phonondb_docs(
         try:
             with ZipFile(phonopy_doc_path) as zip_file:
                 yaml_xz = zip_file.open("phonopy_params.yaml.xz")
-                phonopy_params = lzma.open(yaml_xz, "rt")
+                phonopy_params = lzma.open(yaml_xz, "rt")  # noqa: SIM115
         except Exception as exc:
             exc.add_note(f"Failed to load {phonopy_doc_path=}")
             if delete_unreadable:
