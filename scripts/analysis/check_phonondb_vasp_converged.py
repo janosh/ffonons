@@ -113,10 +113,10 @@ def get_vasp_calc_params(zip_file_path: str) -> dict:
 
     # involved process to get at the calc params:
     # 1. open the zip file
-    # 2. read the contents of the vasp-settings.tar.lzma file
+    # 2. read the contents of the vasp-settings.tar.xz file
     # 3. open the phonopy_params.yaml.xz archive from the lzma file
     with (
-        zip_ref.open("vasp-settings.tar.lzma") as lzma_file,
+        zip_ref.open("vasp-settings.tar.xz") as lzma_file,
         lzma.open(lzma_file, mode="rb") as lzma_file_content,
         tarfile.open(fileobj=lzma_file_content, mode="r") as vasp_settings_tar,
     ):
@@ -337,7 +337,7 @@ df_params.to_csv(csv_out_path)
 
 
 # %%
-with lzma.open(f"{DATA_DIR}/{DB.phonon_db}/structures.json.lzma", "wb") as lzma_file:
+with lzma.open(f"{DATA_DIR}/{DB.phonon_db}/structures.json.xz", mode="wb") as lzma_file:
     json_str = json.dumps(structures, cls=MontyEncoder)
     lzma_file.write(json_str.encode("utf-8"))
 

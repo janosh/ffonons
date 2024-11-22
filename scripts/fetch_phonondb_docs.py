@@ -86,7 +86,7 @@ print(f"{n_new_zip_files - n_prev_zip_files} new zip files fetched")
 
 # %% convert phonondb docs to lzma compressed JSON which is much faster to load
 zip_files = glob(f"{ph_docs_dir}/mp-*-pbe.zip")
-lzma_files = glob(f"{ph_docs_dir}/mp-*-pbe.json.lzma")
+lzma_files = glob(f"{ph_docs_dir}/mp-*-pbe.json.xz")
 
 ids_todo = {
     re.match(r"(mp-\d+)-", zip_path.split("/")[-1])[1] for zip_path in zip_files
@@ -103,7 +103,7 @@ for mat_id in (pbar := tqdm(ids_todo, desc="Parsing PhononDB docs to PMG lzma"))
     # mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
     if not re.match(r"mp-\d+", mat_id):
         raise ValueError(f"Invalid {mat_id=}")
-    existing_lzma_docs = glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma")
+    existing_lzma_docs = glob(f"{ph_docs_dir}/{mat_id}-*-pbe.json.xz")
     if len(existing_lzma_docs) > 1:
         raise RuntimeError(f"> 1 doc for {mat_id=}: {existing_lzma_docs}")
     zip_docs = glob(f"{ph_docs_dir}/{mat_id}-*-pbe.zip")

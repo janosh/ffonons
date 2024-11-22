@@ -69,16 +69,16 @@ if len(bad_ids) != 0:
 
 
 # %% check existing and missing DFT/ML phonon docs
-dft_docs = glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.json.lzma")
+dft_docs = glob(f"{DATA_DIR}/{which_db}/mp-*-pbe.json.xz")
 pbe_ids = [re.search(r"mp-\d+", path).group() for path in dft_docs]
 
 total_missing_ids, df_missing = set(), pd.DataFrame()
-for model_name in all_model_kwargs:
-    model_docs = glob(f"{DATA_DIR}/{which_db}/*-{model_name}.json.lzma")
+for model_name, _kwargs in all_model_kwargs.values():
+    model_docs = glob(f"{DATA_DIR}/{which_db}/*-{model_name}.json.xz")
     model_ids = [re.search(r"mp-\d+", path).group() for path in model_docs]
     missing_ids = {*pbe_ids} - {*model_ids}
     total_missing_ids |= missing_ids
-    df_missing[model_name.name] = {"missing": len(missing_ids), "have": len(model_ids)}
+    df_missing[model_name.label] = {"missing": len(missing_ids), "have": len(model_ids)}
 
 missing_paths = [
     path for path in dft_docs if any(mp_id in path for mp_id in total_missing_ids)
@@ -111,11 +111,10 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
     struct.properties[Key.mat_id] = mat_id
     formula = struct.formula.replace(" ", "")
 
-    for model_name, model_kwargs in all_model_kwargs.items():
-        model_key = model_name.name.lower().replace(" ", "-")
-        os.makedirs(root_dir := f"{RUNS_DIR}/{model_key}", exist_ok=True)
+    for pkg_name, (model_name, model_kwargs) in all_model_kwargs.items():
+        os.makedirs(root_dir := f"{RUNS_DIR}/{model_name.value}", exist_ok=True)
 
-        ml_doc_path = f"{PH_DOCS_DIR}/{mat_id}-{formula}-{model_key}.json.lzma"
+        ml_doc_path = f"{PH_DOCS_DIR}/{mat_id}-{formula}-{model_name.value}.json.xz"
 
         if os.path.isfile(ml_doc_path) and skip_existing:
             # skip if ML doc exists, can easily generate bs_dos_fig from that without
@@ -130,15 +129,14 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
                     relax_kwargs=common_relax_kwds,
                     calculator_kwargs=model_kwargs,
                     relax_cell=relax_cell,
-                    steps=100 if model_name == MLFF.OCP else None,
                 )
                 if do_mlff_relax
                 else None,
                 phonon_displacement_maker=ff_jobs.ForceFieldStaticMaker(
-                    force_field_name=model_name, calculator_kwargs=model_kwargs
+                    force_field_name=pkg_name, calculator_kwargs=model_kwargs
                 ),
                 static_energy_maker=ff_jobs.ForceFieldStaticMaker(
-                    force_field_name=model_name, calculator_kwargs=model_kwargs
+                    force_field_name=pkg_name, calculator_kwargs=model_kwargs
                 ),
                 store_force_constants=False,
                 # use "setyawan_curtarolo" when comparing to MP and "seekpath" else
@@ -161,8 +159,8 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
                 json.dump(ml_phonon_doc, file, cls=MontyEncoder)
 
             ml_bs, ml_dos = ml_phonon_doc.phonon_bandstructure, ml_phonon_doc.phonon_dos
-            bands_dict = {model_name.name: ml_bs}
-            dos_dict = {model_name.name: ml_dos}
+            bands_dict = {model_name.label: ml_bs}
+            dos_dict = {model_name.label: ml_dos}
             if "pbe_dos" in locals() and "pbe_bands" in locals():
                 dos_dict[Key.pbe.label] = pbe_dos
                 bands_dict[Key.pbe.label] = pbe_bands
@@ -175,7 +173,7 @@ for dft_doc_path in (pbar := tqdm(missing_paths)):  # PhononDB
             fig_bs_dos.layout.legend.update(x=1, y=1.07, xanchor="right")
             fig_bs_dos.show()
 
-            img_name = f"{mat_id}-bs-dos-{Key.pbe}-vs-{model_key}"
+            img_name = f"{mat_id}-bs-dos-{Key.pbe}-vs-{model_name.value}"
             pmv.save_fig(fig_bs_dos, f"{FIGS_DIR}/{img_name}.pdf")
         except (ValueError, RuntimeError, BadZipFile, Exception) as exc:
             # known possible errors:

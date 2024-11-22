@@ -16,9 +16,9 @@ from ffonons.plots import plot_thermo_props
 
 # Get list of unique material IDs and their available models
 mat_id_models = defaultdict(set)
-for path in glob(f"{DATA_DIR}/phonon-db/*.json.lzma"):
+for path in glob(f"{DATA_DIR}/phonon-db/*.json.xz"):
     mat_id = re.search(r"(mp-\d+)", path).group(1)
-    model = re.search(rf"{mat_id}-.*?-(.*?)\.json\.lzma", path).group(1)
+    model = re.search(rf"{mat_id}-.*?-(.*?)\.json\.xz", path).group(1)
     mat_id_models[mat_id].add(model)
 
 # Filter for materials with at least 3 models including PBE
@@ -41,7 +41,7 @@ selected_mat_ids = random.sample(eligible_mat_ids, min(8, len(eligible_mat_ids))
 # For each material ID, find all model files
 selected_paths = []
 for mat_id in selected_mat_ids:
-    model_paths = glob(f"{DATA_DIR}/phonon-db/{mat_id}-*.json.lzma")
+    model_paths = glob(f"{DATA_DIR}/phonon-db/{mat_id}-*.json.xz")
     selected_paths.extend(model_paths)
 
 print(f"Loading {len(selected_paths)} docs for {len(selected_mat_ids)} materials")

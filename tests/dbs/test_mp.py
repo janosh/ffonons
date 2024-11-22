@@ -48,7 +48,7 @@ def test_get_mp_ph_docs_new_file(
     assert isinstance(ph_doc, PhononBSDOSDoc)
     assert ph_doc.material_id == mock_phonon_doc.material_id
     assert ph_doc.last_updated.replace(tzinfo=UTC) <= datetime.now(UTC)
-    assert file_path == f"{tmp_path}/mp-149-Si2.json.lzma"
+    assert file_path == f"{tmp_path}/mp-149-Si2.json.xz"
     assert os.path.isfile(file_path)
 
     with zopen(file_path, mode="rt") as file:
@@ -66,7 +66,7 @@ def test_get_mp_ph_docs_existing_file(
 ) -> None:
     mock_mp_rester.get_structure_by_material_id.return_value = mock_structure
 
-    file_path = f"{TEST_FILES}/mp/mp-149-Si2.json.lzma"
+    file_path = f"{TEST_FILES}/mp/mp-149-Si2.json.xz"
     ph_doc, returned_path = get_mp_ph_docs("mp-149", docs_dir=f"{TEST_FILES}/mp")
 
     assert isinstance(ph_doc, dict)

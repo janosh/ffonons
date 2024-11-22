@@ -91,7 +91,7 @@ phonondb_zip_file_path = f"{TEST_FILES}/phonondb/mp-643101-k3569900j-pbe.zip"
 
 
 def test_phonondb_doc_to_pmg_lzma(tmp_path: Path) -> None:
-    pmg_doc_path = f"{tmp_path}/mp-643101-k3569900j-pbe.json.lzma"
+    pmg_doc_path = f"{tmp_path}/mp-643101-k3569900j-pbe.json.xz"
     out_path = phonondb_doc_to_pmg_lzma(
         phonondb_zip_file_path, pmg_doc_path=pmg_doc_path
     )

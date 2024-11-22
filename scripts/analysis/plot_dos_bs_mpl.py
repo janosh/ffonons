@@ -20,7 +20,7 @@ from ffonons.plots import plot_phonon_dos_mpl
 __author__ = "Janosh Riebesell"
 __date__ = "2023-11-24"
 
-model1 = Model.mace_mp
+model1 = Model.mace_mp0
 model2 = Model.chgnet_030
 
 
@@ -42,7 +42,7 @@ ph_docs = ffonons.io.load_pymatgen_phonon_docs(which_db)
 
 
 # %% matplotlib DOS
-model1 = Model.mace_mp
+model1 = Model.mace_mp0
 model2 = Model.chgnet_030
 
 for mp_id in idx_n_avail[2]:

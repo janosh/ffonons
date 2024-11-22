@@ -27,7 +27,7 @@ avail_models = {*df_summary.index.get_level_values(1)}
 
 for models in (
     [*{*Model} - {Model.pbe}],
-    (models_incl_pbe := [Model.pbe, Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms]),
+    (models_incl_pbe := [Model.pbe, Model.chgnet_030, Model.mace_mp0, Model.m3gnet_ms]),
 ):
     avail_keys = avail_models & set(models)  # df.loc doesn't handle missing keys
     df_subset = df_summary.loc[(slice(None), list(avail_keys)), :]
@@ -51,7 +51,7 @@ idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
 # predictions from the current model and PBE
 enforce_same_mat_ids_across_models = True
 
-for model in (Model.chgnet_030, Model.mace_mp, Model.m3gnet_ms):
+for model in (Model.chgnet_030, Model.mace_mp0, Model.m3gnet_ms):
     for col in (Key.has_imag_ph_gamma_modes, Key.has_imag_ph_modes):
         col_names = (
             models_incl_pbe if enforce_same_mat_ids_across_models else [Key.pbe, model]

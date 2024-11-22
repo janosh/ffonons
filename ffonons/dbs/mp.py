@@ -35,7 +35,7 @@ def get_mp_ph_docs(
     struct: Structure = mp_rester.get_structure_by_material_id(mp_id)
 
     id_formula = f"{mp_id}-{struct.formula.replace(' ', '')}"
-    mp_ph_doc_path = f"{docs_dir}/{id_formula}.json.lzma" if docs_dir else ""
+    mp_ph_doc_path = f"{docs_dir}/{id_formula}.json.xz" if docs_dir else ""
 
     if os.path.isfile(mp_ph_doc_path):
         with zopen(mp_ph_doc_path, mode="rt") as file:

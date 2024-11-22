@@ -51,13 +51,13 @@ def mock_phonon_docs() -> dict[str, dict[str, PhononBSDOSDoc]]:
 
 @pytest.fixture(scope="session")
 def mp_661_mace_dos() -> PhononDos:
-    mace_ph_dos_path = f"{TEST_FILES}/phonondb/mp-661-Al2N2-mace-y7uhwpje.json.lzma"
+    mace_ph_dos_path = f"{TEST_FILES}/phonondb/mp-661-Al2N2-mace-y7uhwpje.json.xz"
     with zopen(mace_ph_dos_path, mode="rt") as file:
         return PhononDos.from_dict(json.load(file)[Key.ph_dos])
 
 
 @pytest.fixture(scope="session")
 def mp_2789_pbe_dos() -> PhononDos:
-    phonondb_ph_dos_path = f"{TEST_FILES}/phonondb/mp-2789-N12O24-pbe.json.lzma"
+    phonondb_ph_dos_path = f"{TEST_FILES}/phonondb/mp-2789-N12O24-pbe.json.xz"
     with zopen(phonondb_ph_dos_path, mode="rt") as file:
         return PhononDos.from_dict(json.load(file)[Key.ph_dos])

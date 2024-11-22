@@ -14,7 +14,7 @@ def test_get_df_metrics() -> None:
     assert isinstance(df_out, DataFrame)
     assert df_out.index.name == "Model"
     assert set(df_out.index) == {
-        Model.mace_mp.label,
+        Model.mace_mp0.label,
         Model.chgnet_030.label,
         Model.m3gnet_ms.label,
         Model.sevennet_0.label,
@@ -38,7 +38,7 @@ def test_get_df_metrics() -> None:
 def test_get_df_metrics_values() -> None:
     df_out = get_df_metrics(df_preds_mock)
 
-    assert df_out.loc[Model.mace_mp.label, "Phonon DOS MAE"] == pytest.approx(
+    assert df_out.loc[Model.mace_mp0.label, "Phonon DOS MAE"] == pytest.approx(
         3.816, abs=0.001
     )
     assert df_out.loc[Model.chgnet_030.label, PhKey.ph_dos_r2.label] == pytest.approx(
@@ -67,13 +67,13 @@ def test_get_df_metrics_sorting() -> None:
 
     assert df_out.index.to_list() == [
         Model.sevennet_0.label,
-        Model.mace_mp.label,
+        Model.mace_mp0.label,
         Model.chgnet_030.label,
         Model.m3gnet_ms.label,
     ]
 
 
-@pytest.mark.parametrize("model", [Model.mace_mp, Model.m3gnet_ms])
+@pytest.mark.parametrize("model", [Model.mace_mp0, Model.m3gnet_ms])
 def test_get_df_metrics_model_exclusion(model: str) -> None:
     df_preds = df_preds_mock.drop(model, level=1)
     df_out = get_df_metrics(df_preds)

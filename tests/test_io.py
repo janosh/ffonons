@@ -17,7 +17,7 @@ def test_load_pymatgen_phonon_docs(mock_data_dir: Path) -> None:
     mp_dir = mock_data_dir / "mp"
     mp_dir.mkdir()
     (mp_dir / "mp-1-NaCl-pbe.json.gz").touch()
-    (mp_dir / "mp-2-MgO-ml_model.json.lzma").touch()
+    (mp_dir / "mp-2-MgO-ml_model.json.xz").touch()
 
     mock_ph_doc = MagicMock(spec=PhononBSDOSDoc)
     mock_ph_doc.structure = Structure(

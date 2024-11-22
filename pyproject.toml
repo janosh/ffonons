@@ -63,8 +63,6 @@ output-format = "concise"
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "ANN101",  # self missing annotation
-  "ANN102",  # cls missing annotation
   "ANN401",  # Dynamically typed expressions (typing.Any) disallowed
   "BLE001",  # do not catch blind except
   "C408",    # unnecessary-collection-call

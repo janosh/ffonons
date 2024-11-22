@@ -75,7 +75,8 @@ class Model(LabelEnum):
     # key, label, color
     m3gnet_ms = "m3gnet", "M3GNet-MS", "blue"
     chgnet_030 = "chgnet-v0.3.0", "CHGNet v0.3.0", "orange"
-    mace_mp = "mace-y7uhwpje", "MACE-MP", "green"
+    mace_mp0 = "mace-mp0-medium", "MACE-MP 0", "green"
+    mace_mp_agnesi_l = "mace-mp-agnesi-large", "MACE-MP Agnesi Large", "green"
     gnome = "gnome", "GNoME", "red"
     pbe = "pbe", "PBE", "gray"
     sevennet_0 = "sevennet-v0", "SevenNet v0", "purple"

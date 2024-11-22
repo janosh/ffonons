@@ -170,7 +170,7 @@ def phonondb_doc_to_pmg_lzma(
     """
     mat_id = "-".join(zip_path.split("/")[-1].split("-")[:2])
 
-    doc_path_patt = pmg_doc_path or f"{ph_docs_dir}/{mat_id}-*-pbe.json.lzma"
+    doc_path_patt = pmg_doc_path or f"{ph_docs_dir}/{mat_id}-*-pbe.json.xz"
     if matches := glob(doc_path_patt):
         if existing == "skip-silent":
             return matches[0]
@@ -195,7 +195,7 @@ def phonondb_doc_to_pmg_lzma(
 
     if pmg_doc_path is None:
         formula = phonondb_doc.structure.formula.replace(" ", "")
-        pmg_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-pbe.json.lzma"
+        pmg_doc_path = f"{ph_docs_dir}/{mat_id}-{formula}-pbe.json.xz"
 
     with lzma.open(pmg_doc_path, "wt") as file:
         json.dump(phonondb_doc, file, cls=MontyEncoder)

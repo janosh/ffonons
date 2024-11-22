@@ -66,7 +66,7 @@ def load_pymatgen_phonon_docs(
     if isinstance(docs_to_load, str):
         if glob_patt == "":
             paths = glob(f"{DATA_DIR}/{docs_to_load}/*.json.gz") + glob(
-                f"{DATA_DIR}/{docs_to_load}/*.json.lzma"
+                f"{DATA_DIR}/{docs_to_load}/*.json.xz"
             )
         else:
             paths = glob(f"{DATA_DIR}/{docs_to_load}/{glob_patt}")
@@ -174,7 +174,7 @@ def get_df_summary(
         and isinstance(df_cached, pd.DataFrame)
     ):
         all_files = glob(f"{DATA_DIR}/{ph_docs}/*.json.gz") + glob(
-            f"{DATA_DIR}/{ph_docs}/*.json.lzma"
+            f"{DATA_DIR}/{ph_docs}/*.json.xz"
         )
 
         loaded_mat_id_model_combos = tuple(df_cached.index)
@@ -323,7 +323,7 @@ def update_key_name(directory: str, key_map: dict[str, str]) -> None:
     Example:
         update_key_name(f"{DATA_DIR}/{which_db}/", {"supercell_matrix": "supercell"})
     """
-    paths = glob(f"{directory}/*.json.gz") + glob(f"{directory}/*.json.lzma")
+    paths = glob(f"{directory}/*.json.gz") + glob(f"{directory}/*.json.xz")
 
     for path in tqdm(paths, desc="Updating key name"):
         try:

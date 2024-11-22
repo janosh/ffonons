@@ -14,7 +14,7 @@ __date__ = "2023-12-17"
 
 # %%
 df_summary = ffonons.io.get_df_summary(which_db := DB.phonon_db)
-df_model = df_summary.xs(Model.mace_mp, level=1)
+df_model = df_summary.xs(Model.mace_mp0, level=1)
 
 
 # %% plot histogram of all phDOS MAEs
