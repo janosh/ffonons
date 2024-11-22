@@ -80,7 +80,7 @@ def fetch_togo_doc_by_id(doc_id: str, out_path: str = "") -> str:
     return out_path
 
 
-def scrape_and_fetch_togo_docs_from_page(
+def scrape_togo_ids_and_urls_from_page(
     url: str, on_error: Literal["raise", "warn", "ignore"] = "ignore"
 ) -> pd.DataFrame | str:
     """Extract togo ID, MP ID from Togo DB index pages and download their phonopy files.

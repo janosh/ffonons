@@ -29,6 +29,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install uv
+          # TODO remove once PhononDosFingerprint PR https://github.com/materialsproject/pymatgen/pull/3946 released
+          uv pip install --system git+https://github.com/materialsproject/pymatgen
           uv pip install -e .[test] --system --resolution=${{ matrix.version.resolution }}
 
       - name: Run Tests

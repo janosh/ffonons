@@ -37,7 +37,7 @@ PhDocs = dict[str, dict[str, PhononBSDOSDoc | PhononDBDocParsed]]
 
 
 def load_pymatgen_phonon_docs(
-    docs_to_load: Literal["mp", "phonon-db"] | Sequence[str],
+    docs_to_load: DB | Sequence[str],
     *,
     materials_ids: Sequence[str] = (),
     glob_patt: str = "",
@@ -61,7 +61,10 @@ def load_pymatgen_phonon_docs(
     """
     from ffonons import DATA_DIR
 
-    if len(docs_to_load) == 0:
+    if not isinstance(docs_to_load, str | list | tuple | Sequence):
+        raise TypeError(f"Invalid {docs_to_load=}")
+
+    if isinstance(docs_to_load, list | tuple) and len(docs_to_load) == 0:
         return {}
     if isinstance(docs_to_load, str):
         if glob_patt == "":
@@ -81,7 +84,12 @@ def load_pymatgen_phonon_docs(
         ]
 
     if len(paths) == 0:
-        raise FileNotFoundError(f"No files found in {DATA_DIR}/{docs_to_load}")
+        err_msg = f"No files found in\n\t'{DATA_DIR}/{docs_to_load}'"
+        if glob_patt:
+            err_msg += f"\n\twith {glob_patt=}"
+        if materials_ids:
+            err_msg += f"\n\twith {materials_ids=}"
+        raise FileNotFoundError(err_msg)
 
     ph_docs = defaultdict(dict)
 
@@ -94,8 +102,10 @@ def load_pymatgen_phonon_docs(
                 ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(
                     file, cls=MontyDecoder
                 )
+        except FileNotFoundError:
+            raise
         except Exception as exc:
-            print(f"error loading {path=}: {exc}")
+            print(f"skipping {path=} due to {exc=}")
             continue
 
         path_regex = r".*/(mp-\d+)-([A-Z][^-]+)-(.*).json.*"
@@ -121,6 +131,7 @@ def get_df_summary(
     imaginary_freq_tol: float = 0.01,
     cache_path: str | Path = "",
     refresh_cache: bool | str | Literal["incremental"] = "incremental",  # noqa: PYI051
+    ref_key: str = Key.pbe,
 ) -> pd.DataFrame:
     """Get a pandas DataFrame with last phonon DOS peak frequencies, band widths, DOS
     MAE, DOS R^2, presence of imaginary modes (at Gamma or anywhere) and other metrics.
@@ -134,7 +145,7 @@ def get_df_summary(
             2nd level: model name) of PhononBSDOSDoc or PhononDBDocParsed objects.
             Can also be a database name (str), see ffonons.WhichDB.
         imaginary_freq_tol (float): Tolerance for classifying a frequency as imaginary.
-            Defaults to 0.1. See pymatgen's PhononBandStructureSymmLine
+            Defaults to 0.01. See pymatgen's PhononBandStructureSymmLine
             has_imaginary_freq() method.
         cache_path (str | Path): Path to cache file. Set to None to disable caching.
             Default = f"{DATA_DIR}/{ph_docs}/df-summary-tol={imaginary_freq_tol}.csv.gz"
@@ -142,7 +153,8 @@ def get_df_summary(
             directory. Will write a new summary CSV after. If a string, use as a
             glob pattern to only reload matching files for speed. Has no effect when
             ph_docs is a list of documents and not a str (as in a database name) other
-            than writing a new CSV cache file. Defaults to False.
+            than writing a new CSV cache file. Defaults to "incremental".
+        ref_key (str): Dict key for DFT reference phonon doc. Defaults to Key.pbe.
 
     Returns:
         pd.DataFrame: Summary metrics for each material and model in ph_docs.
@@ -195,8 +207,14 @@ def get_df_summary(
 
     summary_dict: dict[tuple[str, str], dict] = defaultdict(dict)
     for mat_id, docs in loaded_docs.items():  # iterate over materials
+        if ref_key not in docs:
+            # ML preds for a material with no DFT ground
+            # truth shouldn't happen, so warn to regenerate DFT reference doc
+            print(f"Skipping {mat_id=}, no {ref_key} doc found, please (re-)generate!")
+            continue
+
         for model, ph_doc in docs.items():  # iterate over models for each material
-            if df_cached is not None and (mat_id, model) in df_cached.index:
+            if (mat_id, model) in getattr(df_cached, "index", ()) and not refresh_cache:
                 # Skip if this entry already exists in the cache
                 continue
 
@@ -247,7 +265,6 @@ def get_df_summary(
         new_df.index.names = [idx_names[0]]
 
     # Concatenate the existing DataFrame with the new one
-
     if df_cached is None:
         df_summary = new_df
     else:
@@ -330,7 +347,7 @@ def update_key_name(directory: str, key_map: dict[str, str]) -> None:
             with zopen(path, mode="rt") as file:
                 ph_doc: PhononBSDOSDoc | PhononDBDocParsed = json.load(file)
         except Exception as exc:
-            print(f"Error loading {path=}: {exc}")
+            print(f"skipping {path=} due to {exc=}")
             continue
 
         for old_key, new_key in key_map.items():
