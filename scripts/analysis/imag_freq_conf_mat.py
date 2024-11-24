@@ -1,14 +1,11 @@
 """Calculate confusion matrix for whether PBE and MACE both predict imaginary modes
-for each material at the Gamma point.
+for each material at the Γ point.
 """
 
 # %%
-import numpy as np
 import plotly.express as px
-import plotly.figure_factory as ff
 import pymatviz as pmv
 from pymatviz.enums import Key
-from sklearn.metrics import confusion_matrix
 
 import ffonons
 from ffonons.enums import DB, Model
@@ -16,22 +13,26 @@ from ffonons.enums import DB, Model
 __author__ = "Janosh Riebesell"
 __date__ = "2023-12-15"
 
+pmv.set_plotly_template("pymatviz_dark")
 
 # %% compute last phonon DOS peak for each model and MP
 imaginary_freq_tol = 0.01
-df_summary = ffonons.io.get_df_summary(
-    which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
-)
+which_db = DB.phonon_db
+df_summary = ffonons.io.get_df_summary(which_db, imaginary_freq_tol=imaginary_freq_tol)
 
-avail_models = {*df_summary.index.get_level_values(1)}
+avail_models = {*df_summary.index.levels[1]}
 
-for models in (
-    [*{*Model} - {Model.pbe}],
-    (models_incl_pbe := [Model.pbe, Model.chgnet_030, Model.mace_mp0, Model.m3gnet_ms]),
-):
+models_to_plot = [
+    Model.pbe,
+    Model.chgnet_030,
+    Model.mace_mp0,
+    Model.m3gnet_ms,
+    Model.mace_mp_agnesi_l,
+]
+for models in ({*Model} - {Model.pbe}, models_to_plot):
     avail_keys = avail_models & set(models)  # df.loc doesn't handle missing keys
     df_subset = df_summary.loc[(slice(None), list(avail_keys)), :]
-    print(f"{len(df_subset):,} rows for {', '.join(map(repr, avail_keys))}")
+    print(f"{len(df_subset):,} rows for [{', '.join(map(repr, avail_keys))}]")
 
 
 # %%
@@ -43,72 +44,32 @@ print(f"PBE Γ-unstable rate: {unstable_rate:.0%} of {which_db.label}")
 
 
 # %% plot confusion matrix
-
-# get material IDs where all models have results
-idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
-
 # whether to only use materials with predictions from all models or every material with
 # predictions from the current model and PBE
 enforce_same_mat_ids_across_models = True
 
-for model in (Model.chgnet_030, Model.mace_mp0, Model.m3gnet_ms):
+for model in {*models_to_plot} - {Model.pbe}:
     for col in (Key.has_imag_ph_gamma_modes, Key.has_imag_ph_modes):
         col_names = (
-            models_incl_pbe if enforce_same_mat_ids_across_models else [Key.pbe, model]
+            models_to_plot if enforce_same_mat_ids_across_models else [Key.pbe, model]
         )
-        df_clean = df_summary[col].unstack(level=1)[col_names].dropna()
+        df_clean = df_summary[col].unstack(level=1)[col_names].dropna(thresh=3)
         y_true, y_pred = (df_clean[key] for key in (Key.pbe, model))
-        conf_mat = confusion_matrix(y_true=y_true, y_pred=y_pred, normalize="all")
 
-        label1, label2 = (
-            ("Γ-Stable", "Γ-Unstable") if "gamma" in col else ("Stable", "Unstable")
+        prefix = "Γ-" if "gamma" in col else ""
+        fig = pmv.confusion_matrix(
+            y_true=y_true,
+            y_pred=y_pred,
+            x_labels=(f"{prefix}Stable", f"{prefix}Unstable"),
+            y_labels=(f"{prefix}Stable", f"{prefix}Unstable"),
+            annotations=(
+                (f"True<br>{prefix}Stable", f"False<br>{prefix}Stable"),
+                (f"False<br>{prefix}Unstable", f"True<br>{prefix}Unstable"),
+            ),
         )
-        annos = (
-            (f"True<br>{label1}", f"False<br>{label2}"),
-            (f"False<br>{label1}", f"True<br>{label2}"),
-        )
-        conf_mat_pct = (100 * conf_mat).astype(int).astype(str)
-        annotated_vals = np.array(annos, dtype=object) + "<br>" + conf_mat_pct + "%"
-        fig = ff.create_annotated_heatmap(
-            z=np.rot90(conf_mat.T),
-            x=(label1, label2),
-            y=(label2, label1),
-            annotation_text=np.rot90(annotated_vals.T),
-            colorscale="blues",
-            xgap=7,
-            ygap=7,
-        )
-        # annotate accuracy, n_materials, imaginary freq. tolerance
-        acc = conf_mat.diagonal().sum() / conf_mat.sum()
-        fig.add_annotation(
-            xref="paper",
-            yref="paper",
-            x=(x_anno := 0.45),
-            y=(y_anno := -0.12),
-            text=f"Acc={acc:.0%}, N={len(y_true)}",
-            showarrow=False,
-            font=dict(size=(font_size := 26)),
-        )
-        fig.add_annotation(
-            xref="paper",
-            yref="paper",
-            x=x_anno,
-            y=y_anno,
-            text=f"Tol={imaginary_freq_tol:.2}",
-            showarrow=False,
-            font=dict(size=4),
-        )
-
-        fig.layout.xaxis.title = model.label
-        fig.layout.yaxis.update(title=Key.pbe.label, tickangle=-90)
-        fig.layout.font.size = font_size
-        fig.layout.height = fig.layout.width = 425  # force same width and height
-        fig.layout.margin = dict(l=10, r=10, t=10, b=40)
-
-        fig.layout.update(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        # remove border line
-        fig.layout.xaxis.update(showline=False, showgrid=False)
-        fig.layout.yaxis.update(showline=False, showgrid=False)
+        fig.layout.xaxis.title = "PBE"
+        fig.layout.yaxis.title = model.label
+        fig.layout.font.size = 24
 
         fig.show()
 

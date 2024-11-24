@@ -87,6 +87,7 @@ ignore = [
 ]
 pydocstyle.convention = "google"
 isort.split-on-trailing-comma = false
+pylint.allow-magic-value-types = ["int", "str"]
 
 [tool.ruff.format]
 docstring-code-format = true

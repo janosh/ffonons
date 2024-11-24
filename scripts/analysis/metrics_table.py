@@ -1,5 +1,5 @@
 """Calculate confusion matrix for whether PBE and MACE both predict imaginary modes
-for each material at the Gamma point.
+for each material at the Γ point.
 """
 
 # %%

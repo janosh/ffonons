@@ -163,7 +163,7 @@ df_dft = df_summary.xs(Key.pbe, level=1)
 
 # print dataframe with 5 largest absolute differences between ML and DFT max_freq
 for model in Model:
-    if model == Key.pbe or model not in df_summary.index.get_level_values(1):
+    if model == Key.pbe or model not in df_summary.index.levels[1]:
         continue
 
     df_ml = df_summary.xs(model, level=1)
@@ -194,7 +194,7 @@ df_dft = df_summary.xs(Key.pbe, level=1)
 max_err_key = "Max Ph Freq Max Error"
 
 for model in Model:
-    if model == Key.pbe or model not in df_summary.index.get_level_values(1):
+    if model == Key.pbe or model not in df_summary.index.levels[1]:
         continue
 
     df_model = df_summary.loc[idx_n_avail].xs(model, level=1)

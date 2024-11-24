@@ -123,7 +123,7 @@ def get_df_summary(
     refresh_cache: bool | str | Literal["incremental"] = "incremental",  # noqa: PYI051
 ) -> pd.DataFrame:
     """Get a pandas DataFrame with last phonon DOS peak frequencies, band widths, DOS
-    MAE, DOS R^2, presence of imaginary modes (at Gamma or anywhere) and other metrics.
+    MAE, DOS R^2, presence of imaginary modes (at Γ or anywhere) and other metrics.
 
     Inspect for correlations with
         import seaborn as sns

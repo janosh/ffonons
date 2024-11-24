@@ -29,7 +29,7 @@ def get_df_metrics(df_preds: pd.DataFrame) -> pd.DataFrame:
     df_metrics.index.name = "Model"
 
     for model in Model:
-        if model == Key.pbe or model not in df_preds.index.get_level_values(1):
+        if model == Key.pbe or model not in df_preds.index.levels[1]:
             continue
 
         df_model = df_preds.xs(model, level=1)
