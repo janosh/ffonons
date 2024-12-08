@@ -6,7 +6,7 @@ ci:
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.0
+    rev: v0.8.2
     hooks:
       - id: ruff
         args: [--fix]
@@ -29,7 +29,7 @@ repos:
         args: [--check-filenames, --ignore-words-list, "titel,fpr"]
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.42.0
+    rev: v0.43.0
     hooks:
       - id: markdownlint
         # MD013: line too long
@@ -56,7 +56,7 @@ repos:
           - svelte
 
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.15.0
+    rev: v9.16.0
     hooks:
       - id: eslint
         types: [file]
@@ -70,7 +70,7 @@ repos:
           - typescript-eslint
 
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.389
+    rev: v1.1.390
     hooks:
       - id: pyright
         args: [--level, error]

@@ -90,7 +90,7 @@ df_melt = (
     .reset_index(names=[Key.mat_id, Key.formula])
     .melt(
         id_vars=[Key.mat_id, Key.formula, Key.pbe],
-        value_vars=list({*Model.val_label_dict()} & avail_models),
+        value_vars=list({key.value for key in Model} & avail_models),
         var_name=color_col,
         value_name=y_col,
     )

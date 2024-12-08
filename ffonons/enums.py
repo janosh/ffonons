@@ -42,10 +42,10 @@ class PhKey(LabelEnum):
         "min_freq_rel",
         "Ω<sub>min</sub><sup>ML</sup> / Ω<sub>min</sub><sup>DFT</sup>",
     )
-    max_freq_pbe = "max_freq_thz_pbe", "Ω<sub>max</sub><sup>PBE</sup> (THz)"
-    max_freq_ml = "max_freq_thz_ml", "Ω<sub>max</sub><sup>ML</sup> (THz)"
-    max_freq_rel = (
-        "max_freq_rel",
+    max_ph_freq_pbe = "max_ph_freq_thz_pbe", "Ω<sub>max</sub><sup>PBE</sup> (THz)"
+    max_ph_freq_ml = "max_ph_freq_thz_ml", "Ω<sub>max</sub><sup>ML</sup> (THz)"
+    max_ph_freq_rel = (
+        "max_ph_freq_rel",
         "Ω<sub>max</sub><sup>ML</sup> / Ω<sub>max</sub><sup>DFT</sup>",
     )
     mae_max_freq_thz = "mae_max_freq_thz", "MAE<sub>Ω<sup>max</sup></sub> (THz)"
@@ -72,7 +72,7 @@ class DB(LabelEnum):
 class Model(LabelEnum):
     """Model names."""
 
-    # key, label, color
+    # key, label, description (misused as color, TODO fix)
     m3gnet_ms = "m3gnet", "M3GNet-MS", "blue"
     chgnet_030 = "chgnet-v0.3.0", "CHGNet v0.3.0", "orange"
     mace_mp0 = "mace-mp0-medium", "MACE-MP 0", "green"

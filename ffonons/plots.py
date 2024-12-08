@@ -18,9 +18,8 @@ from pymatgen.util.string import htmlify, latexify
 
 from ffonons.enums import DB, Model, PhKey
 
-pretty_labels = PhKey.val_label_dict() | Model.val_label_dict() | DB.val_label_dict()
-
-px.defaults.labels |= pretty_labels
+for enum in (PhKey, Model, DB):
+    px.defaults.labels |= {key.value: key.label for key in enum}
 
 
 def plot_phonon_dos_mpl(

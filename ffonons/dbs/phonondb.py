@@ -135,7 +135,7 @@ def scrape_and_fetch_togo_docs_from_page(
 
         download_url = f"https://mdr.nims.go.jp/download_all/{doc_id}.zip"
         resp = requests.get(download_url, allow_redirects=True, timeout=15)
-        if resp.status_code != 200:  # noqa: PLR2004
+        if resp.status_code != 200:
             continue  # skip if download failed
         download_urls += [download_url]
         with open(out_path, "wb") as file:

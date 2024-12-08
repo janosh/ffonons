@@ -111,7 +111,7 @@ for mp_id in tqdm(idx_n_avail[4]):  # Use materials with all 4 models available
         model.label: {"line_color": clr}
         for model, clr in (
             (Key.pbe, "red"),
-            (Model.mace_mp, "green"),
+            (Model.mace_mp0, "green"),
             (Model.chgnet_030, "orange"),
             (Model.m3gnet_ms, "blue"),
         )
@@ -135,9 +135,9 @@ for mp_id in tqdm(idx_n_avail[4]):  # Use materials with all 4 models available
     for trace in fig_bs_dos.data:
         trace.name = {
             "PBE": "DFT",
-            Model.mace_mp.label: "MACE",
-            Model.chgnet_030.label: "CHGNet",
-            Model.m3gnet_ms.label: "M3GNet",
+            Model.mace_mp0: Model.mace_mp0.label,
+            Model.chgnet_030: Model.chgnet_030.label,
+            Model.m3gnet_ms: Model.m3gnet_ms.label,
         }.get(trace.name, trace.name)
 
     formula = next(iter(ph_doc.values())).structure.formula

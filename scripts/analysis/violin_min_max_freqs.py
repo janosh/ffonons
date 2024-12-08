@@ -29,7 +29,9 @@ df_ph_freq = df_summary[Key.max_ph_freq].unstack().dropna()
 df_ph_freq_ml_vs_pbe = df_ph_freq.div(df_ph_freq[Key.pbe], axis=0)
 
 df_ph_freq_ml_vs_pbe = df_ph_freq_ml_vs_pbe.drop(columns=Key.pbe)
-df_ph_freq_ml_vs_pbe = df_ph_freq_ml_vs_pbe.rename(columns=Model.val_label_dict())
+df_ph_freq_ml_vs_pbe = df_ph_freq_ml_vs_pbe.rename(
+    columns={key.value: key.label for key in Model}
+)
 
 models_in_asc_mean = df_ph_freq_ml_vs_pbe.mean().sort_values().index
 
@@ -38,7 +40,7 @@ models_in_asc_mean = df_ph_freq_ml_vs_pbe.mean().sort_values().index
 ax = sns.violinplot(
     df_ph_freq_ml_vs_pbe[models_in_asc_mean],
     inner="box",
-    palette=Model.label_desc_dict(),
+    palette={key.label: key.description for key in Model},
     saturation=0.65,
     linewidth=0,
 )
@@ -59,7 +61,7 @@ for idx, col in enumerate(models_in_asc_mean):
     n_total = len(df_ph_freq_ml_vs_pbe)
     if n_total != n_soft + n_hard:
         raise ValueError(f"{n_total=} != {n_soft=} + {n_hard=}")
-    color = Model.label_desc_dict()[col]
+    color = Model[col].description
     anno = f"{n_hard / n_total:.0%}\n\n\n\n\n\n\n\n{n_soft / n_total:.0%}"
     ax.text(idx - 0.2, 0.85, anno, ha="center", va="center", fontsize=18, color=color)
 
@@ -90,7 +92,9 @@ for key, op in (
     df_ph_freq_ml_vs_pbe = getattr(df_ph_freq, op)(df_ph_freq[Key.pbe], axis=0)
 
     df_ph_freq_ml_vs_pbe = df_ph_freq_ml_vs_pbe.drop(columns=Key.pbe)
-    df_ph_freq_ml_vs_pbe = df_ph_freq_ml_vs_pbe.rename(columns=Model.val_label_dict())
+    df_ph_freq_ml_vs_pbe = df_ph_freq_ml_vs_pbe.rename(
+        columns={key.value: key.label for key in Model}
+    )
 
     fig = go.Figure()
 
@@ -141,7 +145,7 @@ for key, op in (
             name=col.split(" ")[0].split("-")[0],
             box=dict(visible=True),
             showlegend=False,
-            marker_color=Model.label_desc_dict()[col],
+            marker_color=Model[col].description,
             width=1.3,
             side="positive",
             points=False,
@@ -160,7 +164,7 @@ for key, op in (
         n_low_err = ((ys > y0) & (ys < y1)).sum()
 
         n_total = len(df_ph_freq_ml_vs_pbe)
-        color = Model.label_desc_dict()[col]
+        color = Model[col].desc
         for val, y_pos in ((n_soft, y0), (n_hard, y1), (n_low_err, (y0 + y1) / 2)):
             yshift = {y0: -1, y1: 1}.get(y_pos, 0) * 20
             fig.add_annotation(

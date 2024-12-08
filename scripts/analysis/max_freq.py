@@ -20,9 +20,8 @@ __date__ = "2023-11-24"
 
 # %%
 imaginary_freq_tol = 0.01
-df_summary = ffonons.io.get_df_summary(
-    which_db := DB.phonon_db, imaginary_freq_tol=imaginary_freq_tol
-)
+which_db = DB.phonon_db
+df_summary = ffonons.io.get_df_summary(which_db, imaginary_freq_tol=imaginary_freq_tol)
 idx_n_avail = df_summary[Key.max_ph_freq].unstack().dropna(thresh=4).index
 
 
@@ -73,7 +72,7 @@ df_plot = df_summary.unstack(level=1)[prop].dropna().round(2).copy()
 hover_cols = [Key.formula, Key.n_sites]
 df_plot[hover_cols] = df_summary.xs(Key.pbe, level=1)[hover_cols]
 x_col = Key.pbe
-y_cols = list({*Model.key_val_dict().values()} & {*df_plot})
+y_cols = list({key.value for key in Model} & {*df_plot})
 # post-hoc PES hardening shift in THz (ML-predictions will be boosted by this value)
 pes_shift = 0  # 0.6
 df_plot[y_cols] += pes_shift
@@ -98,7 +97,7 @@ for trace in fig.data:
     targets, preds = df_plot[[x_col, trace.name]].dropna().to_numpy().T
     MAE = np.abs(targets - (preds + pes_shift)).mean()
     R2 = r2_score(targets, (preds + pes_shift))
-    trace_label = Model.val_label_dict()[trace.name]
+    trace_label = Model[trace.name].label
     trace.name = f"<b>{trace_label}</b><br>{MAE=:.2f}, R<sup>2</sup>={R2:.2f}"
 
 # # annotate outliers from parity line
@@ -130,8 +129,8 @@ for trace in fig.data:
 #     fig.update_xaxes(range=[0, xy_max])
 #     fig.update_yaxes(range=[0, xy_max])
 
-fig.layout.xaxis.title = PhKey.val_label_dict()[f"{prop}_pbe"]
-fig.layout.yaxis.title = PhKey.val_label_dict()[f"{prop}_ml"]
+fig.layout.xaxis.title = PhKey[f"{prop}_pbe"].label
+fig.layout.yaxis.title = PhKey[f"{prop}_ml"].label
 fig.layout.legend.update(
     x=0.01,
     y=0.98,
@@ -180,7 +179,7 @@ for model in Model:
         "diff",
         "pct_diff",
     ]
-    col_map = PhKey.val_label_dict()
+    col_map = {key.value: key.label for key in PhKey}
     styler = df_ml[cols].sort_values("diff", key=abs).tail(10).style.set_caption(model)
     float_cols = [*df_ml[cols].select_dtypes(include="number")]
     styler.format("{:.2f}", subset=float_cols).background_gradient(subset=float_cols)

@@ -30,7 +30,7 @@ SOFT_PES_DIR = f"{PDF_FIGS}/soft-pes"
 TEST_FILES = f"{ROOT}/tests/files"
 
 today = f"{datetime.now(tz=UTC):%Y-%m-%d}"
-px.defaults.labels |= PhKey.val_label_dict()
+px.defaults.labels |= {key.value: key.label for key in PhKey}
 
 # convert THz to cm^-1: 33.356410
 thz_to_per_cm = scipy.constants.tera / (scipy.constants.c * scipy.constants.centi)
