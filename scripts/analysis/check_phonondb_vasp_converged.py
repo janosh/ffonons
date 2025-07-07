@@ -295,13 +295,13 @@ db_files = sorted(  # sort by MP ID
     glob(f"{ph_docs_dir}/*.zip"), key=lambda path: int(path.split("-")[-3])
 )
 print(f"found {len(db_files)=:,}")
-mp_togo_id_map = {f'mp-{file.split("-")[-3]}': file.split("-")[-2] for file in db_files}
+mp_togo_id_map = {f"mp-{file.split('-')[-3]}": file.split("-")[-2] for file in db_files}
 
 all_params = locals().get("results", {})  # prevent overwriting results
 structures = locals().get("structures", {})  # prevent overwriting results
 
 for file in tqdm(db_files, desc="Processing PhononDB files"):
-    mp_id = f'mp-{file.split("-")[-3]}'
+    mp_id = f"mp-{file.split('-')[-3]}"
     if mp_id in all_params and mp_id in structures:
         continue
     params, struct = get_vasp_calc_params(file)

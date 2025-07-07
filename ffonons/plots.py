@@ -226,7 +226,7 @@ def plot_thermo_props(
                     if len(sorted_models) > 1
                     else 0
                 )
-                nrmse_color = f"rgb({int(255 * frac)},0,{int(255 * (1-frac))})"
+                nrmse_color = f"rgb({int(255 * frac)},0,{int(255 * (1 - frac))})"
 
                 ranking_text += (
                     f"{rank}. <span style='color:{model_color}'>"
